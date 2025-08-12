@@ -305,6 +305,7 @@ export const TrainerDashboardPage: React.FC<TrainerDashboardPageProps> = ({ onNa
         onClose={() => setShowNavigation(false)} 
         onNavigate={onNavigate}
         onNewChat={() => onNavigate('chat')}
+        userProfile={userProfile}
       />
       
       <AppBar 

@@ -17,8 +17,9 @@ import { TalkingPatPage3 } from './components/TalkingPatPage3';
 import TDEEOnboardingWizard from './pages/TDEEOnboardingWizard';
 import { IntervalTimerPage } from './components/timer/IntervalTimerPage';
 import { TrainerDashboardPage } from './components/TrainerDashboardPage';
+import { DebugPage } from './pages/DebugPage';
 
-type Page = 'login' | 'register' | 'forgot-password' | 'dashboard' | 'profile' | 'chat' | 'voice' | 'camera' | 'tdee-wizard' | 'interval-timer' | 'trainer-dashboard';
+type Page = 'login' | 'register' | 'forgot-password' | 'dashboard' | 'profile' | 'chat' | 'voice' | 'camera' | 'tdee-wizard' | 'interval-timer' | 'trainer-dashboard' | 'debug';
 
 interface NavigationState {
   page: Page;
@@ -188,10 +189,10 @@ function App() {
         return;
       } else {
         // Check if user is admin
-        if (profile.role === 'admin') {
+        if (profile.role === 'admin' || profile.role === 'trainer') {
           setUserProfile(profile);
           setIsAuthenticated(true);
-          setCurrentNavigation({ page: 'trainer-dashboard' });
+          setCurrentNavigation({ page: profile.role === 'admin' ? 'trainer-dashboard' : 'trainer-dashboard' });
           setLoading(false);
           return;
         }
@@ -337,6 +338,9 @@ function App() {
       break;
     case 'trainer-dashboard':
       PageComponent = <TrainerDashboardPage onNavigate={navigate} userProfile={userProfile} />;
+      break;
+    case 'debug':
+      PageComponent = <DebugPage onNavigate={navigate} userProfile={userProfile} />;
       break;
     default:
       PageComponent = <LoginPage onNavigate={navigate} />;

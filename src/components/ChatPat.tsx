@@ -546,6 +546,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
         onNewChat={handleNewChat}
         onLoadChat={handleLoadChat}
         chatHistories={chatState.chatHistories}
+        userProfile={null}
       />
       
       <AppBar 

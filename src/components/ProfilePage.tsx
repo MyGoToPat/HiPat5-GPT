@@ -912,6 +912,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         onClose={() => setShowNavigation(false)} 
         onNavigate={onNavigate}
         onNewChat={() => onNavigate('chat')}
+        userProfile={null}
       />
       
       <AppBar 

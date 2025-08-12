@@ -259,6 +259,7 @@ export const TalkingPatPage1: React.FC<TalkingPatPage1Props> = ({ onNavigate }) 
         onClose={() => setShowNavigation(false)} 
         onNavigate={onNavigate}
         onNewChat={() => onNavigate('chat')}
+        userProfile={null}
       />
       
       <AppBar 

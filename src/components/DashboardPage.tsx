@@ -184,6 +184,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         onClose={() => setShowNavigation(false)} 
         onNavigate={onNavigate}
         onNewChat={() => onNavigate('chat')}
+        userProfile={null}
       />
       
       {/* Fixed Header - 60px height */}

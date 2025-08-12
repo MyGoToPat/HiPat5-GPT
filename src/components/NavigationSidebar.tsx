@@ -3,6 +3,7 @@ import { Search, Edit, User, MessageSquare, X, BarChart3, Users } from 'lucide-r
 import { ChatManager } from '../utils/chatManager';
 import { ChatHistory } from '../types/chat';
 import { supabase } from '../lib/supabase';
+import { UserProfile } from '../types/user';
 
 interface NavigationSidebarProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface NavigationSidebarProps {
   onNewChat?: () => void;
   onLoadChat?: (chatHistory: ChatHistory) => void;
   chatHistories?: ChatHistory[];
+  userProfile?: UserProfile | null;
 }
 
 export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({ 
@@ -19,7 +21,8 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
   onNavigate,
   onNewChat,
   onLoadChat,
-  chatHistories = []
+  chatHistories = [],
+  userProfile
 }) => {
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [loadedChatHistories, setLoadedChatHistories] = useState<ChatHistory[]>(chatHistories);
@@ -151,17 +154,19 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
               <span className="text-sm font-medium">Profile</span>
             </button>
             
-            {/* Trainer Dashboard Link - TODO: Add role-based visibility */}
-            <button 
-              onClick={() => {
-                onNavigate?.('trainer-dashboard');
-                onClose();
-              }}
-              className="w-full mt-2 flex items-center gap-3 px-3 py-2 text-left text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <Users size={16} className="text-gray-600" />
-              <span className="text-sm font-medium">Client Management</span>
-            </button>
+            {/* Trainer Dashboard Link - Role-based visibility */}
+            {(userProfile?.role === 'admin' || userProfile?.role === 'trainer') && (
+              <button 
+                onClick={() => {
+                  onNavigate?.('trainer-dashboard');
+                  onClose();
+                }}
+                className="w-full mt-2 flex items-center gap-3 px-3 py-2 text-left text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <Users size={16} className="text-gray-600" />
+                <span className="text-sm font-medium">Client Management</span>
+              </button>
+            )}
             
             <button 
               onClick={() => {
@@ -191,6 +196,24 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
               </svg>
               <span className="text-sm font-medium">TDEE Calculator</span>
             </button>
+            
+            {/* Debug Page Link - Admin only */}
+            {userProfile?.role === 'admin' && (
+              <button 
+                onClick={() => {
+                  onNavigate?.('debug');
+                  onClose();
+                }}
+                className="w-full mt-2 flex items-center gap-3 px-3 py-2 text-left text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
+                  <path d="M12 12v4"/>
+                  <path d="M12 8h.01"/>
+                  <circle cx="12" cy="12" r="10"/>
+                </svg>
+                <span className="text-sm font-medium">Debug</span>
+              </button>
+            )}
           </div>
           
           {/* Chat Histories */}
