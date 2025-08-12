@@ -1,0 +1,286 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mobile viewport height fixes */
+html, body {
+  height: 100%;
+  height: 100vh; /* Fallback for older browsers */
+  height: 100dvh; /* Dynamic viewport height for modern browsers */
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+#root {
+  height: 100%;
+  height: 100vh; /* Fallback for older browsers */
+  height: 100dvh; /* Dynamic viewport height for modern browsers */
+  position: relative;
+}
+
+/* Ensure full-screen components use dynamic viewport height */
+.h-screen {
+  height: 100%;
+  height: 100vh; /* Fallback */
+  height: 100dvh; /* Dynamic viewport height */
+}
+
+.min-h-screen {
+  min-height: 100%;
+  min-height: 100vh; /* Fallback */
+  min-height: 100dvh; /* Dynamic viewport height */
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 768px) {
+  /* Prevent zoom on input focus */
+  input, textarea, select {
+    font-size: 16px;
+    -webkit-appearance: none;
+    border-radius: 0;
+  }
+  
+  /* Ensure touch targets are at least 44px */
+  button, .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Prevent horizontal scrolling */
+  body {
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Fix iOS Safari bottom bar issues */
+  .h-screen {
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
+  }
+  
+  .min-h-screen {
+    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100);
+  }
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+  html, body {
+    height: -webkit-fill-available;
+  }
+  
+  #root {
+    height: -webkit-fill-available;
+  }
+  
+  .h-screen {
+    height: -webkit-fill-available;
+  }
+  
+  .min-h-screen {
+    min-height: -webkit-fill-available;
+  }
+  
+  /* Prevent iOS Safari bounce scrolling on body */
+  body {
+    position: fixed;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+  }
+  
+  #root {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Timer Color Tokens */
+:root {
+  --pat-work: #22c55e;
+  --pat-rest: #ef4444;
+  --pat-warm: #3b82f6;
+  --pat-cool: #a855f7;
+  
+  /* Color-blind friendly alternatives */
+  --pat-work-cb: #2563eb;
+  --pat-rest-cb: #ea580c;
+  --pat-warm-cb: #0891b2;
+  --pat-cool-cb: #7c3aed;
+}
+
+[data-theme="colorblind"] {
+  --pat-work: var(--pat-work-cb);
+  --pat-rest: var(--pat-rest-cb);
+  --pat-warm: var(--pat-warm-cb);
+  --pat-cool: var(--pat-cool-cb);
+}
+
+/* Timer specific styles */
+.timer-display {
+  transition: background-color 0.5s ease-in-out;
+}
+
+.timer-work {
+  background-color: var(--pat-work);
+}
+
+.timer-rest {
+  background-color: var(--pat-rest);
+}
+
+.timer-warm {
+  background-color: var(--pat-warm);
+}
+
+.timer-cool {
+  background-color: var(--pat-cool);
+}
+
+/* Break mode animation */
+@keyframes pulse-break {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.break-pulse {
+  animation: pulse-break 1.5s ease-in-out infinite;
+}
+
+/* Low power mode */
+.low-power .timer-display {
+  animation-play-state: paused;
+}
+
+/* Custom slider styles */
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: 2px solid #1f2937;
+}
+
+.slider::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: 2px solid #1f2937;
+}
+
+/* Responsive grid utilities */
+@media (min-width: 1200px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Smooth scrolling */
+.dashboard-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #374151 #1f2937;
+}
+
+.dashboard-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dashboard-scroll::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 3px;
+}
+
+.dashboard-scroll::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 3px;
+}
+
+.dashboard-scroll::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+/* Desktop-only scrollbar for conversation bubbles */
+.desktop-scrollbar {
+  scrollbar-width: none; /* Firefox - hide by default */
+  -ms-overflow-style: none; /* IE/Edge - hide by default */
+}
+
+.desktop-scrollbar::-webkit-scrollbar {
+  display: none; /* Webkit - hide by default */
+}
+
+/* Show scrollbar on desktop (768px and up) */
+@media (min-width: 768px) {
+  .desktop-scrollbar {
+    scrollbar-width: thin; /* Firefox */
+    -ms-overflow-style: auto; /* IE/Edge */
+  }
+  
+  .desktop-scrollbar::-webkit-scrollbar {
+    display: block; /* Webkit */
+    height: 6px;
+  }
+  
+  .desktop-scrollbar::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 3px;
+  }
+  
+  .desktop-scrollbar::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+  }
+  
+  .desktop-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+}
+
+/* Tile animations */
+.tile-expand {
+  animation: expandTile 0.3s ease-out;
+}
+
+.tile-collapse {
+  animation: collapseTile 0.3s ease-in;
+}
+
+@keyframes expandTile {
+  from {
+    max-height: 200px;
+    opacity: 0.8;
+  }
+  to {
+    max-height: 1000px;
+    opacity: 1;
+  }
+}
+
+@keyframes collapseTile {
+  from {
+    max-height: 1000px;
+    opacity: 1;
+  }
+  to {
+    max-height: 200px;
+    opacity: 0.8;
+  }
+}
