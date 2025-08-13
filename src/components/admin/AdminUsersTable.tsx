@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import ChangeRoleModal from './ChangeRoleModal';
+import RoleChangeHistory from './RoleChangeHistory';
 
 type Profile = {
   user_id: string;
@@ -14,6 +16,7 @@ export default function AdminUsersTable() {
   const [rows, setRows] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState<string | null>(null);
+  const [selected, setSelected] = useState<{ id: string; role: 'admin'|'trainer'|'user' } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -62,6 +65,7 @@ export default function AdminUsersTable() {
               <th style={th}>Role</th>
               <th style={th}>Beta</th>
               <th style={th}>Created</th>
+              <th style={th}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -73,11 +77,27 @@ export default function AdminUsersTable() {
                 <td style={td}><RoleBadge role={r.role} /></td>
                 <td style={td}>{r.beta_user ? 'Yes' : 'No'}</td>
                 <td style={td}>{r.created_at ? new Date(r.created_at).toLocaleString() : ''}</td>
+                <td style={td}>
+                  <button onClick={() => setSelected({ id: r.user_id, role: r.role })} style={{padding:'4px 8px',fontSize:12,cursor:'pointer'}}>
+                    Change role
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      
+      {selected && (
+        <ChangeRoleModal
+          userId={selected.id}
+          currentRole={selected.role}
+          onClose={() => setSelected(null)}
+          onChanged={async () => { await load(); }}
+        />
+      )}
+
+      {selected && <RoleChangeHistory userId={selected.id} />}
     </div>
   );
 }

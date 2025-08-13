@@ -41,6 +41,21 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  // ProtectedRoute component with proper prop handling
+  function ProtectedRoute({
+    children,
+    loading,
+    isAuthenticated,
+  }: {
+    children: React.ReactNode;
+    loading: boolean;
+    isAuthenticated: boolean;
+  }) {
+    if (loading) return null;
+    if (!isAuthenticated) return <Navigate to="/login" replace />;
+    return <>{children}</>;
+  }
+
   // Role-aware post-login redirect
   const postLoginRedirect = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -366,7 +381,7 @@ function App() {
           <Route
             path="/"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
+              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
                 <Navigate to="/dashboard" replace />
               </ProtectedRoute>
             }
@@ -376,7 +391,7 @@ function App() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
+              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
                 <DashboardPage />
               </ProtectedRoute>
             }
@@ -384,7 +399,7 @@ function App() {
           <Route
             path="/profile"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
+              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
                 <ProfilePage />
               </ProtectedRoute>
             }
@@ -392,7 +407,7 @@ function App() {
           <Route
             path="/chat"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
+              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
                 <ChatPage />
               </ProtectedRoute>
             }
@@ -400,7 +415,7 @@ function App() {
           <Route
             path="/voice" 
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
+              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
                 <VoicePage />
               </ProtectedRoute>
             }
@@ -408,7 +423,7 @@ function App() {
           <Route
             path="/camera"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
+              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
                 <CameraPage />
               </ProtectedRoute>
             }
@@ -416,7 +431,7 @@ function App() {
           <Route
             path="/tdee"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
+              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
                 <TDEEOnboardingWizard onComplete={() => navigate('/dashboard')} />
               </ProtectedRoute>
             }
@@ -424,7 +439,7 @@ function App() {
           <Route
             path="/interval-timer"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
+              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
                 <IntervalTimerPage />
               </ProtectedRoute>
             }
@@ -432,7 +447,7 @@ function App() {
           <Route
             path="/trainer-dashboard"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
+              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
                 <TrainerDashboardPage userProfile={userProfile} />
               </ProtectedRoute>
             }
@@ -440,7 +455,7 @@ function App() {
           <Route
             path="/debug"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
+              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
                 <DebugPage userProfile={userProfile} />
               </ProtectedRoute>
             }
@@ -448,18 +463,11 @@ function App() {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
+              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
                 <AdminPage />
               </ProtectedRoute>
             }
           />
-
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
-        </Routes>
-      </div>
-    </TimerProvider>
-  );
 }
 
 export default App;
