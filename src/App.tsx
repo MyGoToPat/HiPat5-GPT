@@ -28,10 +28,10 @@ export function useNav() {
 }
 
 // Minimal protected route wrapper (auth-only; AdminPage uses its own AdminGuard)
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ isAuthenticated, loading, children }: { isAuthenticated: boolean; loading: boolean; children: React.ReactNode }) {
   if (loading) return null;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return children;
+  return <>{children}</>;
 }
 
 function App() {
@@ -366,7 +366,7 @@ function App() {
           <Route
             path="/"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
                 <Navigate to="/dashboard" replace />
               </ProtectedRoute>
             }
@@ -376,7 +376,7 @@ function App() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
                 <DashboardPage />
               </ProtectedRoute>
             }
@@ -384,7 +384,7 @@ function App() {
           <Route
             path="/profile"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
                 <ProfilePage />
               </ProtectedRoute>
             }
@@ -392,7 +392,7 @@ function App() {
           <Route
             path="/chat"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
                 <ChatPage />
               </ProtectedRoute>
             }
@@ -400,7 +400,7 @@ function App() {
           <Route
             path="/voice" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
                 <VoicePage />
               </ProtectedRoute>
             }
@@ -408,7 +408,7 @@ function App() {
           <Route
             path="/camera"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
                 <CameraPage />
               </ProtectedRoute>
             }
@@ -416,7 +416,7 @@ function App() {
           <Route
             path="/tdee"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
                 <TDEEOnboardingWizard onComplete={() => navigate('/dashboard')} />
               </ProtectedRoute>
             }
@@ -424,7 +424,7 @@ function App() {
           <Route
             path="/interval-timer"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
                 <IntervalTimerPage />
               </ProtectedRoute>
             }
@@ -432,7 +432,7 @@ function App() {
           <Route
             path="/trainer-dashboard"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
                 <TrainerDashboardPage userProfile={userProfile} />
               </ProtectedRoute>
             }
@@ -440,7 +440,7 @@ function App() {
           <Route
             path="/debug"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
                 <DebugPage userProfile={userProfile} />
               </ProtectedRoute>
             }
@@ -448,7 +448,7 @@ function App() {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isAuthenticated={isAuthenticated} loading={loading}>
                 <AdminPage />
               </ProtectedRoute>
             }
