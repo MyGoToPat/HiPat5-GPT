@@ -470,8 +470,5 @@ function App() {
         </Routes>
       </div>
     </TimerProvider>
-          />
-  )
-}
-  )
+  );
 }
