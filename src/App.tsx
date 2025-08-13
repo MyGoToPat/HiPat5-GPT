@@ -27,13 +27,6 @@ export function useNav() {
   return (path: string) => navigate(path);
 }
 
-// Minimal protected route wrapper (auth-only; AdminPage uses its own AdminGuard)
-function ProtectedRoute({ isAuthenticated, loading, children }: { isAuthenticated: boolean; loading: boolean; children: React.ReactNode }) {
-  if (loading) return null;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return <>{children}</>;
-}
-
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
@@ -41,7 +34,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // ProtectedRoute component with proper prop handling
+  // Protected route wrapper with explicit props
   function ProtectedRoute({
     children,
     loading,
@@ -377,7 +370,7 @@ function App() {
             element={!isAuthenticated ? <ForgotPasswordPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />}
           />
 
-          {/* Default -> dashboard (protected) */}
+          {/* Default redirect */}
           <Route
             path="/"
             element={
@@ -387,7 +380,7 @@ function App() {
             }
           />
 
-          {/* Protected app routes */}
+          {/* Protected routes */}
           <Route
             path="/dashboard"
             element={
@@ -467,6 +460,20 @@ function App() {
                 <AdminPage />
               </ProtectedRoute>
             }
+          />
+
+          {/* Catch-all */}
+          <Route
+            path="*"
+            element={
+              isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
+            }
+          />
+        </Routes>
+      </div>
+    </TimerProvider>
+  );
+}
         </Routes>
       </div>
     </TimerProvider>
