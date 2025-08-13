@@ -474,9 +474,5 @@ function App() {
     </TimerProvider>
   );
 }
-        </Routes>
-      </div>
-    </TimerProvider>
-  )
-  );
-}
+
+export default App;
