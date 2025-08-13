@@ -467,9 +467,9 @@ function App() {
                 <AdminPage />
               </ProtectedRoute>
             }
+        </Routes>
+      </div>
+    </TimerProvider>
           />
-}
-
-export default App;
   )
 }
