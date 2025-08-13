@@ -56,6 +56,9 @@ export default function AdminUsersTable() {
         </button>
       </div>
       <div style={{ overflowX: 'auto' }}>
+        <div style={{fontSize:12, opacity:.7, margin:'4px 0 8px'}}>
+          Last refreshed: {new Date().toLocaleTimeString()}
+        </div>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -65,6 +68,7 @@ export default function AdminUsersTable() {
               <th style={th}>Role</th>
               <th style={th}>Beta</th>
               <th style={th}>Created</th>
+              <th style={th}>Actions</th>
               <th style={th}>Actions</th>
             </tr>
           </thead>
@@ -82,6 +86,11 @@ export default function AdminUsersTable() {
                     Change role
                   </button>
                 </td>
+                <td style={td}>
+                  <button onClick={() => setSelected({ id: r.user_id, role: r.role })} style={{padding:'4px 8px',fontSize:12,cursor:'pointer'}}>
+                    Change role
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -93,7 +102,7 @@ export default function AdminUsersTable() {
           userId={selected.id}
           currentRole={selected.role}
           onClose={() => setSelected(null)}
-          onChanged={async () => { await load(); }}
+          onChanged={async (newRole) => { await load(); }}
         />
       )}
 
