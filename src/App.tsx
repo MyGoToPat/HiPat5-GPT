@@ -34,47 +34,6 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Safe role-aware post-login redirect (handles missing rows without 406)
-  const postLoginRedirect = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      let dest = '/dashboard';
-
-      if (user) {
-        // read role safely
-        const { data: profile, error: pErr } = await supabase
-          .from('profiles')
-          .select('role, created_at')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (pErr) console.warn('profiles read error', pErr);
-        const role = profile?.role ?? 'user';
-
-        if (role === 'admin') {
-          dest = '/admin';
-        } else if (role === 'trainer') {
-          dest = '/trainer-dashboard';
-        } else {
-          // OPTIONAL gentle check for TDEE onboarding completion
-          const { data: um, error: umErr } = await supabase
-            .from('user_metrics')
-            .select('tdee')
-            .eq('user_id', user.id)
-            .maybeSingle();
-
-          if (umErr) console.warn('user_metrics read error', umErr);
-          dest = um?.tdee ? '/dashboard' : '/tdee';
-        }
-      }
-
-      navigate(dest, { replace: true });
-    } catch (e) {
-      console.error('postLoginRedirect failed', e);
-      navigate('/dashboard', { replace: true });
-    }
-  };
-
   // Protected route wrapper with explicit props
   function ProtectedRoute({
     children,
