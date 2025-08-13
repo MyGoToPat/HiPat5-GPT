@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Search, Edit, User, MessageSquare, X, BarChart3, Users } from 'lucide-react';
+import { useRole } from '../hooks/useRole';
 import { ChatManager } from '../utils/chatManager';
 import { ChatHistory } from '../types/chat';
 import { supabase } from '../lib/supabase';
@@ -26,6 +28,7 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
 }) => {
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [loadedChatHistories, setLoadedChatHistories] = useState<ChatHistory[]>(chatHistories);
+  const { role } = useRole();
 
   // Load chat histories when sidebar opens
   useEffect(() => {
@@ -168,6 +171,22 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
               </button>
             )}
             
+            {/* Admin Link - Admin-only visibility */}
+            {role === 'admin' && (
+              <Link
+                to="/admin"
+                onClick={onClose}
+                className="w-full mt-2 flex items-center gap-3 px-3 py-2 text-left text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <circle cx="12" cy="16" r="1"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <span className="text-sm font-medium">Admin</span>
+              </Link>
+            )}
+            
             <button 
               onClick={() => {
                 onNavigate?.('interval-timer');
@@ -198,7 +217,7 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
             </button>
             
             {/* Debug Page Link - Admin only */}
-            {userProfile?.role === 'admin' && (
+            {role === 'admin' && (
               <button 
                 onClick={() => {
                   onNavigate?.('debug');

@@ -5,6 +5,7 @@ import { User } from '@supabase/supabase-js';
 import { UserProfile } from './types/user';
 import { analytics } from './lib/analytics';
 import { TimerProvider } from './context/TimerContext';
+import AdminPage from './pages/AdminPage';
 
 // Import page components
 import { LoginPage } from './pages/auth/LoginPage';
@@ -19,7 +20,6 @@ import TDEEOnboardingWizard from './pages/TDEEOnboardingWizard';
 import IntervalTimerPage from './pages/IntervalTimerPage';
 import TrainerDashboardPage from './pages/TrainerDashboardPage';
 import DebugPage from './pages/DebugPage';
-import AdminPage from './pages/AdminPage';
 
 // Helper: programmatic nav to replace any prior string-based onNavigate
 export function useNav() {
@@ -28,8 +28,9 @@ export function useNav() {
 }
 
 // Minimal protected route wrapper (auth-only; AdminPage uses its own AdminGuard)
-function ProtectedRoute({ isAuthed, children }: { isAuthed: boolean; children: JSX.Element }) {
-  if (!isAuthed) return <Navigate to="/login" replace />;
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  if (loading) return null;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   return children;
 }
 
@@ -39,6 +40,58 @@ function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  // Role-aware post-login redirect
+  const postLoginRedirect = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    let dest = '/dashboard'; // default for non-admins
+
+    if (user) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      if (prof?.role === 'admin') {
+        dest = '/admin';
+      } else if (prof?.role === 'trainer') {
+        dest = '/trainer-dashboard';
+      } else {
+        // Check for user metrics (TDEE completion) for regular users
+        let metrics = null;
+        try {
+          const { data, error } = await supabase
+            .from('user_metrics')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (error && error.code === 'PGRST116') {
+            metrics = null;
+          } else if (error) {
+            throw error;
+          } else {
+            metrics = data;
+          }
+        } catch (metricsFetchError: any) {
+          if (metricsFetchError?.code === 'PGRST116') {
+            metrics = null;
+          } else {
+            throw metricsFetchError;
+          }
+        }
+        
+        if (!metrics || !metrics.tdee) {
+          dest = '/tdee';
+        } else {
+          dest = '/dashboard';
+        }
+      }
+    }
+
+    navigate(dest, { replace: true });
+  };
 
   // Initialize analytics
   useEffect(() => {
@@ -195,53 +248,15 @@ function App() {
         setLoading(false);
         return;
       } else {
-        // Check if user is admin
-        if (profile.role === 'admin' || profile.role === 'trainer') {
-          setUserProfile(profile);
-          setIsAuthenticated(true);
-          navigate('/trainer-dashboard');
-          setLoading(false);
-          return;
-        }
-        
-        // Check for user metrics (TDEE completion)
-        let metrics = null;
-        try {
-          const { data, error } = await supabase
-            .from('user_metrics')
-            .select('*')
-            .eq('user_id', userId)
-            .single();
-          
-          if (error && error.code === 'PGRST116') {
-            metrics = null;
-          } else if (error) {
-            throw error;
-          } else {
-            metrics = data;
-          }
-        } catch (metricsFetchError: any) {
-          if (metricsFetchError?.code === 'PGRST116') {
-            metrics = null;
-          } else {
-            throw metricsFetchError;
-          }
-        }
-        
         setUserProfile(profile);
         setIsAuthenticated(true);
+        setLoading(false);
         
         // Track daily active user
         analytics.trackEvent('daily_active_user', { user_id: userId });
         
-        // Redirect based on TDEE completion
-        if (!metrics || !metrics.tdee) {
-          navigate('/tdee');
-        } else {
-          navigate('/dashboard');
-        }
-        
-        setLoading(false);
+        // Use role-aware redirect
+        await postLoginRedirect();
       }
       
       // Set user properties for analytics
@@ -351,7 +366,7 @@ function App() {
           <Route
             path="/"
             element={
-              <ProtectedRoute isAuthed={!!isAuthenticated}>
+              <ProtectedRoute>
                 <Navigate to="/dashboard" replace />
               </ProtectedRoute>
             }
@@ -361,7 +376,7 @@ function App() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute isAuthed={!!isAuthenticated}>
+              <ProtectedRoute>
                 <DashboardPage />
               </ProtectedRoute>
             }
@@ -369,7 +384,7 @@ function App() {
           <Route
             path="/profile"
             element={
-              <ProtectedRoute isAuthed={!!isAuthenticated}>
+              <ProtectedRoute>
                 <ProfilePage />
               </ProtectedRoute>
             }
@@ -377,7 +392,7 @@ function App() {
           <Route
             path="/chat"
             element={
-              <ProtectedRoute isAuthed={!!isAuthenticated}>
+              <ProtectedRoute>
                 <ChatPage />
               </ProtectedRoute>
             }
@@ -385,7 +400,7 @@ function App() {
           <Route
             path="/voice" 
             element={
-              <ProtectedRoute isAuthed={!!isAuthenticated}>
+              <ProtectedRoute>
                 <VoicePage />
               </ProtectedRoute>
             }
@@ -393,7 +408,7 @@ function App() {
           <Route
             path="/camera"
             element={
-              <ProtectedRoute isAuthed={!!isAuthenticated}>
+              <ProtectedRoute>
                 <CameraPage />
               </ProtectedRoute>
             }
@@ -401,7 +416,7 @@ function App() {
           <Route
             path="/tdee"
             element={
-              <ProtectedRoute isAuthed={!!isAuthenticated}>
+              <ProtectedRoute>
                 <TDEEOnboardingWizard onComplete={() => navigate('/dashboard')} />
               </ProtectedRoute>
             }
@@ -409,7 +424,7 @@ function App() {
           <Route
             path="/interval-timer"
             element={
-              <ProtectedRoute isAuthed={!!isAuthenticated}>
+              <ProtectedRoute>
                 <IntervalTimerPage />
               </ProtectedRoute>
             }
@@ -417,7 +432,7 @@ function App() {
           <Route
             path="/trainer-dashboard"
             element={
-              <ProtectedRoute isAuthed={!!isAuthenticated}>
+              <ProtectedRoute>
                 <TrainerDashboardPage userProfile={userProfile} />
               </ProtectedRoute>
             }
@@ -425,7 +440,7 @@ function App() {
           <Route
             path="/debug"
             element={
-              <ProtectedRoute isAuthed={!!isAuthenticated}>
+              <ProtectedRoute>
                 <DebugPage userProfile={userProfile} />
               </ProtectedRoute>
             }
@@ -433,8 +448,8 @@ function App() {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute isAuthed={!!isAuthenticated}>
-                <AdminPage /> {/* AdminGuard already enforced inside */}
+              <ProtectedRoute>
+                <AdminPage />
               </ProtectedRoute>
             }
           />
