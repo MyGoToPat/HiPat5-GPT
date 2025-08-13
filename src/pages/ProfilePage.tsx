@@ -1,13 +1,8 @@
 import React from 'react';
-import { DebugPage as DebugComponent } from '../pages/DebugPage';
+import { ProfilePage as ProfileComponent } from '../components/ProfilePage';
 import { useNavigate } from 'react-router-dom';
-import { UserProfile } from '../types/user';
 
-interface DebugPageProps {
-  userProfile: UserProfile | null;
-}
-
-export default function DebugPage({ userProfile }: DebugPageProps) {
+export default function ProfilePage() {
   const navigate = useNavigate();
   
   const handleNavigate = (page: string) => {
@@ -47,5 +42,5 @@ export default function DebugPage({ userProfile }: DebugPageProps) {
     }
   };
 
-  return <DebugComponent onNavigate={handleNavigate} userProfile={userProfile} />;
+  return <ProfileComponent onNavigate={handleNavigate} />;
 }

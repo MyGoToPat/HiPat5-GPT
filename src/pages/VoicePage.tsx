@@ -1,16 +1,11 @@
 import React from 'react';
-import { DebugPage as DebugComponent } from '../pages/DebugPage';
+import { TalkingPatPage1 } from '../components/TalkingPatPage1';
 import { useNavigate } from 'react-router-dom';
-import { UserProfile } from '../types/user';
 
-interface DebugPageProps {
-  userProfile: UserProfile | null;
-}
-
-export default function DebugPage({ userProfile }: DebugPageProps) {
+export default function VoicePage() {
   const navigate = useNavigate();
   
-  const handleNavigate = (page: string) => {
+  const handleNavigate = (page: string, state?: { autoStartMode?: 'takePhoto' | 'videoStream' }) => {
     switch (page) {
       case 'dashboard':
         navigate('/dashboard');
@@ -25,7 +20,7 @@ export default function DebugPage({ userProfile }: DebugPageProps) {
         navigate('/voice');
         break;
       case 'camera':
-        navigate('/camera');
+        navigate('/camera', { state });
         break;
       case 'tdee-wizard':
         navigate('/tdee');
@@ -47,5 +42,5 @@ export default function DebugPage({ userProfile }: DebugPageProps) {
     }
   };
 
-  return <DebugComponent onNavigate={handleNavigate} userProfile={userProfile} />;
+  return <TalkingPatPage1 onNavigate={handleNavigate} />;
 }

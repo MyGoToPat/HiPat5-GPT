@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { UserProfile } from './types/user';
 import { analytics } from './lib/analytics';
+import { TimerProvider } from './context/TimerContext';
 
 // Import pages
 import { LoginPage } from './pages/auth/LoginPage';
@@ -13,26 +15,96 @@ import { ProfilePage } from './components/ProfilePage';
 import { ChatPat } from './components/ChatPat';
 import { TalkingPatPage1 } from './components/TalkingPatPage1';
 import { TalkingPatPage2 } from './components/TalkingPatPage2';
-import { TalkingPatPage3 } from './components/TalkingPatPage3';
 import TDEEOnboardingWizard from './pages/TDEEOnboardingWizard';
 import { IntervalTimerPage } from './components/timer/IntervalTimerPage';
 import { TrainerDashboardPage } from './components/TrainerDashboardPage';
-import { DebugPage } from './pages/DebugPage';
 import AdminPage from './pages/AdminPage';
 
-type Page = 'login' | 'register' | 'forgot-password' | 'dashboard' | 'profile' | 'chat' | 'voice' | 'camera' | 'tdee-wizard' | 'interval-timer' | 'trainer-dashboard' | 'debug';
+// Create a DebugPage wrapper since it doesn't exist as a separate page
+import { useLocation } from 'react-router-dom';
 
-interface NavigationState {
-  page: Page;
-  state?: { autoStartMode?: 'takePhoto' | 'videoStream' };
+const DebugPage: React.FC = () => {
+  const navigate = useNavigate();
+  
+  const handleNavigate = (page: string) => {
+    switch (page) {
+      case 'dashboard': navigate('/dashboard'); break;
+      case 'profile': navigate('/profile'); break;
+      case 'chat': navigate('/chat'); break;
+      case 'voice': navigate('/voice'); break;
+      case 'camera': navigate('/camera'); break;
+      case 'tdee-wizard': navigate('/tdee'); break;
+      case 'interval-timer': navigate('/interval-timer'); break;
+      case 'trainer-dashboard': navigate('/trainer-dashboard'); break;
+      case 'debug': navigate('/debug'); break;
+      case 'admin': navigate('/admin'); break;
+      default: navigate('/dashboard');
+    }
+  };
+
+  // Mock userProfile for debug page
+  const mockUserProfile: UserProfile = {
+    id: 'debug-user',
+    user_id: 'debug-user',
+    name: 'Debug User',
+    email: 'debug@example.com',
+    beta_user: true,
+    role: 'admin',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Debug Page</h1>
+          <p className="text-gray-600 mb-6">This is a debug page for testing purposes.</p>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <button 
+              onClick={() => handleNavigate('dashboard')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Go to Dashboard
+            </button>
+            <button 
+              onClick={() => handleNavigate('admin')}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              Go to Admin
+            </button>
+          </div>
+          
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h3 className="font-semibold text-gray-900 mb-2">Debug Info</h3>
+            <p className="text-sm text-gray-600">Current path: {window.location.pathname}</p>
+            <p className="text-sm text-gray-600">Environment: {import.meta.env.MODE}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Helper: programmatic nav to replace any prior string-based onNavigate
+export function useNav() {
+  const navigate = useNavigate();
+  return (path: string) => navigate(path);
+}
+
+// Minimal protected route wrapper (auth-only; AdminPage uses its own AdminGuard)
+function ProtectedRoute({ isAuthed, children }: { isAuthed: boolean; children: JSX.Element }) {
+  if (!isAuthed) return <Navigate to="/login" replace />;
+  return children;
 }
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [currentNavigation, setCurrentNavigation] = useState<NavigationState>({ page: 'login' });
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   // Initialize analytics
   useEffect(() => {
@@ -185,7 +257,7 @@ function App() {
         // New users go to TDEE wizard
         setUserProfile(profile);
         setIsAuthenticated(true);
-        setCurrentNavigation({ page: 'tdee-wizard' });
+        navigate('/tdee');
         setLoading(false);
         return;
       } else {
@@ -193,7 +265,7 @@ function App() {
         if (profile.role === 'admin' || profile.role === 'trainer') {
           setUserProfile(profile);
           setIsAuthenticated(true);
-          setCurrentNavigation({ page: profile.role === 'admin' ? 'trainer-dashboard' : 'trainer-dashboard' });
+          navigate('/trainer-dashboard');
           setLoading(false);
           return;
         }
@@ -230,9 +302,9 @@ function App() {
         
         // Redirect based on TDEE completion
         if (!metrics || !metrics.tdee) {
-          setCurrentNavigation({ page: 'tdee-wizard' });
+          navigate('/tdee');
         } else {
-          setCurrentNavigation({ page: 'dashboard' });
+          navigate('/dashboard');
         }
         
         setLoading(false);
@@ -250,7 +322,7 @@ function App() {
       console.error('handleUserSignIn: Error:', error);
       setError(`Login failed: ${error instanceof Error ? error.message : String(error)}. Please try again.`);
       setIsAuthenticated(false);
-      setCurrentNavigation({ page: 'login' });
+      navigate('/login');
       setLoading(false);
     }
   };
@@ -258,13 +330,31 @@ function App() {
   const handleUserSignOut = () => {
     setIsAuthenticated(false);
     setUserProfile(null);
-    setCurrentNavigation({ page: 'login' });
+    navigate('/login');
     setLoading(false);
     setError(null);
   };
 
-  const navigate = (page: Page, state?: { autoStartMode?: 'takePhoto' | 'videoStream' }) => {
-    setCurrentNavigation({ page, state });
+  // Create onNavigate wrapper for components that still use string-based navigation
+  const createOnNavigateWrapper = () => {
+    return (page: string, state?: { autoStartMode?: 'takePhoto' | 'videoStream' }) => {
+      switch (page) {
+        case 'dashboard': navigate('/dashboard'); break;
+        case 'profile': navigate('/profile'); break;
+        case 'chat': navigate('/chat'); break;
+        case 'voice': navigate('/voice'); break;
+        case 'camera': navigate('/camera', { state }); break;
+        case 'tdee-wizard': navigate('/tdee'); break;
+        case 'interval-timer': navigate('/interval-timer'); break;
+        case 'trainer-dashboard': navigate('/trainer-dashboard'); break;
+        case 'debug': navigate('/debug'); break;
+        case 'admin': navigate('/admin'); break;
+        case 'login': navigate('/login'); break;
+        case 'register': navigate('/register'); break;
+        case 'forgot-password': navigate('/forgot-password'); break;
+        default: navigate('/dashboard');
+      }
+    };
   };
 
   if (loading) {
@@ -305,58 +395,146 @@ function App() {
     );
   }
 
-  // Early pathname check for /admin route
-  if (typeof window !== 'undefined' && window.location.pathname === '/admin') {
-    return <AdminPage />;
-  }
-
-  let PageComponent;
-  switch (currentNavigation.page) {
-    case 'login':
-      PageComponent = <LoginPage onNavigate={navigate} />;
-      break;
-    case 'register':
-      PageComponent = <RegisterPage onNavigate={navigate} />;
-      break;
-    case 'forgot-password':
-      PageComponent = <ForgotPasswordPage onNavigate={navigate} />;
-      break;
-    case 'dashboard':
-      PageComponent = <DashboardPage onNavigate={navigate} />;
-      break;
-    case 'profile':
-      PageComponent = <ProfilePage onNavigate={navigate} />;
-      break;
-    case 'chat':
-      PageComponent = <ChatPat onNavigate={navigate} />;
-      break;
-    case 'voice':
-      PageComponent = <TalkingPatPage1 onNavigate={navigate} />;
-      break;
-    case 'camera':
-      PageComponent = <TalkingPatPage2 onNavigate={navigate} initialState={currentNavigation.state} />;
-      break;
-    case 'tdee-wizard':
-      PageComponent = <TDEEOnboardingWizard onComplete={() => navigate('dashboard')} />;
-      break;
-    case 'interval-timer':
-      PageComponent = <IntervalTimerPage onBack={() => navigate('dashboard')} />;
-      break;
-    case 'trainer-dashboard':
-      PageComponent = <TrainerDashboardPage onNavigate={navigate} userProfile={userProfile} />;
-      break;
-    case 'debug':
-      PageComponent = <DebugPage onNavigate={navigate} userProfile={userProfile} />;
-      break;
-    default:
-      PageComponent = <LoginPage onNavigate={navigate} />;
-  }
-
   return (
-    <div className="App">
-      {PageComponent}
-    </div>
+    <TimerProvider>
+      <div className="App">
+        <Routes>
+          {/* Public auth routes */}
+          <Route 
+            path="/login" 
+            element={!isAuthenticated ? <LoginPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />} 
+          />
+          <Route 
+            path="/register" 
+            element={!isAuthenticated ? <RegisterPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />} 
+          />
+          <Route 
+            path="/forgot-password" 
+            element={!isAuthenticated ? <ForgotPasswordPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />} 
+          />
+
+          {/* Default -> dashboard (protected) */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute isAuthed={!!isAuthenticated}>
+                <Navigate to="/dashboard" replace />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected app routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute isAuthed={!!isAuthenticated}>
+                <DashboardPage onNavigate={createOnNavigateWrapper()} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute isAuthed={!!isAuthenticated}>
+                <ProfilePage onNavigate={createOnNavigateWrapper()} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <ProtectedRoute isAuthed={!!isAuthenticated}>
+                <ChatPat onNavigate={createOnNavigateWrapper()} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/voice"
+            element={
+              <ProtectedRoute isAuthed={!!isAuthenticated}>
+                <TalkingPatPage1 onNavigate={createOnNavigateWrapper()} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/camera"
+            element={
+              <ProtectedRoute isAuthed={!!isAuthenticated}>
+                <CameraPageWrapper />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tdee"
+            element={
+              <ProtectedRoute isAuthed={!!isAuthenticated}>
+                <TDEEOnboardingWizard onComplete={() => navigate('/dashboard')} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/interval-timer"
+            element={
+              <ProtectedRoute isAuthed={!!isAuthenticated}>
+                <IntervalTimerPage onBack={() => navigate('/dashboard')} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/trainer-dashboard"
+            element={
+              <ProtectedRoute isAuthed={!!isAuthenticated}>
+                <TrainerDashboardPage onNavigate={createOnNavigateWrapper()} userProfile={userProfile} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/debug"
+            element={
+              <ProtectedRoute isAuthed={!!isAuthenticated}>
+                <DebugPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute isAuthed={!!isAuthenticated}>
+                <AdminPage /> {/* AdminGuard already enforced inside */}
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
+        </Routes>
+      </div>
+    </TimerProvider>
   );
+}
+
+// Camera page wrapper to handle location state
+function CameraPageWrapper() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  const handleNavigate = (page: string, state?: { autoStartMode?: 'takePhoto' | 'videoStream' }) => {
+    switch (page) {
+      case 'dashboard': navigate('/dashboard'); break;
+      case 'profile': navigate('/profile'); break;
+      case 'chat': navigate('/chat'); break;
+      case 'voice': navigate('/voice'); break;
+      case 'camera': navigate('/camera', { state }); break;
+      case 'tdee-wizard': navigate('/tdee'); break;
+      case 'interval-timer': navigate('/interval-timer'); break;
+      case 'trainer-dashboard': navigate('/trainer-dashboard'); break;
+      case 'debug': navigate('/debug'); break;
+      case 'admin': navigate('/admin'); break;
+      default: navigate('/dashboard');
+    }
+  };
+
+  return <TalkingPatPage2 onNavigate={handleNavigate} initialState={location.state} />;
 }
 
 export default App;

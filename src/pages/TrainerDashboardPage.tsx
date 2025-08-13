@@ -1,13 +1,13 @@
 import React from 'react';
-import { DebugPage as DebugComponent } from '../pages/DebugPage';
+import { TrainerDashboardPage as TrainerDashboardComponent } from '../components/TrainerDashboardPage';
 import { useNavigate } from 'react-router-dom';
 import { UserProfile } from '../types/user';
 
-interface DebugPageProps {
+interface TrainerDashboardPageProps {
   userProfile: UserProfile | null;
 }
 
-export default function DebugPage({ userProfile }: DebugPageProps) {
+export default function TrainerDashboardPage({ userProfile }: TrainerDashboardPageProps) {
   const navigate = useNavigate();
   
   const handleNavigate = (page: string) => {
@@ -47,5 +47,5 @@ export default function DebugPage({ userProfile }: DebugPageProps) {
     }
   };
 
-  return <DebugComponent onNavigate={handleNavigate} userProfile={userProfile} />;
+  return <TrainerDashboardComponent onNavigate={handleNavigate} userProfile={userProfile} />;
 }
