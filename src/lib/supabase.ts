@@ -1,23 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 
-
-// Initialize Supabase configuration with environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Validate required environment variables
 if (!supabaseUrl) {
-  throw new Error('Missing required environment variable: VITE_SUPABASE_URL. Please check your .env.local file.');
+  throw new Error('Missing VITE_SUPABASE_URL. Set it in the environment.');
 }
-
 if (!supabaseAnonKey) {
-  throw new Error('Missing required environment variable: VITE_SUPABASE_ANON_KEY. Please check your .env.local file.');
+  throw new Error('Missing VITE_SUPABASE_ANON_KEY. Set it in the environment.');
 }
 
-console.log('Supabase initialized with URL:', supabaseUrl);
-console.log('Environment variables loaded successfully');
+// Mask anon key in logs
+const masked = supabaseAnonKey.slice(0, 6) + '...' + supabaseAnonKey.slice(-6);
+console.log('[Supabase] URL:', supabaseUrl);
+console.log('[Supabase] ANON (masked):', masked);
 
-// Create and export the Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Helper function to get current user
