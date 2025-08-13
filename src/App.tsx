@@ -18,6 +18,7 @@ import TDEEOnboardingWizard from './pages/TDEEOnboardingWizard';
 import { IntervalTimerPage } from './components/timer/IntervalTimerPage';
 import { TrainerDashboardPage } from './components/TrainerDashboardPage';
 import { DebugPage } from './pages/DebugPage';
+import AdminPage from './pages/AdminPage';
 
 type Page = 'login' | 'register' | 'forgot-password' | 'dashboard' | 'profile' | 'chat' | 'voice' | 'camera' | 'tdee-wizard' | 'interval-timer' | 'trainer-dashboard' | 'debug';
 
@@ -302,6 +303,11 @@ function App() {
         </div>
       </div>
     );
+  }
+
+  // Early pathname check for /admin route
+  if (typeof window !== 'undefined' && window.location.pathname === '/admin') {
+    return <AdminPage />;
   }
 
   let PageComponent;
