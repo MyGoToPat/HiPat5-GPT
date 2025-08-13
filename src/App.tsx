@@ -49,53 +49,36 @@ function App() {
     return <>{children}</>;
   }
 
-  // Role-aware post-login redirect
+  // Safe role-aware post-login redirect (handles missing rows without 406)
   const postLoginRedirect = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    let dest = '/dashboard'; // default for non-admins
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
 
-    if (user) {
-      const { data: prof } = await supabase
-        .from('profiles')
-        .select('role')
+    // Fetch role (null-safe: no error on 0 rows)
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    let dest = '/dashboard';
+
+    if (prof?.role === 'admin') {
+      dest = '/admin';
+    } else if (prof?.role === 'trainer') {
+      dest = '/trainer-dashboard';
+    } else {
+      // Optional onboarding gate (null-safe)
+      const { data: um } = await supabase
+        .from('user_metrics')
+        .select('tdee')         // ok if NULL or column absent; undefined is treated as not onboarded
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (prof?.role === 'admin') {
-        dest = '/admin';
-      } else if (prof?.role === 'trainer') {
-        dest = '/trainer-dashboard';
-      } else {
-        // Check for user metrics (TDEE completion) for regular users
-        let metrics = null;
-        try {
-          const { data, error } = await supabase
-            .from('user_metrics')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
-          
-          if (error && error.code === 'PGRST116') {
-            metrics = null;
-          } else if (error) {
-            throw error;
-          } else {
-            metrics = data;
-          }
-        } catch (metricsFetchError: any) {
-          if (metricsFetchError?.code === 'PGRST116') {
-            metrics = null;
-          } else {
-            throw metricsFetchError;
-          }
-        }
-        
-        if (!metrics || !metrics.tdee) {
-          dest = '/tdee';
-        } else {
-          dest = '/dashboard';
-        }
-      }
+      dest = um?.tdee ? '/dashboard' : '/tdee';
     }
 
     navigate(dest, { replace: true });
@@ -249,30 +232,25 @@ function App() {
         // Track new user signup
         analytics.trackEvent('user_signed_up', { user_id: userId });
         
-        // New users go to TDEE wizard
-        setUserProfile(profile);
-        setIsAuthenticated(true);
-        navigate('/tdee');
-        setLoading(false);
-        return;
       } else {
         setUserProfile(profile);
-        setIsAuthenticated(true);
-        setLoading(false);
         
         // Track daily active user
         analytics.trackEvent('daily_active_user', { user_id: userId });
-        
-        // Use role-aware redirect
-        await postLoginRedirect();
       }
+      
+      setUserProfile(profile);
+      setIsAuthenticated(true);
+      setLoading(false);
+      
+      // Use role-aware redirect for all users
+      await postLoginRedirect();
       
       // Set user properties for analytics
       analytics.identifyUser(userId);
       analytics.setUserProperties({
         beta_user: profile?.beta_user,
         role: profile?.role,
-        has_completed_tdee: !!metrics?.tdee
       });
       
     } catch (error) {

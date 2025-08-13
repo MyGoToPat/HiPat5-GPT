@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
 
 type Role = 'admin' | 'trainer' | 'user';
@@ -29,6 +30,11 @@ export default function ChangeRoleModal({ userId, currentRole, onClose, onChange
     });
     setSaving(false);
     if (error) { 
+      setErr(error.message); 
+      toast.error(`Role change failed: ${error.message}`);
+      return; 
+    }
+    toast.success(`Role changed to "${role}"`);
       setErr(error.message); 
       toast.error(`Role change failed: ${error.message}`);
       return; 
