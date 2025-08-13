@@ -1,91 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { UserProfile } from './types/user';
 import { analytics } from './lib/analytics';
 import { TimerProvider } from './context/TimerContext';
 
-// Import pages
+// Import page components
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
-import { DashboardPage } from './components/DashboardPage';
-import { ProfilePage } from './components/ProfilePage';
-import { ChatPat } from './components/ChatPat';
-import { TalkingPatPage1 } from './components/TalkingPatPage1';
-import { TalkingPatPage2 } from './components/TalkingPatPage2';
+import DashboardPage from './pages/DashboardPage';
+import ProfilePage from './pages/ProfilePage';
+import ChatPage from './pages/ChatPage';
+import VoicePage from './pages/VoicePage';
+import CameraPage from './pages/CameraPage';
 import TDEEOnboardingWizard from './pages/TDEEOnboardingWizard';
-import { IntervalTimerPage } from './components/timer/IntervalTimerPage';
-import { TrainerDashboardPage } from './components/TrainerDashboardPage';
+import IntervalTimerPage from './pages/IntervalTimerPage';
+import TrainerDashboardPage from './pages/TrainerDashboardPage';
+import DebugPage from './pages/DebugPage';
 import AdminPage from './pages/AdminPage';
-
-// Create a DebugPage wrapper since it doesn't exist as a separate page
-import { useLocation } from 'react-router-dom';
-
-const DebugPage: React.FC = () => {
-  const navigate = useNavigate();
-  
-  const handleNavigate = (page: string) => {
-    switch (page) {
-      case 'dashboard': navigate('/dashboard'); break;
-      case 'profile': navigate('/profile'); break;
-      case 'chat': navigate('/chat'); break;
-      case 'voice': navigate('/voice'); break;
-      case 'camera': navigate('/camera'); break;
-      case 'tdee-wizard': navigate('/tdee'); break;
-      case 'interval-timer': navigate('/interval-timer'); break;
-      case 'trainer-dashboard': navigate('/trainer-dashboard'); break;
-      case 'debug': navigate('/debug'); break;
-      case 'admin': navigate('/admin'); break;
-      default: navigate('/dashboard');
-    }
-  };
-
-  // Mock userProfile for debug page
-  const mockUserProfile: UserProfile = {
-    id: 'debug-user',
-    user_id: 'debug-user',
-    name: 'Debug User',
-    email: 'debug@example.com',
-    beta_user: true,
-    role: 'admin',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Debug Page</h1>
-          <p className="text-gray-600 mb-6">This is a debug page for testing purposes.</p>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <button 
-              onClick={() => handleNavigate('dashboard')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Go to Dashboard
-            </button>
-            <button 
-              onClick={() => handleNavigate('admin')}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              Go to Admin
-            </button>
-          </div>
-          
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-2">Debug Info</h3>
-            <p className="text-sm text-gray-600">Current path: {window.location.pathname}</p>
-            <p className="text-sm text-gray-600">Environment: {import.meta.env.MODE}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // Helper: programmatic nav to replace any prior string-based onNavigate
 export function useNav() {
@@ -402,15 +336,15 @@ function App() {
           {/* Public auth routes */}
           <Route 
             path="/login" 
-            element={!isAuthenticated ? <LoginPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />} 
+            element={!isAuthenticated ? <LoginPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />}
           />
           <Route 
             path="/register" 
-            element={!isAuthenticated ? <RegisterPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />} 
+            element={!isAuthenticated ? <RegisterPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />}
           />
           <Route 
             path="/forgot-password" 
-            element={!isAuthenticated ? <ForgotPasswordPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />} 
+            element={!isAuthenticated ? <ForgotPasswordPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />}
           />
 
           {/* Default -> dashboard (protected) */}
@@ -428,7 +362,7 @@ function App() {
             path="/dashboard"
             element={
               <ProtectedRoute isAuthed={!!isAuthenticated}>
-                <DashboardPage onNavigate={createOnNavigateWrapper()} />
+                <DashboardPage />
               </ProtectedRoute>
             }
           />
@@ -436,7 +370,7 @@ function App() {
             path="/profile"
             element={
               <ProtectedRoute isAuthed={!!isAuthenticated}>
-                <ProfilePage onNavigate={createOnNavigateWrapper()} />
+                <ProfilePage />
               </ProtectedRoute>
             }
           />
@@ -444,15 +378,15 @@ function App() {
             path="/chat"
             element={
               <ProtectedRoute isAuthed={!!isAuthenticated}>
-                <ChatPat onNavigate={createOnNavigateWrapper()} />
+                <ChatPage />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/voice"
+            path="/voice" 
             element={
               <ProtectedRoute isAuthed={!!isAuthenticated}>
-                <TalkingPatPage1 onNavigate={createOnNavigateWrapper()} />
+                <VoicePage />
               </ProtectedRoute>
             }
           />
@@ -460,7 +394,7 @@ function App() {
             path="/camera"
             element={
               <ProtectedRoute isAuthed={!!isAuthenticated}>
-                <CameraPageWrapper />
+                <CameraPage />
               </ProtectedRoute>
             }
           />
@@ -476,7 +410,7 @@ function App() {
             path="/interval-timer"
             element={
               <ProtectedRoute isAuthed={!!isAuthenticated}>
-                <IntervalTimerPage onBack={() => navigate('/dashboard')} />
+                <IntervalTimerPage />
               </ProtectedRoute>
             }
           />
@@ -484,7 +418,7 @@ function App() {
             path="/trainer-dashboard"
             element={
               <ProtectedRoute isAuthed={!!isAuthenticated}>
-                <TrainerDashboardPage onNavigate={createOnNavigateWrapper()} userProfile={userProfile} />
+                <TrainerDashboardPage userProfile={userProfile} />
               </ProtectedRoute>
             }
           />
@@ -492,7 +426,7 @@ function App() {
             path="/debug"
             element={
               <ProtectedRoute isAuthed={!!isAuthenticated}>
-                <DebugPage />
+                <DebugPage userProfile={userProfile} />
               </ProtectedRoute>
             }
           />
@@ -511,30 +445,6 @@ function App() {
       </div>
     </TimerProvider>
   );
-}
-
-// Camera page wrapper to handle location state
-function CameraPageWrapper() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  
-  const handleNavigate = (page: string, state?: { autoStartMode?: 'takePhoto' | 'videoStream' }) => {
-    switch (page) {
-      case 'dashboard': navigate('/dashboard'); break;
-      case 'profile': navigate('/profile'); break;
-      case 'chat': navigate('/chat'); break;
-      case 'voice': navigate('/voice'); break;
-      case 'camera': navigate('/camera', { state }); break;
-      case 'tdee-wizard': navigate('/tdee'); break;
-      case 'interval-timer': navigate('/interval-timer'); break;
-      case 'trainer-dashboard': navigate('/trainer-dashboard'); break;
-      case 'debug': navigate('/debug'); break;
-      case 'admin': navigate('/admin'); break;
-      default: navigate('/dashboard');
-    }
-  };
-
-  return <TalkingPatPage2 onNavigate={handleNavigate} initialState={location.state} />;
 }
 
 export default App;
