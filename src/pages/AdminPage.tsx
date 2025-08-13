@@ -1,6 +1,8 @@
 import React from 'react';
 import { AdminGuard } from '../hooks/useRole';
 import AdminUsersTable from '../components/admin/AdminUsersTable';
+import MetricsSummary from '../components/admin/MetricsSummary';
+import UpgradeRequests from '../components/admin/UpgradeRequests';
 
 export default function AdminPage() {
   return (
@@ -10,7 +12,10 @@ export default function AdminPage() {
         <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 16 }}>
           Build: {import.meta.env.MODE} — {new Date().toLocaleString()}
         </div>
+
+        <MetricsSummary />
         <AdminUsersTable />
+        <UpgradeRequests />
       </div>
     </AdminGuard>
   );
