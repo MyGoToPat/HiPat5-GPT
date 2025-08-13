@@ -35,11 +35,6 @@ export default function ChangeRoleModal({ userId, currentRole, onClose, onChange
       return; 
     }
     toast.success(`Role changed to "${role}"`);
-      setErr(error.message); 
-      toast.error(`Role change failed: ${error.message}`);
-      return; 
-    }
-    toast.success(`Role changed to "${role}"`);
     onChanged(role);
     onClose();
   };
