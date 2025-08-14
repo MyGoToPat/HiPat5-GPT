@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import { supabase, supabaseDebugConfig } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { UserProfile } from './types/user';
+import AppLayout from './layouts/AppLayout';
 import { analytics } from './lib/analytics';
 import { TimerProvider } from './context/TimerContext';
 import AdminPage from './pages/AdminPage';
@@ -20,6 +21,7 @@ import TDEEOnboardingWizard from './pages/TDEEOnboardingWizard';
 import IntervalTimerPage from './pages/IntervalTimerPage';
 import TrainerDashboardPage from './pages/TrainerDashboardPage';
 import DebugPage from './pages/DebugPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 // Helper: programmatic nav to replace any prior string-based onNavigate
 export function useNav() {
@@ -336,104 +338,32 @@ function App() {
             element={!isAuthenticated ? <ForgotPasswordPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />}
           />
 
-          {/* Default redirect */}
+          {/* Authenticated shell with global navigation */}
           <Route
             path="/"
             element={
               <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
-                <Navigate to="/dashboard" replace />
+                <AppLayout />
               </ProtectedRoute>
             }
-          />
-
-          {/* Protected routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
-                <DashboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/chat"
-            element={
-              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
-                <ChatPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/voice" 
-            element={
-              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
-                <VoicePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/camera"
-            element={
-              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
-                <CameraPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/tdee"
-            element={
-              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
-                <TDEEOnboardingWizard onComplete={() => navigate('/dashboard')} />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/interval-timer"
-            element={
-              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
-                <IntervalTimerPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/trainer-dashboard"
-            element={
-              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
-                <TrainerDashboardPage userProfile={userProfile} />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/debug"
-            element={
-              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
-                <DebugPage userProfile={userProfile} />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
-                <AdminPage />
-              </ProtectedRoute>
-            }
-          />
+          >
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="chat" element={<ChatPage />} />
+            <Route path="voice" element={<VoicePage />} />
+            <Route path="camera" element={<CameraPage />} />
+            <Route path="tdee" element={<TDEEOnboardingWizard onComplete={() => navigate('/dashboard')} />} />
+            <Route path="interval-timer" element={<IntervalTimerPage />} />
+            <Route path="trainer-dashboard" element={<TrainerDashboardPage userProfile={userProfile} />} />
+            <Route path="debug" element={<DebugPage userProfile={userProfile} />} />
+            <Route path="admin" element={<AdminPage />} />
+          </Route>
 
           {/* Catch-all */}
           <Route
             path="*"
-            element={
-              isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
-            }
+            element={<NotFoundPage />}
           />
         </Routes>
       </div>

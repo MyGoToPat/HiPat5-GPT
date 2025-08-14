@@ -63,26 +63,19 @@ export async function requestRoleUpgrade(requested_role: Role, reason: string | 
 }
 
 export async function approveUpgradeRequest(id: string, user_id: string, new_role: Role) {
-  // Update profile role first. If RLS blocks, surface it clearly.
-  const { error: pErr } = await supabase
-    .from('profiles')
-    .update({ role: new_role })
-    .eq('user_id', user_id);
-  if (pErr) throw pErr;
-
-  const { error: rErr } = await supabase
-    .from('upgrade_requests')
-    .update({ status: 'approved' })
-    .eq('id', id);
-  if (rErr) throw rErr;
+  const { error } = await supabase.rpc('admin_approve_upgrade_request', {
+    req_id: id,
+    target_user_id: user_id,
+    new_role,
+  });
+  if (error) throw error;
   return true;
 }
 
 export async function denyUpgradeRequest(id: string) {
-  const { error } = await supabase
-    .from('upgrade_requests')
-    .update({ status: 'denied' })
-    .eq('id', id);
+  const { error } = await supabase.rpc('admin_deny_upgrade_request', {
+    req_id: id,
+  });
   if (error) throw error;
   return true;
 }
