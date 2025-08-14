@@ -183,6 +183,16 @@ function App() {
       let profileError = null;
       
       try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        profileData = data;
+        profileError = error;
+      } catch (err) {
+        profileError = err;
       }
       if (profileError && profileError.code !== 'PGRST116') {
         throw profileError;
