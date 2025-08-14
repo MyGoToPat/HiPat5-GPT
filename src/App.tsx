@@ -179,16 +179,27 @@ function App() {
       setError(null);
       setLoading(true);
       
-      // Get user profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
+      let profileData = null;
+      let profileError = null;
+      
+      try {
+        // Attempt to get user profile
+        const result = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+        profileData = result.data;
+        profileError = result.error;
+      } catch (fetchError: any) {
+        // Handle network errors and RLS recursion
+        console.warn('Profile fetch failed, using fallback authentication:', fetchError?.message || fetchError);
+        profileError = fetchError;
+      }
       
       if (profileError && profileError.code !== 'PGRST116') {
         // Check for RLS recursion error and provide fallback
-        if (profileError.code === '42P17' || profileError.message?.includes('infinite recursion')) {
+        if (profileError.code === '42P17' || profileError.message?.includes('infinite recursion') || profileError.message?.includes('Failed to fetch')) {
           console.warn('RLS recursion detected, using fallback authentication');
           
           // Get basic user info for fallback
@@ -225,31 +236,60 @@ function App() {
       let profile = profileData;
 
       if (!profile) {
-        // Create new profile for new user
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
-        if (userError) {
-          throw userError;
-        }
+        try {
+          // Create new profile for new user
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          
+          if (userError) {
+            throw userError;
+          }
 
-        const newProfileData = {
-          name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'User',
-          email: user?.email || '',
-          beta_user: false,
-          role: 'free_user'
-        };
-        
-        const { data: upsertedProfile, error: upsertError } = await supabase
-          .from('profiles')
-          .upsert({ user_id: userId, ...newProfileData }, { onConflict: 'user_id' })
-          .select()
-          .single();
-        
-        if (upsertError) {
-          throw upsertError;
-        }
+          const newProfileData = {
+            name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'User',
+            email: user?.email || '',
+            beta_user: false,
+            role: 'free_user'
+          };
+          
+          const { data: upsertedProfile, error: upsertError } = await supabase
+            .from('profiles')
+            .upsert({ user_id: userId, ...newProfileData }, { onConflict: 'user_id' })
+            .select()
+            .single();
+          
+          if (upsertError) {
+            throw upsertError;
+          }
 
-        profile = upsertedProfile;
+          profile = upsertedProfile;
+        } catch (upsertError: any) {
+          // If profile creation fails due to RLS, use fallback
+          console.warn('Profile creation failed, using fallback authentication:', upsertError?.message || upsertError);
+          
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          if (userError) throw userError;
+          
+          const fallbackProfile = {
+            id: 'fallback-' + userId,
+            user_id: userId,
+            name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'User',
+            email: user?.email || '',
+            phone: null,
+            location: null,
+            dob: null,
+            bio: null,
+            beta_user: false,
+            role: 'free_user' as const,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
+          setUserProfile(fallbackProfile);
+          setIsAuthenticated(true);
+          setLoading(false);
+          navigate('/dashboard', { replace: true });
+          return;
+        }
 
         // Track new user signup
         analytics.trackEvent('user_signed_up', { user_id: userId });

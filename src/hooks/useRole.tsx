@@ -12,24 +12,37 @@ export function useRole() {
     let alive = true;
 
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { if (alive) { setRole(null); setLoading(false); } return; }
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { if (alive) { setRole(null); setLoading(false); } return; }
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
 
-      if (alive) {
-        if (error) {
-          // If profiles table is missing or RLS blocks, surface a clear signal
-          console.error('[useRole] profiles fetch error:', error);
-          setRole(null);
-        } else {
-          setRole((data?.role as Role) ?? null);
+        if (alive) {
+          if (error) {
+            // Handle RLS recursion and other profile fetch errors
+            if (error.code === '42P17' || error.message?.includes('infinite recursion')) {
+              console.warn('[useRole] RLS recursion detected, using fallback role');
+              setRole('user'); // Safe fallback role
+            } else {
+              console.error('[useRole] profiles fetch error:', error);
+              setRole(null);
+            }
+          } else {
+            setRole((data?.role as Role) ?? null);
+          }
+          setLoading(false);
         }
-        setLoading(false);
+      } catch (fetchError: any) {
+        if (alive) {
+          console.warn('[useRole] Network or fetch error, using fallback role:', fetchError?.message || fetchError);
+          setRole('user'); // Safe fallback for network issues
+          setLoading(false);
+        }
       }
     })();
 
