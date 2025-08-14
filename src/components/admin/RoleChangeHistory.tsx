@@ -3,12 +3,11 @@ import { supabase } from '../../lib/supabase';
 
 type Item = {
   id: number;
-  actor_id: string;
+  changed_by: string;
   target_user_id: string;
-  from_role: string | null;
-  to_role: string;
-  reason: string | null;
-  created_at: string;
+  old_role: string | null;
+  new_role: string;
+  changed_at: string;
 };
 
 export default function RoleChangeHistory({ userId }: { userId: string }) {
@@ -22,9 +21,9 @@ export default function RoleChangeHistory({ userId }: { userId: string }) {
       setErr(null);
       const { data, error } = await supabase
         .from('role_change_history')
-        .select('id, actor_id, target_user_id, from_role, to_role, reason, created_at')
+        .select('id, changed_by, target_user_id, old_role, new_role, changed_at')
         .eq('target_user_id', userId)
-        .order('created_at', { ascending: false });
+        .order('changed_at', { ascending: false });
       if (error) setErr(error.message);
       setRows(data || []);
       setLoading(false);
@@ -41,8 +40,7 @@ export default function RoleChangeHistory({ userId }: { userId: string }) {
       <ul style={{fontSize:14, lineHeight:1.4}}>
         {rows.map(r => (
           <li key={r.id}>
-            <strong>{r.to_role}</strong> from <em>{r.from_role ?? 'unknown'}</em> — {new Date(r.created_at).toLocaleString()}
-            {r.reason ? <> · Reason: {r.reason}</> : null}
+            <strong>{r.new_role}</strong> from <em>{r.old_role ?? 'unknown'}</em> — {new Date(r.changed_at).toLocaleString()}
           </li>
         ))}
       </ul>
