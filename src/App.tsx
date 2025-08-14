@@ -183,53 +183,7 @@ function App() {
       let profileError = null;
       
       try {
-        // Attempt to get user profile
-        const result = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
-        profileData = result.data;
-        profileError = result.error;
-      } catch (fetchError: any) {
-        // Handle network errors and RLS recursion
-        console.warn('Profile fetch failed, using fallback authentication:', fetchError?.message || fetchError);
-        profileError = fetchError;
-      }
-      
       if (profileError && profileError.code !== 'PGRST116') {
-        // Check for RLS recursion error and provide fallback
-        if (profileError.code === '42P17' || profileError.message?.includes('infinite recursion') || profileError.message?.includes('Failed to fetch')) {
-          console.warn('RLS recursion detected, using fallback authentication');
-          
-          // Get basic user info for fallback
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
-          if (userError) throw userError;
-          
-          // Create minimal profile for basic functionality
-          const fallbackProfile = {
-            id: 'fallback-' + userId,
-            user_id: userId,
-            name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'User',
-            email: user?.email || '',
-            phone: null,
-            location: null,
-            dob: null,
-            bio: null,
-            beta_user: false,
-            role: 'free_user' as const,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-          
-          setUserProfile(fallbackProfile);
-          setIsAuthenticated(true);
-          setLoading(false);
-          
-          // Simple redirect to dashboard for fallback mode
-          navigate('/dashboard', { replace: true });
-          return;
-        }
         throw profileError;
       }
 
@@ -263,32 +217,7 @@ function App() {
 
           profile = upsertedProfile;
         } catch (upsertError: any) {
-          // If profile creation fails due to RLS, use fallback
-          console.warn('Profile creation failed, using fallback authentication:', upsertError?.message || upsertError);
-          
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
-          if (userError) throw userError;
-          
-          const fallbackProfile = {
-            id: 'fallback-' + userId,
-            user_id: userId,
-            name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'User',
-            email: user?.email || '',
-            phone: null,
-            location: null,
-            dob: null,
-            bio: null,
-            beta_user: false,
-            role: 'free_user' as const,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-          
-          setUserProfile(fallbackProfile);
-          setIsAuthenticated(true);
-          setLoading(false);
-          navigate('/dashboard', { replace: true });
-          return;
+          throw upsertError;
         }
 
         // Track new user signup
@@ -305,7 +234,7 @@ function App() {
       setIsAuthenticated(true);
       setLoading(false);
       
-      // Use role-aware redirect for all users
+      // Role-aware redirect
       await postLoginRedirect();
       
       // Set user properties for analytics

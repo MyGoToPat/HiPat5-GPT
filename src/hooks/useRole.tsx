@@ -32,14 +32,8 @@ export function useRole() {
 
           setRole(data?.role || 'free_user');
         } catch (profileError: any) {
-          // Handle RLS recursion error specifically
-          if (profileError.message?.includes('infinite recursion detected')) {
-            console.warn('[useRole] RLS recursion detected, using fallback role');
-            setRole('free_user');
-          } else {
-            console.error('[useRole] profiles fetch error:', profileError.message);
-            setRole('free_user');
-          }
+          console.error('[useRole] profiles fetch error:', profileError.message);
+          setRole(null);
         }
       } catch (authError) {
         console.error('[useRole] auth error:', authError);

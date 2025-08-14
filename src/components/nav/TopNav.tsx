@@ -23,14 +23,8 @@ export default function TopNav() {
               .maybeSingle();
             if (alive) setRole((data?.role as Role) ?? 'user');
           } catch (profileError: any) {
-            // Handle RLS recursion gracefully
-            if (profileError.message?.includes('infinite recursion detected')) {
-              console.warn('[TopNav] RLS recursion detected, using fallback role');
-              if (alive) setRole('user');
-            } else {
-              console.error('[TopNav] Profile fetch error:', profileError);
-              if (alive) setRole('user');
-            }
+            console.error('[TopNav] Profile fetch error:', profileError);
+            if (alive) setRole(null);
           }
         }
       } catch (error) {
@@ -42,12 +36,10 @@ export default function TopNav() {
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    // Let App's auth listener handle redirect; no direct navigate here.
   };
 
   const isAdmin = role === 'admin';
-  const isTrainer = role === 'trainer';
-  const isUser = role === 'user';
+  const isTrainer = role === 'trainer' || role === 'admin';
 
   return (
     <div style={{
@@ -60,7 +52,7 @@ export default function TopNav() {
         <div style={{ display: 'flex', gap: 8 }}>
           {/* Admin can see all primary routes */}
           <ActiveLink to="/dashboard" hidden={false}>Dashboard</ActiveLink>
-          <ActiveLink to="/trainer-dashboard" hidden={!(isAdmin || isTrainer)}>Trainer</ActiveLink>
+          <ActiveLink to="/trainer-dashboard" hidden={!isTrainer}>Trainer</ActiveLink>
           <ActiveLink to="/tdee" hidden={false}>TDEE</ActiveLink>
           <ActiveLink to="/profile" hidden={false}>Profile</ActiveLink>
           <ActiveLink to="/admin" hidden={!isAdmin}>Admin</ActiveLink>
