@@ -11,15 +11,30 @@ export default function TopNav() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setEmail(user?.email ?? null);
-      if (user) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        if (alive) setRole((data?.role as Role) ?? null);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setEmail(user?.email ?? null);
+        if (user) {
+          try {
+            const { data } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            if (alive) setRole((data?.role as Role) ?? 'user');
+          } catch (profileError: any) {
+            // Handle RLS recursion gracefully
+            if (profileError.message?.includes('infinite recursion detected')) {
+              console.warn('[TopNav] RLS recursion detected, using fallback role');
+              if (alive) setRole('user');
+            } else {
+              console.error('[TopNav] Profile fetch error:', profileError);
+              if (alive) setRole('user');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[TopNav] Auth error:', error);
       }
     })();
     return () => { alive = false; };
