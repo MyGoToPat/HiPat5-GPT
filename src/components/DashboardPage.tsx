@@ -105,7 +105,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           .from('user_metrics')
           .select('*')
           .eq('user_id', user.data.user.id)
-          .single();
+          .maybeSingle();
 
         // Get today's food logs
         const today = new Date().toISOString().split('T')[0];
