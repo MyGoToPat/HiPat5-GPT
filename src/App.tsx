@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from './lib/supabase';
+import { supabase, supabaseDebugConfig } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { UserProfile } from './types/user';
 import { analytics } from './lib/analytics';
@@ -51,37 +51,60 @@ function App() {
 
   // Safe role-aware post-login redirect (handles missing rows without 406)
   const postLoginRedirect = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate('/login', { replace: true });
-      return;
+    try {
+      // Dev visibility: confirm env is correct
+      if (import.meta.env.DEV) {
+        const dbg = supabaseDebugConfig();
+        console.log('Supabase config', { url: dbg.url, anonTail: dbg.anonTail, hasKey: dbg.hasKey });
+      }
+
+      // Prefer local session to avoid unnecessary network calls
+      const { data: { session } } = await supabase.auth.getSession();
+      let user = session?.user ?? null;
+
+      if (!user) {
+        try {
+          const { data: { user: fetchedUser } } = await supabase.auth.getUser();
+          user = fetchedUser ?? null;
+        } catch (e: any) {
+          // Swallow transient network issues and continue to default route
+          if (import.meta.env.DEV) console.warn('getUser failed, continuing to default route', e?.message || e);
+        }
+      }
+
+      let dest = '/dashboard';
+
+      if (user) {
+        const { data: profile, error: pErr } = await supabase
+          .from('profiles')
+          .select('role, created_at')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (pErr && import.meta.env.DEV) console.warn('profiles read error', pErr);
+        const role = profile?.role ?? 'user';
+
+        if (role === 'admin') {
+          dest = '/admin';
+        } else if (role === 'trainer') {
+          dest = '/trainer-dashboard';
+        } else {
+          const { data: um, error: umErr } = await supabase
+            .from('user_metrics')
+            .select('tdee')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (umErr && import.meta.env.DEV) console.warn('user_metrics read error', umErr);
+          dest = um?.tdee ? '/dashboard' : '/tdee';
+        }
+      }
+
+      navigate(dest, { replace: true });
+    } catch (e) {
+      console.error('postLoginRedirect failed', e);
+      navigate('/dashboard', { replace: true });
     }
-
-    // Fetch role (null-safe: no error on 0 rows)
-    const { data: prof } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    let dest = '/dashboard';
-
-    if (prof?.role === 'admin') {
-      dest = '/admin';
-    } else if (prof?.role === 'trainer') {
-      dest = '/trainer-dashboard';
-    } else {
-      // Optional onboarding gate (null-safe)
-      const { data: um } = await supabase
-        .from('user_metrics')
-        .select('tdee')         // ok if NULL or column absent; undefined is treated as not onboarded
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      dest = um?.tdee ? '/dashboard' : '/tdee';
-    }
-
-    navigate(dest, { replace: true });
   };
 
   // Initialize analytics
