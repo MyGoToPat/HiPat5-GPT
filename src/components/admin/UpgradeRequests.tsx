@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { approveUpgradeRequest, denyUpgradeRequest } from '../../lib/supabase';
 
 type Req = {
   id: string;
@@ -99,26 +100,71 @@ export default function UpgradeRequests() {
               <Th>Status</Th>
               <Th>Reason</Th>
               <Th>Created</Th>
+              <Th>Actions</Th>
             </tr>
           </thead>
           <tbody>
             {rows.map(r => (
-              <tr key={r.id}>
-                <Td mono>{r.id}</Td>
-                <Td>
-                  <div>{r.name || r.email || r.user_id}</div>
-                  {r.email && <div style={{ opacity: 0.7, fontSize: 12 }}>{r.email}</div>}
-                </Td>
-                <Td>{r.requested_role ?? '—'}</Td>
-                <Td>{r.status ?? 'pending'}</Td>
-                <Td style={{ maxWidth: 360, whiteSpace: 'pre-wrap' }}>{r.reason ?? '—'}</Td>
-                <Td>{r.created_at ? new Date(r.created_at).toLocaleString() : '—'}</Td>
-              </tr>
+              <RequestRow key={r.id} row={r} onDone={load} />
             ))}
           </tbody>
         </table>
       </div>
     </div>
+  );
+}
+
+function RequestRow({ row, onDone }: { row: any; onDone: () => void }) {
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState<string | null>(null);
+
+  const act = async (kind: 'approve' | 'deny') => {
+    setBusy(true);
+    setErr(null);
+    try {
+      if (kind === 'approve') {
+        const role = (row.requested_role ?? 'user') as 'admin' | 'trainer' | 'user';
+        await approveUpgradeRequest(row.id, row.user_id, role);
+      } else {
+        await denyUpgradeRequest(row.id);
+      }
+      await onDone();
+    } catch (e: any) {
+      const m = e?.message ?? String(e);
+      const ml = m.toLowerCase();
+      if (ml.includes('relation') && ml.includes('upgrade_requests')) {
+        setErr('upgrade_requests table not found.');
+      } else if (ml.includes('policy')) {
+        setErr('Not authorized by RLS to perform this action.');
+      } else {
+        setErr(m);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pending = (row.status ?? 'pending') === 'pending';
+
+  return (
+    <tr>
+      <Td mono>{row.id}</Td>
+      <Td>
+        <div>{row.name || row.email || row.user_id}</div>
+        {row.email && <div style={{ opacity: 0.7, fontSize: 12 }}>{row.email}</div>}
+      </Td>
+      <Td>{row.requested_role ?? '—'}</Td>
+      <Td>{row.status ?? 'pending'}</Td>
+      <Td style={{ maxWidth: 360, whiteSpace: 'pre-wrap' }}>{row.reason ?? '—'}</Td>
+      <Td>{row.created_at ? new Date(r.created_at).toLocaleString() : '—'}</Td>
+      <Td>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => act('approve')} disabled={busy || !pending} style={{ padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 6 }}>Approve</button>
+          <button onClick={() => act('deny')} disabled={busy || !pending} style={{ padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 6 }}>Deny</button>
+        </div>
+        {err && <div style={{ color: '#b91c1c', marginTop: 6 }}>{err}</div>}
+      </Td>
+    </tr>
   );
 }
 

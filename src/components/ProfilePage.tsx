@@ -9,6 +9,7 @@ import { AIInsights } from './profile/AIInsights';
 import { QuickActions } from './profile/QuickActions';
 import { CustomizableHeader } from './profile/CustomizableHeader';
 import { supabase, getUserProfile, upsertUserProfile } from '../lib/supabase';
+import RequestRoleUpgrade from './settings/RequestRoleUpgrade';
 
 interface ProfilePageProps {
   onNavigate: (page: string) => void;
@@ -553,6 +554,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         </a>
       </div>
     </div>
+      {/* Role Upgrade Request Form (visible to non-admins only) */}
+      {dbProfile?.role !== 'admin' && (
+        <RequestRoleUpgrade />
+      )}
+
   );
 
   const renderPreferencesTab = () => (

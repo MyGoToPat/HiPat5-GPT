@@ -50,3 +50,39 @@ export async function upsertUserProfile(userId: string, profileData: Partial<Use
 
   return data;
 }
+
+export type Role = 'admin' | 'trainer' | 'user';
+
+export async function requestRoleUpgrade(requested_role: Role, reason: string | null) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not signed in');
+  const payload = { user_id: user.id, requested_role, reason, status: 'pending' as const };
+  const { error } = await supabase.from('upgrade_requests').insert(payload);
+  if (error) throw error;
+  return true;
+}
+
+export async function approveUpgradeRequest(id: string, user_id: string, new_role: Role) {
+  // Update profile role first. If RLS blocks, surface it clearly.
+  const { error: pErr } = await supabase
+    .from('profiles')
+    .update({ role: new_role })
+    .eq('user_id', user_id);
+  if (pErr) throw pErr;
+
+  const { error: rErr } = await supabase
+    .from('upgrade_requests')
+    .update({ status: 'approved' })
+    .eq('id', id);
+  if (rErr) throw rErr;
+  return true;
+}
+
+export async function denyUpgradeRequest(id: string) {
+  const { error } = await supabase
+    .from('upgrade_requests')
+    .update({ status: 'denied' })
+    .eq('id', id);
+  if (error) throw error;
+  return true;
+}
