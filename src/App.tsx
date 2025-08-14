@@ -183,6 +183,7 @@ function App() {
       let profileError = null;
       
       try {
+      }
       if (profileError && profileError.code !== 'PGRST116') {
         throw profileError;
       }
