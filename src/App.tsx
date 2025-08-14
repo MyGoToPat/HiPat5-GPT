@@ -187,6 +187,38 @@ function App() {
         .maybeSingle();
       
       if (profileError && profileError.code !== 'PGRST116') {
+        // Check for RLS recursion error and provide fallback
+        if (profileError.code === '42P17' || profileError.message?.includes('infinite recursion')) {
+          console.warn('RLS recursion detected, using fallback authentication');
+          
+          // Get basic user info for fallback
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          if (userError) throw userError;
+          
+          // Create minimal profile for basic functionality
+          const fallbackProfile = {
+            id: 'fallback-' + userId,
+            user_id: userId,
+            name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'User',
+            email: user?.email || '',
+            phone: null,
+            location: null,
+            dob: null,
+            bio: null,
+            beta_user: false,
+            role: 'free_user' as const,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
+          setUserProfile(fallbackProfile);
+          setIsAuthenticated(true);
+          setLoading(false);
+          
+          // Simple redirect to dashboard for fallback mode
+          navigate('/dashboard', { replace: true });
+          return;
+        }
         throw profileError;
       }
 
