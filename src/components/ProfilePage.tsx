@@ -553,11 +553,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           Contact Support
         </a>
       </div>
-    </div>
+
       {/* Role Upgrade Request Form (visible to non-admins only) */}
       {dbProfile?.role !== 'admin' && (
         <RequestRoleUpgrade />
       )}
+    </div>
 
   );
 
