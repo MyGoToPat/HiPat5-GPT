@@ -25,8 +25,7 @@ export default function UpgradeRequests() {
       // list requests if table exists
       const { data: reqs, error: rErr } = await supabase
         .from('upgrade_requests')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
 
       if (rErr) throw rErr;
 
