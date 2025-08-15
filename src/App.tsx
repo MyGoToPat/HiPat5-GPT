@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
-import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
 import { UserProfile } from './types/user';
 import AppLayout from './layouts/AppLayout';
