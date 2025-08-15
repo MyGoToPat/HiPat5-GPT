@@ -34,3 +34,39 @@ if (import.meta.env.DEV) {
   console.log('[Supabase] URL:', mask(url))
   console.log('[Supabase] Anon key prefix:', supabaseDebugConfig.anonPrefix)
 }
+
+// Admin upgrade request functions
+export async function approveUpgradeRequest(requestId: string, userId: string, newRole: string) {
+  // First, update the user's role
+  const { error: roleError } = await supabase.rpc('rpc_set_user_role', {
+    target_user_id: userId,
+    new_role: newRole
+  });
+  
+  if (roleError) throw roleError;
+
+  // Then update the upgrade request status
+  const { error: requestError } = await supabase
+    .from('upgrade_requests')
+    .update({
+      status: 'approved',
+      processed_by: (await supabase.auth.getUser()).data.user?.id,
+      processed_at: new Date().toISOString()
+    })
+    .eq('id', requestId);
+
+  if (requestError) throw requestError;
+}
+
+export async function denyUpgradeRequest(requestId: string) {
+  const { error } = await supabase
+    .from('upgrade_requests')
+    .update({
+      status: 'denied',
+      processed_by: (await supabase.auth.getUser()).data.user?.id,
+      processed_at: new Date().toISOString()
+    })
+    .eq('id', requestId);
+
+  if (error) throw error;
+}
