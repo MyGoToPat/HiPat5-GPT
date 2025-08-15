@@ -187,6 +187,22 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
               </Link>
             )}
             
+            {/* Agents Link - Admin-only visibility */}
+            {role === 'admin' && (
+              <Link
+                to="/admin/agents"
+                onClick={onClose}
+                className="w-full mt-2 flex items-center gap-3 px-3 py-2 text-left text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M12 1v6m0 6v6"/>
+                  <path d="M12 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+                </svg>
+                <span className="text-sm font-medium">Agents</span>
+              </Link>
+            )}
+            
             <button 
               onClick={() => {
                 onNavigate?.('interval-timer');

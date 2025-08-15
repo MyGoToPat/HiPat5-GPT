@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { Session } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 import { supabase, supabaseDebugConfig } from './lib/supabase';
 import { UserProfile } from './types/user';
 import AppLayout from './layouts/AppLayout';
@@ -22,6 +22,8 @@ import IntervalTimerPage from './pages/IntervalTimerPage';
 import TrainerDashboardPage from './pages/TrainerDashboardPage';
 import DebugPage from './pages/DebugPage';
 import NotFoundPage from './pages/NotFoundPage';
+import AgentsListPage from './pages/admin/AgentsListPage';
+import AgentDetailPage from './pages/admin/AgentDetailPage';
 
 // Helper: programmatic nav to replace any prior string-based onNavigate
 export function useNav() {
@@ -142,36 +144,99 @@ function App() {
     document.documentElement.style.setProperty('--vh', `${vh}px`);
   };
 
+  // RLS-friendly auth/profile bootstrap
+  const handleUserSignIn = async (session: Session) => {
+    try {
+      const user = session.user;
+      if (!user) return;
+
+      const { data: existing, error: readErr } = await supabase
+        .from('profiles')
+        .select('id,user_id,email,name,phone,location,dob,bio,beta_user,role,created_at,updated_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (readErr && (readErr as any).code !== 'PGRST116') throw readErr;
+
+      let profile = existing ?? null;
+
+      if (!profile) {
+        const { data: inserted, error: insertErr } = await supabase
+          .from('profiles')
+          .insert({ 
+            user_id: user.id, 
+            email: user.email,
+            name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+            beta_user: false,
+            role: 'free_user'
+          })
+          .select()
+          .single();
+        if (insertErr) throw insertErr;
+        profile = inserted;
+
+        // Track new user signup for new profiles
+        analytics.trackEvent('user_signed_up', { user_id: user.id });
+      } else {
+        // Track daily active user for existing profiles
+        analytics.trackEvent('daily_active_user', { user_id: user.id });
+      }
+
+      const isAdmin = session.user?.app_metadata?.role === 'admin';
+
+      setUserProfile(profile as UserProfile);
+      setIsAuthenticated(true);
+      setLoading(false);
+
+      // Set user properties for analytics
+      analytics.identifyUser(user.id);
+      analytics.setUserProperties({
+        beta_user: profile?.beta_user,
+        role: profile?.role,
+      });
+
+      // Role-aware redirect
+      await postLoginRedirect();
+
+    } catch (err: any) {
+      console.error('handleUserSignIn failed', err);
+      setError(`Login failed: ${err.message || String(err)}. Please try again.`);
+      setIsAuthenticated(false);
+      setUserProfile(null);
+      setLoading(false);
+      navigate('/login');
+    }
+  };
+
   // Handle user sign-in/sign-up events
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('onAuthStateChange: Event received:', _event);
-      if (session) {
-        await handleUserSignIn(session);
-      } else {
+      if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'INITIAL_SESSION') {
+        if (session) await handleUserSignIn(session);
+      }
+      if (_event === 'SIGNED_OUT') {
         handleUserSignOut();
       }
     });
 
     // Initial session check
     (async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (session) {
-        await handleUserSignIn(session);
-      } else {
-        setLoading(false);
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) await handleUserSignIn(session);
+      else setLoading(false);
     })();
 
-    return () => {
-      sub.subscription.unsubscribe();
-    };
+    return () => sub?.data.subscription.unsubscribe();
   }, []);
 
-  // Replace handleUserSignIn with RLS-friendly implementation
-  const handleUserSignIn = async (session: Session) => {
-    const user = session.user;
-    try {
+  const handleUserSignOut = () => {
+    setIsAuthenticated(false);
+    setUserProfile(null);
+    navigate('/login');
+    setLoading(false);
+    setError(null);
+  };
+
       // 1) Read existing profile (RLS-safe; null if absent)
       const { data: profile, error: selError } = await supabase
         .from('profiles')
@@ -338,7 +403,11 @@ function App() {
             <Route path="interval-timer" element={<IntervalTimerPage />} />
             <Route path="trainer-dashboard" element={<TrainerDashboardPage userProfile={userProfile} />} />
             <Route path="debug" element={<DebugPage userProfile={userProfile} />} />
-            <Route path="admin" element={<AdminPage />} />
+            <Route path="admin">
+              <Route index element={<AdminPage />} />
+              <Route path="agents" element={<AgentsListPage />} />
+              <Route path="agents/:agentId" element={<AgentDetailPage />} />
+            </Route>
           </Route>
 
           {/* Catch-all */}
