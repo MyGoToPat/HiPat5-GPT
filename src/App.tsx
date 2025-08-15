@@ -7,7 +7,6 @@ import AppLayout from './layouts/AppLayout';
 import { analytics } from './lib/analytics';
 import { TimerProvider } from './context/TimerContext';
 import { useOrgStore } from './store/org';
-import { useOrgStore } from './store/org';
 import AdminPage from './pages/AdminPage';
 
 // Import page components
