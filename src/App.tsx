@@ -6,6 +6,7 @@ import { UserProfile } from './types/user';
 import AppLayout from './layouts/AppLayout';
 import { analytics } from './lib/analytics';
 import { TimerProvider } from './context/TimerContext';
+import { useOrgStore } from './store/org';
 import AdminPage from './pages/AdminPage';
 
 // Import page components
@@ -203,6 +204,9 @@ function App() {
         role: current?.role,
       });
 
+      // Initialize organization store
+      await useOrgStore.getState().init();
+
     } catch (e) {
       console.error('handleUserSignIn:', e);
       setError(`Login failed: ${e instanceof Error ? e.message : String(e)}. Please try again.`);
@@ -217,32 +221,9 @@ function App() {
   useEffect(() => {
     let authSubscription: { unsubscribe: () => void } | null = null;
 
-    const initializeAuth = async () => {
-      // Initial session check
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await handleUserSignIn(session);
-      } else {
-        setLoading(false);
-      }
-    };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-        if (session) await handleUserSignIn(session);
-      }
-      if (event === 'SIGNED_OUT') {
-        handleUserSignOut();
-      }
-    });
-
-    authSubscription = subscription;
-    initializeAuth();
-
-    return () => {
-      authSubscription?.unsubscribe();
-    };
-  }, []);
+      const { fetchMyOrgs } = require('./store/org').useOrgStore.getState();
+      fetchMyOrgs();
+    
 
   const handleUserSignOut = () => {
     setIsAuthenticated(false);

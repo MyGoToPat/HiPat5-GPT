@@ -21,7 +21,8 @@ type OrgState = {
   error: string | null;
   fetchMyOrgs: () => Promise<void>;
   setActiveOrg: (orgId: string) => Promise<void>;
-  getActiveOrgId: () => Promise<string | null>;
+  getActiveOrgId: () => string | null;
+  init: () => Promise<void>;
 };
 
 export const useOrgStore = create<OrgState>((set, get) => ({
@@ -29,6 +30,22 @@ export const useOrgStore = create<OrgState>((set, get) => ({
   currentOrgId: null,
   loading: false,
   error: null,
+
+  // One-shot bootstrap: load org list, set active from server, or fall back to first org
+  init: async () => {
+    await get().fetchMyOrgs();
+
+    const { data: activeOrgId, error: activeErr } = await supabase.rpc('get_active_org_id');
+    if (!activeErr && activeOrgId) {
+      set({ currentOrgId: activeOrgId as string });
+      return;
+    }
+
+    const first = get().orgs[0];
+    if (first) {
+      await get().setActiveOrg(first.id);
+    }
+  },
 
   fetchMyOrgs: async () => {
     set({ loading: true, error: null });
