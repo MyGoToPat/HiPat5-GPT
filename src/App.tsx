@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
 import { UserProfile } from './types/user';
 import AppLayout from './layouts/AppLayout';
@@ -116,8 +117,6 @@ function App() {
   // Set up iOS viewport height fix
   React.useEffect(() => {
     setVHProperty();
-      const { fetchMyOrgs } = useOrgStore.getState();
-      fetchMyOrgs();
     
     const handleResize = () => {
       setVHProperty();
@@ -143,10 +142,14 @@ function App() {
   };
 
   // RLS-friendly auth/profile bootstrap
-  async function handleUserSignIn(session: Session) {
+  async function handleUserSignIn(session: Session | null) {
+    if (!session?.user) {
+      console.warn('[Auth] handleUserSignIn called without session.user, skipping.');
+      return;
+    }
+    
     try {
       const user = session.user;
-      if (!user) return;
 
       // 1) Read existing profile (RLS-safe; null if absent)
       const { data: profile, error: selError } = await supabase
@@ -189,6 +192,9 @@ function App() {
       setIsAuthenticated(true);
       setLoading(false);
 
+      // Initialize organization store after auth state is set
+      await useOrgStore.getState().init();
+
       // Role-aware redirect
       await postLoginRedirect();
 
@@ -198,9 +204,6 @@ function App() {
         beta_user: current?.beta_user,
         role: current?.role,
       });
-
-      // Initialize organization store
-      await useOrgStore.getState().init();
 
     } catch (e) {
       console.error('handleUserSignIn:', e);
@@ -214,15 +217,29 @@ function App() {
 
   // Handle user sign-in/sign-up events
   useEffect(() => {
+    let cancelled = false;
+
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-        await handleUserSignIn(session as any);
-      } else if (event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_OUT') {
         handleUserSignOut();
+        return;
+      }
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        // Some environments emit INITIAL_SESSION with null; resolve explicitly.
+        let s = session;
+        if (!s?.user) {
+          const { data } = await supabase.auth.getSession();
+          s = data?.session ?? null;
+        }
+        if (!cancelled) {
+          await handleUserSignIn(s);
+        }
       }
     });
 
     return () => {
+      cancelled = true;
       try {
         sub?.subscription?.unsubscribe?.();
       } catch {}
