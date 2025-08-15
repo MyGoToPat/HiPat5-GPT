@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { requestRoleUpgrade, Role } from '../../lib/supabase';
+import { requestRoleUpgrade, AppRole } from '../../lib/supabase';
 
 export default function RequestRoleUpgrade() {
-  const [role, setRole] = useState<Role>('trainer');
+  const [role, setRole] = useState<AppRole>('trainer');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -35,9 +35,9 @@ export default function RequestRoleUpgrade() {
       <form onSubmit={submit} style={{ display: 'grid', gap: 8 }}>
         <label>
           Role
-          <select value={role} onChange={e => setRole(e.target.value as Role)} disabled={busy} style={{ display: 'block', marginTop: 4 }}>
+          <select value={role} onChange={e => setRole(e.target.value as AppRole)} disabled={busy} style={{ display: 'block', marginTop: 4 }}>
             <option value="trainer">Trainer</option>
-            <option value="admin">Admin</option>
+            <option value="pro_user">Pro User</option>
           </select>
         </label>
         <label>

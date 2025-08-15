@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
 
-type Role = 'admin' | 'trainer' | 'user';
+type Role = 'admin' | 'trainer' | 'free_user';
 
 type Props = {
   userId: string;
@@ -11,7 +11,7 @@ type Props = {
   onChanged: (newRole: Role) => void;
 };
 
-const ROLES: Role[] = ['admin','trainer','user'];
+const ROLES: Role[] = ['admin','trainer','free_user'];
 
 export default function ChangeRoleModal({ userId, currentRole, onClose, onChanged }: Props) {
   const [role, setRole] = useState<Role>(currentRole);
@@ -22,11 +22,10 @@ export default function ChangeRoleModal({ userId, currentRole, onClose, onChange
   const submit = async () => {
     setSaving(true);
     setErr(null);
-    const { error } = await supabase.rpc('rpc_set_user_role', {
-      p_user_id: userId,
-      p_new_role: role,
-      p_reason: reason || null
-    });
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
     setSaving(false);
     if (error) { 
       setErr(error.message); 

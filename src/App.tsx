@@ -6,7 +6,6 @@ import { UserProfile } from './types/user';
 import AppLayout from './layouts/AppLayout';
 import { analytics } from './lib/analytics';
 import { TimerProvider } from './context/TimerContext';
-import { useOrgStore } from './store/org';
 import AdminPage from './pages/AdminPage';
 
 // Import page components
@@ -222,13 +221,22 @@ function App() {
 
   // Handle user sign-in/sign-up events
   useEffect(() => {
-    let authSubscription: { unsubscribe: () => void } | null = null;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        if (session) await handleUserSignIn(session)
+      } else if (event === 'SIGNED_OUT') {
+        handleUserSignOut()
+      }
+    })
 
-      const { fetchMyOrgs } = require('./store/org').useOrgStore.getState();
-      fetchMyOrgs();
-    
-  }
-  )
+    ;(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) await handleUserSignIn(session)
+      else setLoading(false)
+    })()
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   const handleUserSignOut = () => {
     setIsAuthenticated(false);
