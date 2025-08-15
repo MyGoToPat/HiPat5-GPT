@@ -120,7 +120,7 @@ function App() {
   // Set up iOS viewport height fix
   React.useEffect(() => {
     setVHProperty();
-      const { fetchMyOrgs } = require('./store/org').useOrgStore.getState();
+      const { fetchMyOrgs } = useOrgStore.getState();
       fetchMyOrgs();
     
     const handleResize = () => {
