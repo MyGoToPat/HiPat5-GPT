@@ -145,7 +145,7 @@ function App() {
   };
 
   // RLS-friendly auth/profile bootstrap
-  const handleUserSignIn = async (session: Session) => {
+  async function handleUserSignIn(session: Session) {
     try {
       const user = session.user;
       if (!user) return;
@@ -179,8 +179,8 @@ function App() {
         if (upsertError) throw upsertError;
         current = data;
 
-        // Track new user signup for new profiles
-        analytics.trackEvent('user_signed_up', { user_id: user.id });
+        // Track daily active user for existing profiles
+        analytics.trackEvent('daily_active_user', { user_id: user.id });
       } else {
         // Track daily active user for existing profiles
         analytics.trackEvent('daily_active_user', { user_id: user.id });
@@ -213,7 +213,19 @@ function App() {
 
   // Handle user sign-in/sign-up events
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    let authSubscription: { unsubscribe: () => void } | null = null;
+
+    const initializeAuth = async () => {
+      // Initial session check
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await handleUserSignIn(session);
+      } else {
+        setLoading(false);
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'INITIAL_SESSION') {
         if (session) await handleUserSignIn(session);
       }
@@ -222,14 +234,12 @@ function App() {
       }
     });
 
-    // Initial session check
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) await handleUserSignIn(session);
-      else setLoading(false);
-    })();
+    authSubscription = subscription;
+    initializeAuth();
 
-    return () => sub?.data.subscription.unsubscribe();
+    return () => {
+      authSubscription?.unsubscribe();
+    };
   }, []);
 
   const handleUserSignOut = () => {
