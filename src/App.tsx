@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Session } from '@supabase/supabase-js';
 import { supabase, supabaseDebugConfig } from './lib/supabase';
-import { User } from '@supabase/supabase-js';
 import { UserProfile } from './types/user';
 import AppLayout from './layouts/AppLayout';
 import { analytics } from './lib/analytics';
@@ -51,7 +51,7 @@ function App() {
     return <>{children}</>;
   }
 
-  // Safe role-aware post-login redirect (handles missing rows without 406)
+  // Safe role-aware post-login redirect
   const postLoginRedirect = async () => {
     try {
       // Dev visibility: confirm env is correct
@@ -144,121 +144,90 @@ function App() {
 
   // Handle user sign-in/sign-up events
   useEffect(() => {
-    const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('onAuthStateChange: Event received:', event);
-      if (event === 'SIGNED_IN' && session?.user) {
-        handleUserSignIn(session.user.id);
-      } else if (event === 'SIGNED_OUT') {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log('onAuthStateChange: Event received:', _event);
+      if (session) {
+        await handleUserSignIn(session);
+      } else {
         handleUserSignOut();
-      } else if (event === 'INITIAL_SESSION' && session?.user) {
-        handleUserSignIn(session.user.id);
-      } else if (event === 'INITIAL_SESSION' && !session?.user) {
-        setLoading(false);
       }
     });
 
     // Initial session check
-    const getInitialSession = async () => {
+    (async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
-      if (session?.user) {
-        handleUserSignIn(session.user.id);
+      if (session) {
+        await handleUserSignIn(session);
       } else {
         setLoading(false);
       }
-    };
-
-    getInitialSession();
+    })();
 
     return () => {
-      authListener.unsubscribe();
+      sub.subscription.unsubscribe();
     };
   }, []);
 
-  const handleUserSignIn = async (userId: string) => {
+  // Replace handleUserSignIn with RLS-friendly implementation
+  const handleUserSignIn = async (session: Session) => {
+    const user = session.user;
     try {
-      setError(null);
-      setLoading(true);
-      
-      let profileData = null;
-      let profileError = null;
-      
-      try {
-        const { data, error } = await supabase
+      // 1) Read existing profile (RLS-safe; null if absent)
+      const { data: profile, error: selError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (selError) throw selError;
+
+      let current = profile;
+
+      // 2) Create if missing (allowed by owner policy)
+      if (!current) {
+        const { data, error: upsertError } = await supabase
           .from('profiles')
+          .upsert(
+            {
+              user_id: user.id,
+              email: user.email ?? null,
+              name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+              beta_user: false,
+              role: 'free_user'
+            },
+            { onConflict: 'user_id' }
+          )
           .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
-        
-        profileData = data;
-        profileError = error;
-      } catch (err) {
-        profileError = err;
-      }
-      if (profileError && profileError.code !== 'PGRST116') {
-        throw profileError;
-      }
+          .single();
+        if (upsertError) throw upsertError;
+        current = data;
 
-      let profile = profileData;
-
-      if (!profile) {
-        try {
-          // Create new profile for new user
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
-          
-          if (userError) {
-            throw userError;
-          }
-
-          const newProfileData = {
-            name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'User',
-            email: user?.email || '',
-            beta_user: false,
-            role: 'free_user'
-          };
-          
-          const { data: upsertedProfile, error: upsertError } = await supabase
-            .from('profiles')
-            .upsert({ user_id: userId, ...newProfileData }, { onConflict: 'user_id' })
-            .select()
-            .single();
-          
-          if (upsertError) {
-            throw upsertError;
-          }
-
-          profile = upsertedProfile;
-        } catch (upsertError: any) {
-          throw upsertError;
-        }
-
-        // Track new user signup
-        analytics.trackEvent('user_signed_up', { user_id: userId });
-        
+        // Track new user signup for new profiles
+        analytics.trackEvent('user_signed_up', { user_id: user.id });
       } else {
-        setUserProfile(profile);
-        
-        // Track daily active user
-        analytics.trackEvent('daily_active_user', { user_id: userId });
+        // Track daily active user for existing profiles
+        analytics.trackEvent('daily_active_user', { user_id: user.id });
       }
-      
-      setUserProfile(profile);
+
+      // 3) Persist to app state
+      setUserProfile(current as UserProfile);
       setIsAuthenticated(true);
       setLoading(false);
-      
+
       // Role-aware redirect
       await postLoginRedirect();
-      
+
       // Set user properties for analytics
-      analytics.identifyUser(userId);
+      analytics.identifyUser(user.id);
       analytics.setUserProperties({
-        beta_user: profile?.beta_user,
-        role: profile?.role,
+        beta_user: current?.beta_user,
+        role: current?.role,
       });
-      
-    } catch (error) {
-      console.error('handleUserSignIn: Error:', error);
-      setError(`Login failed: ${error instanceof Error ? error.message : String(error)}. Please try again.`);
+
+    } catch (e) {
+      console.error('handleUserSignIn:', e);
+      setError(`Login failed: ${e instanceof Error ? e.message : String(e)}. Please try again.`);
       setIsAuthenticated(false);
+      setUserProfile(null);
       navigate('/login');
       setLoading(false);
     }
