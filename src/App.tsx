@@ -190,7 +190,7 @@ function App() {
       setIsAuthenticated(true);
       setLoading(false);
 
-      // Initialize organization store after auth state is set
+      // run once after auth state is set
       await useOrgStore.getState().init();
 
       // Role-aware redirect

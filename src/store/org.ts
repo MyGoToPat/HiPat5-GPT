@@ -1,11 +1,5 @@
 import { create } from 'zustand';
-import { getActiveOrgIdSafe, listOrganizationsSafe, setActiveOrgSafe } from '../lib/org';
-
-export interface Org { 
-  id: string; 
-  name: string; 
-  owner_id: string; 
-}
+import { getActiveOrgIdSafe, setActiveOrgSafe, listOrganizationsSafe, type Org } from '../lib/org';
 
 export interface OrgMember { 
   org_id: string; 
@@ -18,11 +12,11 @@ type OrgState = {
   orgs: Org[];
   currentOrgId: string | null;
   loading: boolean;
-  error: string | null;
-  fetchMyOrgs: () => Promise<void>;
-  setActiveOrg: (orgId: string) => Promise<void>;
-  getActiveOrgId: () => string | null;
+  error?: string | null;
   init: () => Promise<void>;
+  fetchMyOrgs: () => Promise<void>;
+  setActiveOrg: (id: string) => Promise<void>;
+  getActiveOrgId: () => string | null;
 };
 
 export const useOrgStore = create<OrgState>((set, get) => ({
@@ -31,37 +25,30 @@ export const useOrgStore = create<OrgState>((set, get) => ({
   loading: false,
   error: null,
 
-  // One-shot bootstrap: load org list, set active from server, or fall back to first org
   init: async () => {
-    await get().fetchMyOrgs();
+    if (get().loading) return;
+    set({ loading: true, error: null });
 
-    const activeOrgId = await getActiveOrgIdSafe();
-    if (activeOrgId) {
-      set({ currentOrgId: activeOrgId });
-      return;
-    }
+    const [active, list] = await Promise.all([
+      getActiveOrgIdSafe(),
+      listOrganizationsSafe(),
+    ]);
 
-    const first = get().orgs[0];
-    if (first) {
-      await get().setActiveOrg(first.id);
-    }
+    let current = active ?? (list[0]?.id ?? null);
+    if (!active && current) await setActiveOrgSafe(current);
+
+    set({ orgs: list, currentOrgId: current, loading: false });
   },
 
   fetchMyOrgs: async () => {
     set({ loading: true, error: null });
-    try {
-      const orgs = await listOrganizationsSafe();
-      set({ orgs, loading: false });
-    } catch (e: any) {
-      set({ error: e.message, loading: false });
-    }
+    const list = await listOrganizationsSafe();
+    set({ orgs: list, loading: false });
   },
 
-  setActiveOrg: async (orgId) => {
-    const success = await setActiveOrgSafe(orgId);
-    if (success) {
-      set({ currentOrgId: orgId });
-    }
+  setActiveOrg: async (id: string) => {
+    const ok = await setActiveOrgSafe(id);
+    if (ok) set({ currentOrgId: id });
   },
 
   getActiveOrgId: () => get().currentOrgId,

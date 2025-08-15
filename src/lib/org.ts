@@ -1,73 +1,58 @@
 import { supabase } from './supabase';
 
+export type Org = { id: string; name: string | null; owner_id: string | null };
+
 export async function getActiveOrgIdSafe(): Promise<string | null> {
   try {
-    const { data, error } = await supabase.rpc('get_active_org_id');
-    if (error) {
-      const m = (error.message || '').toLowerCase();
-      if (m.includes('not exist') || m.includes('not found') || error.code === 'PGRST202') {
-        return null;
-      }
-      throw error;
-    }
+    const { data, error } = await supabase.rpc<string>('get_active_org_id');
+    if (error) throw error;
     return data ?? null;
   } catch (e: any) {
     const m = (e?.message || '').toLowerCase();
-    if (m.includes('not exist') || m.includes('not found') || m.includes('pgrst202')) {
-      return null;
-    }
-    if (import.meta.env.DEV) {
-      console.warn('[org] get_active_org_id skipped:', e?.message || e);
-    }
+    if (m.includes('not exist') || m.includes('not found')) return null;
+    console.warn('[org] get_active_org_id skipped:', e?.message || e);
     return null;
   }
 }
 
-export async function listOrganizationsSafe(): Promise<Array<{ id: string; name: string; owner_id: string }>> {
+export async function setActiveOrgSafe(org_id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.rpc('set_active_org', { org_id });
+    if (error) throw error;
+    return true; // success
+  } catch (e: any) {
+    const m = (e?.message || '').toLowerCase();
+    if (m.includes('not exist') || m.includes('not found')) return false;
+    console.warn('[org] set_active_org skipped:', e?.message || e);
+    return false;
+  }
+}
+
+export async function listOrganizationsSafe(): Promise<Org[]> {
+  // primary query (matches current schema)
   try {
     const { data, error } = await supabase
       .from('organizations')
       .select('id,name,owner_id');
-    
-    if (error) {
-      const m = (error.message || '').toLowerCase();
-      if (m.includes('relation') || m.includes('does not exist') || m.includes('column') || error.code === '42703') {
-        return [];
-      }
-      throw error;
-    }
-    return data ?? [];
+    if (error) throw error;
+    return (data as Org[]) ?? [];
   } catch (e: any) {
-    const m = (e?.message || '').toLowerCase();
-    if (m.includes('relation') || m.includes('does not exist') || m.includes('column')) {
-      return [];
-    }
-    if (import.meta.env.DEV) {
-      console.warn('[org] organizations skipped:', e?.message || e);
-    }
-    return [];
-  }
-}
+    const msg = (e?.message || '').toLowerCase();
 
-export async function setActiveOrgSafe(orgId: string): Promise<boolean> {
-  try {
-    const { error } = await supabase.rpc('set_active_org', { p_org_id: orgId });
-    if (error) {
-      const m = (error.message || '').toLowerCase();
-      if (m.includes('not exist') || m.includes('not found') || error.code === 'PGRST202') {
-        return false;
-      }
-      throw error;
+    // if the column is missing in some env, retry without it and synthesize nulls
+    if (msg.includes('column') && msg.includes('owner_id')) {
+      try {
+        const { data, error } = await supabase.from('organizations').select('id,name');
+        if (!error && Array.isArray(data)) {
+          return (data as any[]).map((o) => ({ id: o.id, name: o.name ?? null, owner_id: null }));
+        }
+      } catch {}
     }
-    return true;
-  } catch (e: any) {
-    const m = (e?.message || '').toLowerCase();
-    if (m.includes('not exist') || m.includes('not found') || m.includes('pgrst202')) {
-      return false;
-    }
-    if (import.meta.env.DEV) {
-      console.warn('[org] set_active_org skipped:', e?.message || e);
-    }
-    return false;
+
+    // table missing → feature off
+    if (msg.includes('relation') || msg.includes('does not exist')) return [];
+
+    console.warn('[org] organizations read skipped:', e?.message || e);
+    return [];
   }
 }
