@@ -7,6 +7,7 @@ import AppLayout from './layouts/AppLayout';
 import { analytics } from './lib/analytics';
 import { TimerProvider } from './context/TimerContext';
 import { useOrgStore } from './store/org';
+import { useOrgStore } from './store/org';
 import AdminPage from './pages/AdminPage';
 
 // Import page components
@@ -203,6 +204,9 @@ function App() {
         beta_user: current?.beta_user,
         role: current?.role,
       });
+
+      // Initialize organization store
+      await useOrgStore.getState().init();
 
       // Initialize organization store
       await useOrgStore.getState().init();
