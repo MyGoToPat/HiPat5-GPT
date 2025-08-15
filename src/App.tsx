@@ -8,6 +8,7 @@ import { analytics } from './lib/analytics';
 import { TimerProvider } from './context/TimerContext';
 import AdminPage from './pages/AdminPage';
 
+
 // Import page components
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
