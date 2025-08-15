@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { useOrgStore } from './org';
 
 interface Agent {
   id: string;
@@ -48,7 +49,12 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
     try {
       let query = supabase.from('agents').select('*');
       if (!isAdmin) {
-        query = query.eq('created_by', userId);
+        const activeOrgId = useOrgStore.getState().getActiveOrgId();
+        if (activeOrgId) {
+          query = query.eq('org_id', activeOrgId);
+        } else {
+          query = query.eq('created_by', userId);
+        }
       }
       const { data, error } = await query;
       if (error) throw error;
@@ -61,9 +67,10 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
   createAgent: async (name, userId) => {
     set({ loading: true, error: null });
     try {
+      const activeOrgId = useOrgStore.getState().getActiveOrgId();
       const { data, error } = await supabase
         .from('agents')
-        .insert({ name, created_by: userId })
+        .insert({ name, created_by: userId, org_id: activeOrgId })
         .select()
         .single();
       if (error) throw error;
@@ -96,10 +103,11 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
   createAgentVersion: async (agentId, config) => {
     set({ loading: true, error: null });
     try {
+      const activeOrgId = useOrgStore.getState().getActiveOrgId();
       // Create new version
       const { data: newVersion, error: insertError } = await supabase
         .from('agent_versions')
-        .insert({ agent_id: agentId, config })
+        .insert({ agent_id: agentId, config, org_id: activeOrgId })
         .select()
         .single();
       if (insertError) throw insertError;
