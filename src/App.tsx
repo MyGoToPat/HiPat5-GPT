@@ -226,10 +226,10 @@ function App() {
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'INITIAL_SESSION') {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
         if (session) await handleUserSignIn(session);
       }
-      if (_event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_OUT') {
         handleUserSignOut();
       }
     });
