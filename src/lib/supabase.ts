@@ -1,138 +1,96 @@
-// src/lib/supabase.ts
-import { createClient, type PostgrestError } from '@supabase/supabase-js'
+import { createClient, type PostgrestError } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const anon = import.meta.env.VITE_SUPABASE_ANON_KEY
+const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
-// Fail fast in dev if ENV is missing
 if (!url || !anon) {
-  const msg = [
-    '[Supabase ENV MISSING]',
-    `VITE_SUPABASE_URL: ${url ? 'SET' : 'MISSING'}`,
-    `VITE_SUPABASE_ANON_KEY: ${anon ? 'SET' : 'MISSING'}`,
-    'Add them to a .env.local at repo root.',
-  ].join(' ')
-  console.error(msg)
-  if (import.meta.env.DEV) throw new Error(msg)
+  throw new Error('[Supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.');
 }
 
-export const supabase = createClient(url!, anon!, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  },
-})
-
-export const supabaseDebugConfig = {
-  url: url || 'MISSING',
-  anonPrefix: anon ? `${anon.slice(0, 6)}…${anon.slice(-4)}` : 'MISSING',
+if (typeof window !== 'undefined') {
+  try {
+    const mask = (s: string, keep = 8) => (s.length > keep ? `${s.slice(0, keep)}…` : s);
+    console.log('[Supabase] URL:', mask(url, 24));
+    console.log('[Supabase] Anon key prefix:', mask(anon, 20));
+  } catch {}
 }
 
-if (import.meta.env.DEV) {
-  const mask = (s?: string) => (s ? `${s.slice(0, 22)}…` : 'MISSING')
-  console.log('[Supabase] URL:', mask(url))
-  console.log('[Supabase] Anon key prefix:', supabaseDebugConfig.anonPrefix)
+export const supabase = createClient(url, anon);
+export type AppRole = 'user' | 'coach' | 'admin';
+
+type RpcResult<T> = { data: T | null; error: PostgrestError | null; notFound?: boolean };
+
+async function tryRpc<T = unknown>(fn: string, args: Record<string, unknown>): Promise<RpcResult<T>> {
+  const { data, error } = await supabase.rpc<T>(fn, args as never);
+  const notFound =
+    !!error &&
+    (/not\s*found/i.test(error.message || '') || error.code === 'PGRST116' || error.code === '42883');
+  return { data, error, notFound };
 }
 
-// ---------- Admin helpers expected by UI ----------
-
-export type AppRole = 'free_user' | 'pro_user' | 'trainer' | 'admin'
-
-type UpgradeRequestRow = {
-  id: string
-  user_id: string
-  requested_role?: AppRole | null
-  message?: string | null
-  status: 'pending' | 'approved' | 'denied'
-  processed_by?: string | null
-  processed_at?: string | null
-  created_at?: string | null
-}
-
-// Gets the current signed-in user's id (throws if not signed in)
-async function getCurrentUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getUser()
-  if (error) throw error
-  const uid = data.user?.id
-  if (!uid) throw new Error('Not authenticated')
-  return uid
-}
-
-/**
- * End-user requests a role upgrade.
- * Inserts a row in `upgrade_requests` with status 'pending'.
- * UI typically calls this from RequestRoleUpgrade.tsx.
- */
 export async function requestRoleUpgrade(
-  requestedRole: AppRole = 'pro_user',
-  message?: string
-): Promise<{ id: string }> {
-  const userId = await getCurrentUserId()
-  const { data, error } = await supabase
-    .from('upgrade_requests')
-    .insert<Partial<UpgradeRequestRow>>({
-      user_id: userId,
-      requested_role: requestedRole,
-      message: message ?? null,
-      status: 'pending',
-    })
-    .select('id')
-    .single()
+  requestId: string,
+  userId: string,
+  reason?: string
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const rpc = await tryRpc<{ id: string }>('request_role_upgrade', {
+    request_id: requestId,
+    user_id: userId,
+    reason: reason ?? null,
+  });
+  if (!rpc.error && rpc.data) return { ok: true, id: rpc.data.id };
+  if (!rpc.notFound && rpc.error) return { ok: false, error: rpc.error.message ?? 'request_role_upgrade failed' };
 
-  if (error) throw error
-  return { id: data!.id }
+  const { data, error } = await supabase
+    .from('role_upgrade_requests')
+    .insert({ id: requestId, user_id: userId, reason: reason ?? null, status: 'pending' })
+    .select('id')
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message ?? 'Failed to insert role upgrade request' };
+  return { ok: true, id: data?.id ?? requestId };
 }
 
-/**
- * Admin approves a request:
- * 1) sets target user's `profiles.role` to newRole
- * 2) marks request as 'approved' with processed_by/processed_at
- */
 export async function approveUpgradeRequest(
   requestId: string,
-  targetUserId: string,
+  userId: string,
   newRole: AppRole
-): Promise<void> {
-  const adminId = await getCurrentUserId()
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const rpc = await tryRpc<null>('approve_role_upgrade', {
+    request_id: requestId,
+    user_id: userId,
+    new_role: newRole,
+  });
+  if (!rpc.error && !rpc.notFound) return { ok: true };
+  if (!rpc.notFound && rpc.error) return { ok: false, error: rpc.error.message ?? 'approve_role_upgrade failed' };
 
-  // Elevate role in profiles (RLS expects admin to be allowed)
-  const { error: profErr } = await supabase
-    .from('profiles')
-    .update({ role: newRole, updated_at: new Date().toISOString() })
-    .eq('user_id', targetUserId)
+  const updReq = await supabase
+    .from('role_upgrade_requests')
+    .update({ status: 'approved', approved_at: new Date().toISOString() })
+    .eq('id', requestId);
+  if (updReq.error) return { ok: false, error: updReq.error.message ?? 'Failed to update request status' };
 
-  if (profErr) throw profErr
+  const updProfile = await supabase.from('profiles').update({ role: newRole }).eq('user_id', userId);
+  if (updProfile.error) return { ok: false, error: updProfile.error.message ?? 'Failed to update profile role' };
 
-  // Mark request approved
-  const { error: reqErr } = await supabase
-    .from('upgrade_requests')
-    .update({
-      status: 'approved',
-      processed_by: adminId,
-      processed_at: new Date().toISOString(),
-    })
-    .eq('id', requestId)
-
-  if (reqErr) throw reqErr
+  return { ok: true };
 }
 
-/**
- * Admin denies a request.
- */
-export async function denyUpgradeRequest(requestId: string): Promise<void> {
-  const adminId = await getCurrentUserId()
+export async function denyUpgradeRequest(
+  requestId: string,
+  userId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const rpc = await tryRpc<null>('deny_role_upgrade', { request_id: requestId, user_id: userId });
+  if (!rpc.error && !rpc.notFound) return { ok: true };
+  if (!rpc.notFound && rpc.error) return { ok: false, error: rpc.error.message ?? 'deny_role_upgrade failed' };
 
   const { error } = await supabase
-    .from('upgrade_requests')
-    .update({
-      status: 'denied',
-      processed_by: adminId,
-      processed_at: new Date().toISOString(),
-    })
-    .eq('id', requestId)
+    .from('role_upgrade_requests')
+    .update({ status: 'denied', denied_at: new Date().toISOString() })
+    .eq('id', requestId);
 
-  if (error) throw error
+  if (error) return { ok: false, error: error.message ?? 'Failed to update request status' };
+  return { ok: true };
 }
 
 // Legacy profile helper functions for compatibility
