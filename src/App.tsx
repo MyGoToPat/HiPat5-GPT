@@ -110,7 +110,9 @@ function App() {
   // Initialize analytics
   useEffect(() => {
     analytics.init();
-    console.log('Initializing analytics...');
+    if (import.meta.env.DEV) {
+      console.log('Initializing analytics...');
+    }
   }, []);
 
   // Set up iOS viewport height fix

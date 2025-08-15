@@ -13,10 +13,12 @@ class AnalyticsService {
   // Initialize analytics (placeholder for SDK initialization)
   init() {
     if (!this.isEnabled) {
-      console.log('Analytics disabled in development');
+      // Analytics disabled in development
       return;
     }
-    console.log('Analytics service initialized');
+    if (import.meta.env.DEV) {
+      console.log('Analytics service initialized');
+    }
     // TODO: Initialize Mixpanel/Amplitude SDK here
   }
 
@@ -34,8 +36,10 @@ class AnalyticsService {
       }
     };
 
-    // For now, just log to console
-    console.log('Analytics Event:', event);
+    // For now, just log to console in dev
+    if (import.meta.env.DEV) {
+      console.log('Analytics Event:', event);
+    }
 
     // TODO: Replace with actual analytics SDK call
     // Example: mixpanel.track(eventName, properties);
@@ -46,7 +50,9 @@ class AnalyticsService {
   identifyUser(userId: string, properties?: Record<string, any>) {
     if (!this.isEnabled) return;
 
-    console.log('Analytics Identify:', { userId, properties });
+    if (import.meta.env.DEV) {
+      console.log('Analytics Identify:', { userId, properties });
+    }
 
     // TODO: Replace with actual analytics SDK call
     // Example: mixpanel.identify(userId);
@@ -57,7 +63,9 @@ class AnalyticsService {
   setUserProperties(properties: Record<string, any>) {
     if (!this.isEnabled) return;
 
-    console.log('Analytics User Properties:', properties);
+    if (import.meta.env.DEV) {
+      console.log('Analytics User Properties:', properties);
+    }
 
     // TODO: Replace with actual analytics SDK call
     // Example: mixpanel.people.set(properties);
