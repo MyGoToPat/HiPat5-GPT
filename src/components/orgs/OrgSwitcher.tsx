@@ -2,11 +2,7 @@ import React, { useEffect } from 'react';
 import { useOrgStore } from '../../store/org';
 
 export default function OrgSwitcher() {
-  const { orgs, currentOrgId, fetchMyOrgs, setActiveOrg } = useOrgStore();
-
-  useEffect(() => { 
-    fetchMyOrgs(); 
-  }, [fetchMyOrgs]);
+  const { orgs, currentOrgId, setActiveOrg } = useOrgStore();
 
   return (
     <div className="flex items-center gap-2">
@@ -21,7 +17,7 @@ export default function OrgSwitcher() {
           {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
         </select>
       ) : (
-        <span className="text-xs text-gray-400">Organizations not enabled</span>
+        <span className="text-xs text-gray-400">No orgs</span>
       )}
     </div>
   );

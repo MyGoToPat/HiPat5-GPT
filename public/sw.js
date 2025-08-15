@@ -2,7 +2,8 @@
 const CACHE_NAME = 'interval-timer-v1';
 const STATIC_ASSETS = [
   '/',
-  '/index.html'
+  '/index.html',
+  '/manifest.json'
 ];
 
 // Install event - cache static assets

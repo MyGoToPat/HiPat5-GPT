@@ -4,7 +4,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
 import { UserProfile } from './types/user';
 import AppLayout from './layouts/AppLayout';
-import { analytics } from './lib/analytics';
+import { analytics, initAnalytics } from './lib/analytics';
 import { TimerProvider } from './context/TimerContext';
 import { useOrgStore } from './store/org';
 import AdminPage from './pages/AdminPage';
@@ -109,10 +109,7 @@ function App() {
 
   // Initialize analytics
   useEffect(() => {
-    analytics.init();
-    if (import.meta.env.DEV) {
-      console.log('Initializing analytics...');
-    }
+    const analyticsService = initAnalytics();
   }, []);
 
   // Set up iOS viewport height fix
@@ -182,10 +179,10 @@ function App() {
         current = data;
 
         // Track daily active user for existing profiles
-        analytics.trackEvent('daily_active_user', { user_id: user.id });
+        analytics.trackEvent?.('daily_active_user', { user_id: user.id });
       } else {
         // Track daily active user for existing profiles
-        analytics.trackEvent('daily_active_user', { user_id: user.id });
+        analytics.trackEvent?.('daily_active_user', { user_id: user.id });
       }
 
       // 3) Persist to app state
@@ -200,8 +197,8 @@ function App() {
       await postLoginRedirect();
 
       // Set user properties for analytics
-      analytics.identifyUser(user.id);
-      analytics.setUserProperties({
+      analytics.identifyUser?.(user.id);
+      analytics.setUserProperties?.({
         beta_user: current?.beta_user,
         role: current?.role,
       });

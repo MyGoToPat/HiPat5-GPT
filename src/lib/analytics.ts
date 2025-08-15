@@ -7,78 +7,41 @@ interface AnalyticsEvent {
   userId?: string;
 }
 
-class AnalyticsService {
-  private isEnabled = !import.meta.env.DEV && import.meta.env.VITE_DISABLE_ANALYTICS !== 'true';
-
-  // Initialize analytics (placeholder for SDK initialization)
-  init() {
-    if (!this.isEnabled) {
-      // Analytics disabled in development
-      return;
-    }
-    if (import.meta.env.DEV) {
-      console.log('Analytics service initialized');
-    }
-    // TODO: Initialize Mixpanel/Amplitude SDK here
-  }
-
-  // Track an event
-  trackEvent(eventName: string, properties?: Record<string, any>) {
-    if (!this.isEnabled) return;
-
-    const event: AnalyticsEvent = {
-      eventName,
-      properties: {
-        ...properties,
-        timestamp: new Date().toISOString(),
-        platform: 'web',
-        user_agent: navigator.userAgent,
-      }
+export function initAnalytics() {
+  const disabled =
+    import.meta.env.DEV ||
+    String(import.meta.env.VITE_DISABLE_ANALYTICS || '').toLowerCase() === 'true';
+  
+  if (disabled) {
+    return { 
+      trackEvent: () => {},
+      identifyUser: () => {},
+      setUserProperties: () => {},
+      setEnabled: () => {}
     };
-
-    // For now, just log to console in dev
-    if (import.meta.env.DEV) {
-      console.log('Analytics Event:', event);
-    }
-
-    // TODO: Replace with actual analytics SDK call
-    // Example: mixpanel.track(eventName, properties);
-    // Example: amplitude.logEvent(eventName, properties);
   }
-
-  // Identify a user
-  identifyUser(userId: string, properties?: Record<string, any>) {
-    if (!this.isEnabled) return;
-
-    if (import.meta.env.DEV) {
+  
+  // TODO: Initialize real analytics SDK here
+  return {
+    trackEvent: (eventName: string, properties?: Record<string, any>) => {
+      // TODO: Replace with actual analytics SDK call
+      console.log('Analytics Event:', { eventName, properties });
+    },
+    identifyUser: (userId: string, properties?: Record<string, any>) => {
+      // TODO: Replace with actual analytics SDK call
       console.log('Analytics Identify:', { userId, properties });
-    }
-
-    // TODO: Replace with actual analytics SDK call
-    // Example: mixpanel.identify(userId);
-    // Example: amplitude.setUserId(userId);
-  }
-
-  // Track user properties
-  setUserProperties(properties: Record<string, any>) {
-    if (!this.isEnabled) return;
-
-    if (import.meta.env.DEV) {
+    },
+    setUserProperties: (properties: Record<string, any>) => {
+      // TODO: Replace with actual analytics SDK call
       console.log('Analytics User Properties:', properties);
+    },
+    setEnabled: (enabled: boolean) => {
+      console.log('Analytics enabled:', enabled);
     }
-
-    // TODO: Replace with actual analytics SDK call
-    // Example: mixpanel.people.set(properties);
-    // Example: amplitude.setUserProperties(properties);
-  }
-
-  // Enable/disable analytics
-  setEnabled(enabled: boolean) {
-    this.isEnabled = enabled;
-  }
+  };
 }
 
-export const analytics = new AnalyticsService();
+export const analytics = initAnalytics();
 
 // Predefined event tracking functions
 export const trackUserSignUp = (userId: string, method: 'email' = 'email') => {

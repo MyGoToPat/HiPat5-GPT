@@ -12,6 +12,11 @@ if (!rootElement) {
   throw new Error('Root element not found');
 }
 
+// Register service worker only in production
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
 try {
   createRoot(rootElement).render(
     <StrictMode>
