@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
-import { supabase, supabaseDebugConfig } from './lib/supabase';
+import { supabase } from './lib/supabase';
 import { UserProfile } from './types/user';
 import AppLayout from './layouts/AppLayout';
 import { analytics } from './lib/analytics';
 import { TimerProvider } from './context/TimerContext';
+import { useOrgStore } from './store/org';
 import AdminPage from './pages/AdminPage';
 
 
@@ -57,12 +58,6 @@ function App() {
   // Safe role-aware post-login redirect
   const postLoginRedirect = async () => {
     try {
-      // Dev visibility: confirm env is correct
-      if (import.meta.env.DEV) {
-        const dbg = supabaseDebugConfig();
-        console.log('Supabase config', { url: dbg.url, anonTail: dbg.anonTail, hasKey: dbg.hasKey });
-      }
-
       // Prefer local session to avoid unnecessary network calls
       const { data: { session } } = await supabase.auth.getSession();
       let user = session?.user ?? null;
@@ -207,9 +202,6 @@ function App() {
       // Initialize organization store
       await useOrgStore.getState().init();
 
-      // Initialize organization store
-      await useOrgStore.getState().init();
-
     } catch (e) {
       console.error('handleUserSignIn:', e);
       setError(`Login failed: ${e instanceof Error ? e.message : String(e)}. Please try again.`);
@@ -222,22 +214,29 @@ function App() {
 
   // Handle user sign-in/sign-up events
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-        if (session) await handleUserSignIn(session)
+        await handleUserSignIn(session as any);
       } else if (event === 'SIGNED_OUT') {
-        handleUserSignOut()
+        handleUserSignOut();
       }
-    })
+    });
 
-    ;(async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) await handleUserSignIn(session)
-      else setLoading(false)
-    })()
+    return () => {
+      try {
+        sub?.subscription?.unsubscribe?.();
+      } catch {}
+    };
+  }, []);
 
-    return () => subscription.unsubscribe()
-  }, [])
+  // Get initial session
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) await handleUserSignIn(session);
+      else setLoading(false);
+    })();
+  }, []);
 
   const handleUserSignOut = () => {
     setIsAuthenticated(false);

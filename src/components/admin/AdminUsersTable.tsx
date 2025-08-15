@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase, type AppRole } from '../../lib/supabase';
 import ChangeRoleModal from './ChangeRoleModal';
 import RoleChangeHistory from './RoleChangeHistory';
 
@@ -7,7 +7,7 @@ type Profile = {
   user_id: string;
   email: string | null;
   name: string | null;
-  role: 'admin' | 'trainer' | 'user' | null;
+  role: AppRole | null;
   beta_user: boolean | null;
   created_at: string | null;
 };

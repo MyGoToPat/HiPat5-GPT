@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { supabase } from '../../lib/supabase';
+import { supabase, type AppRole } from '../../lib/supabase';
 
-type Role = 'admin' | 'trainer' | 'free_user';
+type Role = AppRole;
 
 type Props = {
   userId: string;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { requestRoleUpgrade, AppRole } from '../../lib/supabase';
+import { requestRoleUpgrade, type AppRole } from '../../lib/supabase';
 
 export default function RequestRoleUpgrade() {
   const [role, setRole] = useState<AppRole>('trainer');
