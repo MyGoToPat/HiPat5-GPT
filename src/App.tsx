@@ -224,6 +224,8 @@ function App() {
       const { fetchMyOrgs } = require('./store/org').useOrgStore.getState();
       fetchMyOrgs();
     
+  }
+  )
 
   const handleUserSignOut = () => {
     setIsAuthenticated(false);
