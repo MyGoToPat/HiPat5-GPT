@@ -8,10 +8,14 @@ interface AnalyticsEvent {
 }
 
 class AnalyticsService {
-  private isEnabled = true;
+  private isEnabled = !import.meta.env.DEV && import.meta.env.VITE_DISABLE_ANALYTICS !== 'true';
 
   // Initialize analytics (placeholder for SDK initialization)
   init() {
+    if (!this.isEnabled) {
+      console.log('Analytics disabled in development');
+      return;
+    }
     console.log('Analytics service initialized');
     // TODO: Initialize Mixpanel/Amplitude SDK here
   }

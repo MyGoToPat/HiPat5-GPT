@@ -3,11 +3,7 @@ const CACHE_NAME = 'interval-timer-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/src/main.tsx',
-  '/sounds/beep.wav',
-  '/sounds/bell.wav',
-  '/sounds/start.wav',
-  '/sounds/end.wav'
+  '/src/main.tsx'
 ];
 
 // Install event - cache static assets

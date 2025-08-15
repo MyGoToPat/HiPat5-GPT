@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import { getActiveOrgIdSafe, listOrganizationsSafe, setActiveOrgSafe } from '../lib/org';
 
 export interface Org { 
   id: string; 
@@ -35,9 +35,9 @@ export const useOrgStore = create<OrgState>((set, get) => ({
   init: async () => {
     await get().fetchMyOrgs();
 
-    const { data: activeOrgId, error: activeErr } = await supabase.rpc('get_active_org_id');
-    if (!activeErr && activeOrgId) {
-      set({ currentOrgId: activeOrgId as string });
+    const activeOrgId = await getActiveOrgIdSafe();
+    if (activeOrgId) {
+      set({ currentOrgId: activeOrgId });
       return;
     }
 
@@ -50,20 +50,18 @@ export const useOrgStore = create<OrgState>((set, get) => ({
   fetchMyOrgs: async () => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('id,name,owner_id'); // RLS will return only member orgs
-      if (error) throw error;
-      set({ orgs: data ?? [], loading: false });
+      const orgs = await listOrganizationsSafe();
+      set({ orgs, loading: false });
     } catch (e: any) {
       set({ error: e.message, loading: false });
     }
   },
 
   setActiveOrg: async (orgId) => {
-    const { error } = await supabase.rpc('set_active_org', { p_org_id: orgId });
-    if (error) throw error;
-    set({ currentOrgId: orgId });
+    const success = await setActiveOrgSafe(orgId);
+    if (success) {
+      set({ currentOrgId: orgId });
+    }
   },
 
   getActiveOrgId: () => get().currentOrgId,
