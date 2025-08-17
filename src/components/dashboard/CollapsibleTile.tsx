@@ -23,7 +23,7 @@ export const CollapsibleTile: React.FC<CollapsibleTileProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className={`bg-gray-900 rounded-2xl shadow-pat-card border border-gray-800 hover:${hoverColor} transition-all duration-300 cursor-pointer group ${className}`}>
+    <div className={`bg-gray-900 rounded-2xl shadow-pat-card border border-gray-800 hover:${hoverColor} transition-all duration-300 cursor-pointer group w-full min-h-[220px] overflow-hidden ${className}`}>
       {/* Header */}
       <div 
         className="flex items-center justify-between p-6 pb-4"
@@ -31,7 +31,7 @@ export const CollapsibleTile: React.FC<CollapsibleTileProps> = ({
       >
         <div className="flex items-center gap-3">
           <IconComponent size={20} className={`${iconColor} group-hover:brightness-110 transition-all`} />
-          <h3 className="text-lg font-semibold text-white">{title}</h3>
+          <h3 className="text-lg font-semibold text-white truncate" title={title}>{title}</h3>
         </div>
         
         <button className="p-1 hover:bg-gray-800 rounded-lg transition-colors">
@@ -44,7 +44,7 @@ export const CollapsibleTile: React.FC<CollapsibleTileProps> = ({
       </div>
       
       {/* Content */}
-      <div className="px-6 pb-6">
+      <div className="px-6 pb-6 w-full overflow-hidden break-words">
         <div className={`transition-all duration-300 ease-in-out ${
           isExpanded ? 'opacity-100' : 'opacity-100'
         }`}>

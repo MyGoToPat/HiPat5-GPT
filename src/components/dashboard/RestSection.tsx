@@ -167,7 +167,7 @@ export const RestSection: React.FC = () => {
       iconColor="text-pat-blue-400"
       hoverColor="border-pat-blue-600"
       condensedContent={condensedContent}
-      className="min-w-[300px]"
+      className=""
     >
       {fullContent}
     </CollapsibleTile>

@@ -106,7 +106,7 @@ export const EffortSection: React.FC = () => {
       iconColor="text-orange-400"
       hoverColor="border-orange-600"
       condensedContent={condensedContent}
-      className="min-w-[300px]"
+      className=""
     >
       {fullContent}
     </CollapsibleTile>

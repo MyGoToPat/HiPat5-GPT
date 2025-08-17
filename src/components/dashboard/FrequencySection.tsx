@@ -100,7 +100,7 @@ export const FrequencySection: React.FC = () => {
       iconColor="text-pat-purple-400"
       hoverColor="border-pat-purple-600"
       condensedContent={condensedContent}
-      className="min-w-[300px]"
+      className=""
     >
       {fullContent}
     </CollapsibleTile>

@@ -106,7 +106,7 @@ export const EnergySection: React.FC<EnergySectionProps> = ({ energyData }) => {
       iconColor="text-green-400"
       hoverColor="border-green-600"
       condensedContent={condensedContent}
-      className="min-w-[300px]"
+      className=""
     >
       {fullContent}
     </CollapsibleTile>

@@ -238,7 +238,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         
         {/* Scrollable Content */}
         <div className="h-full overflow-y-auto overflow-x-hidden">
-          <div className="px-4 py-6 pb-16">
+          <div className="py-6 pb-16">
             {/* Daily Summary */}
             <DailySummary 
               totalCalories={dashboardData?.totalCalories || 0}
@@ -247,19 +247,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               currentProtein={dashboardData?.totalMacros?.protein || 0}
             />
             
+            <div className="max-w-screen-xl mx-auto px-3 sm:px-4 md:px-6">
             {/* FREE Dashboard Grid - Responsive Layout */}
-            <div className="grid gap-6 mb-8" style={{
-              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-              '@media (min-width: 1200px)': {
-                gridTemplateColumns: 'repeat(4, 1fr)'
-              },
-              '@media (min-width: 768px) and (max-width: 1199px)': {
-                gridTemplateColumns: 'repeat(2, 1fr)'
-              },
-              '@media (max-width: 767px)': {
-                gridTemplateColumns: '1fr'
-              }
-            }}>
+            <div className="grid gap-6 mb-8 grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
               <FrequencySection />
               <RestSection />
               <EnergySection 
@@ -278,6 +268,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 } : undefined}
               />
               <EffortSection />
+            </div>
             </div>
             
             {/* Cross-Metric Insights */}
