@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
+import { ensureProfile } from './lib/profiles';
 import { UserProfile } from './types/user';
 import AppLayout from './layouts/AppLayout';
 import { analytics, initAnalytics } from './lib/analytics';
@@ -39,6 +40,7 @@ function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [authReady, setAuthReady] = useState(false);
 
   // Protected route wrapper with explicit props
   function ProtectedRoute({
@@ -109,7 +111,7 @@ function App() {
 
   // Initialize analytics
   useEffect(() => {
-    const analyticsService = initAnalytics();
+    initAnalytics(); // safe no-op in preview
   }, []);
 
   // Set up iOS viewport height fix
@@ -188,7 +190,6 @@ function App() {
       // 3) Persist to app state
       setUserProfile(current as UserProfile);
       setIsAuthenticated(true);
-      setLoading(false);
 
       // run once after auth state is set
       await useOrgStore.getState().init();
@@ -209,12 +210,24 @@ function App() {
       setIsAuthenticated(false);
       setUserProfile(null);
       navigate('/login');
-      setLoading(false);
     }
   };
 
   // Handle user sign-in/sign-up events
   useEffect(() => {
+    let mounted = true;
+
+    // Immediate session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      const u = session?.user;
+      if (u) {
+        setTimeout(() => ensureProfile(u.id, u.email ?? undefined), 0);
+        handleUserSignIn(session);
+      }
+      setAuthReady(true); // never block render on data stores
+    });
+
     let cancelled = false;
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -233,11 +246,18 @@ function App() {
         if (!cancelled) {
           await handleUserSignIn(s);
         }
+        if (!cancelled) {
+          setAuthReady(true);
+        }
       }
     });
 
+    // Failsafe: even if getSession is slow, unlock UI after 3s
+    const t = setTimeout(() => setAuthReady(true), 3000);
     return () => {
       cancelled = true;
+      mounted = false;
+      clearTimeout(t);
       try {
         sub?.subscription?.unsubscribe?.();
       } catch {}
@@ -246,18 +266,13 @@ function App() {
 
   // Get initial session
   useEffect(() => {
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) await handleUserSignIn(session);
-      else setLoading(false);
-    })();
+    // Removed - handled in onAuthStateChange effect above
   }, []);
 
   const handleUserSignOut = () => {
     setIsAuthenticated(false);
     setUserProfile(null);
     navigate('/login');
-    setLoading(false);
     setError(null);
   };
 
@@ -283,13 +298,10 @@ function App() {
     };
   };
 
-  if (loading) {
+  if (!authReady) {
     return (
-      <div className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white">Loading HiPat...</p>
-        </div>
+      <div className="min-h-dvh grid place-items-center text-sm text-gray-400">
+        Loading HiPat…
       </div>
     );
   }

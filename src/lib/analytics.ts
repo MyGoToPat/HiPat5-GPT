@@ -7,38 +7,36 @@ interface AnalyticsEvent {
   userId?: string;
 }
 
-export function initAnalytics() {
+type AnalyticsClient = {
+  trackEvent: (e: string, p?: Record<string, any>) => void;
+  identifyUser: (id: string, p?: Record<string, any>) => void;
+  setUserProperties: (p: Record<string, any>) => void;
+  setEnabled: (v: boolean) => void;
+};
+
+const noopClient: AnalyticsClient = {
+  trackEvent: () => {},
+  identifyUser: () => {},
+  setUserProperties: () => {},
+  setEnabled: () => {},
+};
+
+export function initAnalytics(): AnalyticsClient {
   const disabled =
     import.meta.env.DEV ||
-    String(import.meta.env.VITE_DISABLE_ANALYTICS || '').toLowerCase() === 'true';
+    String(import.meta.env.VITE_DISABLE_ANALYTICS || '').toLowerCase() === 'true' ||
+    (typeof location !== 'undefined' &&
+      (location.hostname.includes('bolt.') ||
+       location.hostname.includes('stackblitz') ||
+       location.hostname.includes('staticblitz')));
   
   if (disabled) {
-    return { 
-      trackEvent: () => {},
-      identifyUser: () => {},
-      setUserProperties: () => {},
-      setEnabled: () => {}
-    };
+    console.log('[analytics] disabled for preview');
+    return noopClient;
   }
   
-  // TODO: Initialize real analytics SDK here
-  return {
-    trackEvent: (eventName: string, properties?: Record<string, any>) => {
-      // TODO: Replace with actual analytics SDK call
-      console.log('Analytics Event:', { eventName, properties });
-    },
-    identifyUser: (userId: string, properties?: Record<string, any>) => {
-      // TODO: Replace with actual analytics SDK call
-      console.log('Analytics Identify:', { userId, properties });
-    },
-    setUserProperties: (properties: Record<string, any>) => {
-      // TODO: Replace with actual analytics SDK call
-      console.log('Analytics User Properties:', properties);
-    },
-    setEnabled: (enabled: boolean) => {
-      console.log('Analytics enabled:', enabled);
-    }
-  };
+  // If you have a real analytics client, initialize here; otherwise return noop.
+  return noopClient;
 }
 
 export const analytics = initAnalytics();
