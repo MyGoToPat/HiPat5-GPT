@@ -108,4 +108,51 @@ export async function upsertUserProfile(userId: string, profileData: any) {
 
 export type Role = 'admin' | 'trainer' | 'user';
 
+// Upgrade request functions
+export async function requestRoleUpgrade(requestedRole: string) {
+  const { data, error } = await supabase
+    .from('upgrade_requests')
+    .insert({
+      requested_role: requestedRole,
+      user_id: (await supabase.auth.getUser()).data.user?.id
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function approveUpgradeRequest(requestId: string) {
+  const { data, error } = await supabase
+    .from('upgrade_requests')
+    .update({
+      status: 'approved',
+      processed_by: (await supabase.auth.getUser()).data.user?.id,
+      processed_at: new Date().toISOString()
+    })
+    .eq('id', requestId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function denyUpgradeRequest(requestId: string) {
+  const { data, error } = await supabase
+    .from('upgrade_requests')
+    .update({
+      status: 'denied',
+      processed_by: (await supabase.auth.getUser()).data.user?.id,
+      processed_at: new Date().toISOString()
+    })
+    .eq('id', requestId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export { supabase as default };
