@@ -40,6 +40,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [authReady, setAuthReady] = useState(false);
+  const [loading, setLoading] = useState(false); // Keep for internal use if needed, but not for initial gate
 
   // Protected route wrapper with explicit props
   function ProtectedRoute({
@@ -110,7 +111,7 @@ function App() {
     initAnalytics(); // safe no-op in preview
 
     let mounted = true;
-
+    
     // Immediate session check
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
@@ -121,7 +122,7 @@ function App() {
       }
       setAuthReady(true); // never block render on data stores
     });
-
+    
     let cancelled = false;
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -131,7 +132,7 @@ function App() {
       }
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-        // Some environments emit INITIAL_SESSION with null; resolve explicitly.
+        // Some environments emit INITIAL_SESSION with null; resolve explicitly. 
         let s = session;
         if (!s?.user) {
           const { data } = await supabase.auth.getSession();
@@ -145,7 +146,7 @@ function App() {
         }
       }
     });
-
+    
     // Failsafe: even if getSession is slow, unlock UI after 3s
     const t = setTimeout(() => setAuthReady(true), 3000);
     return () => {
@@ -153,7 +154,7 @@ function App() {
       mounted = false;
       clearTimeout(t);
       try {
-        sub?.subscription?.unsubscribe?.();
+        sub.subscription.unsubscribe();
       } catch {}
     };
   }, []);
@@ -354,7 +355,7 @@ function App() {
             path="/"
             element={
               <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
-                <AppLayout />
+                <AppLayout /> 
               </ProtectedRoute>
             }
           >
