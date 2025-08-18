@@ -1,97 +1,81 @@
-import { createClient, type PostgrestError } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
-if (!url || !anon) {
-  throw new Error('[Supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.');
+/**
+ * (OPTIONAL) Lock the expected host to avoid accidental project swaps.
+ * If your Supabase Project URL host is different, change EXPECTED_HOST below.
+ */
+const EXPECTED_HOST = 'jdtogitfqptdrxkczdbw.supabase.co'; // <-- update ONLY if your project host differs
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    '[Supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +
+    'Define them in .env (Vite) or your hosting env.'
+  );
 }
 
-if (typeof window !== 'undefined') {
-  try {
-    const mask = (s: string, keep = 8) => (s.length > keep ? `${s.slice(0, keep)}…` : s);
-    console.log('[Supabase] URL:', mask(url, 24));
-    console.log('[Supabase] Anon key prefix:', mask(anon, 20));
-  } catch {}
+let hostOk = true;
+try {
+  const actualHost = new URL(SUPABASE_URL).host;
+  if (EXPECTED_HOST && actualHost !== EXPECTED_HOST) {
+    hostOk = false;
+    // Don't throw in production; warn noisily in dev so you can see it.
+    console.warn('[Supabase] Host mismatch', { actualHost, EXPECTED_HOST });
+  }
+} catch (e) {
+  console.warn('[Supabase] Could not parse URL', SUPABASE_URL, e);
 }
 
-export const supabase = createClient(url, anon);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/** 
+ * Diagnostic helper: call this from anywhere (e.g., after sign-in) to verify wiring.
+ * It logs: host, anon prefix, session presence, a tiny read ping (profiles).
+ * It does NOT leak your full anon key.
+ */
+export async function supabaseSelfCheck() {
+  const anonPrefix = SUPABASE_ANON_KEY.slice(0, 12);
+  const host = (() => { try { return new URL(SUPABASE_URL).host; } catch { return 'invalid-url'; } })();
+
+  const sessionRes = await supabase.auth.getSession();
+  const hasSession = !!sessionRes.data.session?.user;
+
+  // Lightweight read ping that works even with RLS (will just return zero rows if blocked)
+  const { data: pingData, error: pingErr } = await supabase
+    .from('profiles')
+    .select('user_id')
+    .limit(1);
+
+  const ok = hostOk && !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
+
+  const report = {
+    ok,
+    host,
+    expectedHost: EXPECTED_HOST,
+    anonPrefix,                 // never log the full key
+    hasSession,
+    profilesPingOk: !pingErr,   // true = request executed (not necessarily returned rows)
+    pingErrCode: pingErr?.code,
+  };
+
+  if (import.meta.env.DEV) {
+    console.log('[Supabase SelfCheck]', report);
+  }
+  return report;
+}
+
+// Dev-only breadcrumb (safe)
+if (import.meta.env.DEV) {
+  console.log('[Supabase]', {
+    urlHost: (() => { try { return new URL(SUPABASE_URL).host; } catch { return 'invalid-url'; } })(),
+    anonPrefix: SUPABASE_ANON_KEY.slice(0, 12),
+  });
+}
+
+// Legacy types and helper functions for compatibility
 export type AppRole = 'user' | 'coach' | 'admin';
-
-type RpcResult<T> = { data: T | null; error: PostgrestError | null; notFound?: boolean };
-
-async function tryRpc<T = unknown>(fn: string, args: Record<string, unknown>): Promise<RpcResult<T>> {
-  const { data, error } = await supabase.rpc<T>(fn, args as never);
-  const notFound =
-    !!error &&
-    (/not\s*found/i.test(error.message || '') || error.code === 'PGRST116' || error.code === '42883');
-  return { data, error, notFound };
-}
-
-export async function requestRoleUpgrade(
-  requestId: string,
-  userId: string,
-  reason?: string
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  const rpc = await tryRpc<{ id: string }>('request_role_upgrade', {
-    request_id: requestId,
-    user_id: userId,
-    reason: reason ?? null,
-  });
-  if (!rpc.error && rpc.data) return { ok: true, id: rpc.data.id };
-  if (!rpc.notFound && rpc.error) return { ok: false, error: rpc.error.message ?? 'request_role_upgrade failed' };
-
-  const { data, error } = await supabase
-    .from('role_upgrade_requests')
-    .insert({ id: requestId, user_id: userId, reason: reason ?? null, status: 'pending' })
-    .select('id')
-    .maybeSingle();
-
-  if (error) return { ok: false, error: error.message ?? 'Failed to insert role upgrade request' };
-  return { ok: true, id: data?.id ?? requestId };
-}
-
-export async function approveUpgradeRequest(
-  requestId: string,
-  userId: string,
-  newRole: AppRole
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const rpc = await tryRpc<null>('approve_role_upgrade', {
-    request_id: requestId,
-    user_id: userId,
-    new_role: newRole,
-  });
-  if (!rpc.error && !rpc.notFound) return { ok: true };
-  if (!rpc.notFound && rpc.error) return { ok: false, error: rpc.error.message ?? 'approve_role_upgrade failed' };
-
-  const updReq = await supabase
-    .from('role_upgrade_requests')
-    .update({ status: 'approved', approved_at: new Date().toISOString() })
-    .eq('id', requestId);
-  if (updReq.error) return { ok: false, error: updReq.error.message ?? 'Failed to update request status' };
-
-  const updProfile = await supabase.from('profiles').update({ role: newRole }).eq('user_id', userId);
-  if (updProfile.error) return { ok: false, error: updProfile.error.message ?? 'Failed to update profile role' };
-
-  return { ok: true };
-}
-
-export async function denyUpgradeRequest(
-  requestId: string,
-  userId: string
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const rpc = await tryRpc<null>('deny_role_upgrade', { request_id: requestId, user_id: userId });
-  if (!rpc.error && !rpc.notFound) return { ok: true };
-  if (!rpc.notFound && rpc.error) return { ok: false, error: rpc.error.message ?? 'deny_role_upgrade failed' };
-
-  const { error } = await supabase
-    .from('role_upgrade_requests')
-    .update({ status: 'denied', denied_at: new Date().toISOString() })
-    .eq('id', requestId);
-
-  if (error) return { ok: false, error: error.message ?? 'Failed to update request status' };
-  return { ok: true };
-}
 
 // Legacy profile helper functions for compatibility
 export async function getUserProfile(userId: string) {
