@@ -3,7 +3,6 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
 import { ensureProfile } from './lib/profiles';
-import { getSession } from './lib/auth';
 import { UserProfile } from './types/user';
 import AppLayout from './layouts/AppLayout';
 import { analytics, initAnalytics } from './lib/analytics';
