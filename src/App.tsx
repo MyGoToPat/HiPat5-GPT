@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
 import { ensureProfile } from './lib/profiles';
+import { getSession } from './lib/auth';
 import { UserProfile } from './types/user';
 import AppLayout from './layouts/AppLayout';
 import { analytics, initAnalytics } from './lib/analytics';
@@ -41,6 +42,8 @@ function App() {
   const navigate = useNavigate();
   const [authReady, setAuthReady] = useState(false);
   const [loading, setLoading] = useState(false); // Keep for internal use if needed, but not for initial gate
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Protected route wrapper with explicit props
   function ProtectedRoute({
@@ -158,6 +161,16 @@ function App() {
       } catch {}
     };
   }, []);
+
+  // Post-auth redirect from /login
+  useEffect(() => {
+    if (!authReady) return;
+    getSession().then((session) => {
+      if (session?.user && (location.pathname === '/login' || location.pathname === '/signin')) {
+        navigate('/dashboard', { replace: true });
+      }
+    });
+  }, [authReady, location.pathname, navigate]);
 
   // Set up iOS viewport height fix
   React.useEffect(() => {

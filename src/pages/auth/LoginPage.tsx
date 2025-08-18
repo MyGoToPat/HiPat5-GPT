@@ -1,18 +1,29 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { PatAvatar } from '../../components/PatAvatar';
-import { supabase } from '../../lib/supabase';
+import { signInWithPassword, getSession } from '../../lib/auth';
 
 interface LoginPageProps {
   onNavigate: (page: string) => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [errMsg, setErrMsg] = useState<string | null>(null);
+
+  // If already authenticated, redirect to dashboard
+  useEffect(() => {
+    getSession().then((session) => {
+      if (session?.user) {
+        navigate('/dashboard', { replace: true });
+      }
+    });
+  }, [navigate]);
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -21,52 +32,47 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setErrMsg(null);
 
     // Client-side validation
     if (typeof email !== 'string' || !email.trim()) {
-      setError('Please enter your email address');
+      setErrMsg('Please enter your email address');
       return;
     }
 
     if (!validateEmail(email)) {
-      setError('Please enter a valid email address');
+      setErrMsg('Please enter a valid email address');
       return;
     }
 
     if (typeof password !== 'string' || !password) {
-      setError('Please enter your password');
+      setErrMsg('Please enter your password');
       return;
     }
 
-    setIsLoading(true);
+    setSubmitting(true);
 
     try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password,
-      });
+      const { error } = await signInWithPassword(email.trim(), password);
 
-      if (authError) {
-        if (authError.message.includes('Invalid login credentials')) {
-          setError('Invalid email or password. Please try again.');
-        } else if (authError.message.includes('Email not confirmed')) {
-          setError('Please check your email and click the confirmation link before signing in.');
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          setErrMsg('Invalid email or password. Please try again.');
+        } else if (error.message.includes('Email not confirmed')) {
+          setErrMsg('Please check your email and click the confirmation link before signing in.');
         } else {
-          setError(authError.message);
+          setErrMsg(error.message || 'Sign in failed. Check your email and password.');
         }
         return;
       }
 
-      if (data.user) {
-        // Success - App.tsx will handle the redirect via onAuthStateChange
-        console.log('Login successful');
-      }
+      // Success: navigate to dashboard
+      navigate('/dashboard', { replace: true });
     } catch (error) {
       console.error('Login error:', error);
-      setError('An unexpected error occurred. Please try again.');
+      setErrMsg('An unexpected error occurred. Please try again.');
     } finally {
-      setIsLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -81,9 +87,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* Error Message */}
-        {error && (
+        {errMsg && (
           <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600 text-sm">{error}</p>
+            <p className="text-red-600 text-sm">{errMsg}</p>
           </div>
         )}
 
@@ -101,7 +107,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your.email@example.com"
                 className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={isLoading}
+                disabled={submitting}
                 autoComplete="email"
               />
             </div>
@@ -119,14 +125,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 className="w-full pl-10 pr-12 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={isLoading}
+                disabled={submitting}
                 autoComplete="current-password"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
-                disabled={isLoading}
+                disabled={submitting}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -135,10 +141,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={submitting}
             className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
           >
-            {isLoading ? (
+            {submitting ? (
               <>
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 Signing In...
@@ -157,7 +163,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
           <button
             onClick={() => onNavigate('forgot-password')}
             className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
-            disabled={isLoading}
+            disabled={submitting}
           >
             Forgot your password?
           </button>
@@ -166,7 +172,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
             <button
               onClick={() => onNavigate('register')}
               className="text-blue-400 hover:text-blue-300 transition-colors"
-              disabled={isLoading}
+              disabled={submitting}
             >
               Sign up
             </button>
