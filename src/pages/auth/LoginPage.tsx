@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { PatAvatar } from '../../components/PatAvatar';
-import { signInWithPassword, getSession } from '../../lib/auth';
-
+import { useNavigate } from 'react-router-dom';
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -17,40 +15,39 @@ export const LoginPage: React.FC = () => {
     getSession().then((s) => {
       if (s?.user) {
         console.log('[login] already authenticated → redirecting');
-        navigate('/', { replace: true });
+        navigate('/dashboard', { replace: true });
       }
     });
   }, [navigate]);
+
+  // If already authenticated, bounce away from /login
+  useEffect(() => {
+      return setError('Please enter a valid email address');
+        console.log('[login] already authenticated → redirecting');
+        navigate('/', { replace: true });
+      }
+      return setError('Please enter your password');
 
   const validateEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-
-    if (!email.trim()) return setError('Please enter your email address');
-    if (!validateEmail(email)) return setError('Please enter a valid email address');
-    if (!password) return setError('Please enter your password');
-
-    setIsLoading(true);
-
-    try {
       const { error: authError } = await signInWithPassword(email.trim(), password);
-      if (authError) {
+    if (!password) return setError('Please enter your password');
         const msg = authError.message || 'Sign in failed. Check your email and password.';
         console.warn('[login] auth error:', authError);
         setError(msg);
-        return;
-      }
+      if (authError) {
+        const msg = authError.message || 'Sign in failed. Check your email and password.';
       console.log('[login] success → redirecting to app root');
       navigate('/', { replace: true }); // root is safest; router can land you on dashboard
       // If your dashboard route is strictly '/dashboard', also push a delayed fallback:
       setTimeout(() => navigate('/dashboard', { replace: true }), 50);
-    } catch (err: any) {
-      console.error('[login] unexpected error:', err);
+      setTimeout(() => navigate('/dashboard', { replace: true }), 50);
+      console.error('[login] unexpected error:', error);
+      setError((error as any)?.message ?? 'Unexpected error during sign in.');
       setError(err?.message ?? 'Unexpected error during sign in.');
-    } finally {
-      setIsLoading(false);
+      return setError('Please enter your email address');
     }
   };
 

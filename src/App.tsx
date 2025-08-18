@@ -1,17 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import type { Session } from '@supabase/supabase-js';
-import { supabase } from './lib/supabase';
-import { ensureProfile } from './lib/profiles';
-import { UserProfile } from './types/user';
-import AppLayout from './layouts/AppLayout';
-import { analytics, initAnalytics } from './lib/analytics';
+import { Toaster } from 'react-hot-toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { TimerProvider } from './context/TimerContext';
-import { useOrgStore } from './store/org';
-import AdminPage from './pages/AdminPage';
-
-// Import the new auth helpers
+import { initAnalytics } from './lib/analytics';
+import { ensureProfile } from './lib/profiles';
+import { supabase } from './lib/supabase';
 import { getSession, onAuthChange } from './lib/auth';
+import { useOrgStore } from './store/org';
 
 // Import page components
 import { LoginPage } from './pages/auth/LoginPage';
@@ -26,48 +22,20 @@ import TDEEOnboardingWizard from './pages/TDEEOnboardingWizard';
 import IntervalTimerPage from './pages/IntervalTimerPage';
 import TrainerDashboardPage from './pages/TrainerDashboardPage';
 import DebugPage from './pages/DebugPage';
+import AdminPage from './pages/AdminPage';
 import NotFoundPage from './pages/NotFoundPage';
 import AgentsListPage from './pages/admin/AgentsListPage';
 import AgentDetailPage from './pages/admin/AgentDetailPage';
-
-// Helper: programmatic nav to replace any prior string-based onNavigate
-export function useNav() {
-  const navigate = useNavigate();
-  return (path: string) => navigate(path);
-}
+import AppLayout from './layouts/AppLayout';
+import { UserProfile } from './types/user';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [hasSession, setHasSession] = useState<boolean | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
-  const [authReady, setAuthReady] = useState(false);
-  const [loading, setLoading] = useState(false); // Keep for internal use if needed, but not for initial gate
   const location = useLocation();
-  
-  // Post-auth redirect if user lands on /login after startup
-  useEffect(() => {
-    // If already authenticated and currently on /login, bounce to dashboard
-    if (!authReady) return;
-    getSession().then((s) => {
-      if (s?.user && (location.pathname === '/login' || location.pathname === '/signin')) {
-        console.log('[app] authenticated user on /login → redirecting to dashboard');
-        navigate('/dashboard', { replace: true });
-      }
-    });
-  }, [authReady, location.pathname, navigate]);
-
-  // Protected route wrapper with explicit props
-  function ProtectedRoute({
-    children,
-    isAuthenticated,
-  }: {
-    children: React.ReactNode;
-    isAuthenticated: boolean;
-  }) {
-    if (!isAuthenticated) return <Navigate to="/login" replace />;
-    return <>{children}</>;
-  }
+  const navigate = useNavigate();
 
   // Safe role-aware post-login redirect
   const postLoginRedirect = async () => {
@@ -121,106 +89,8 @@ function App() {
     }
   };
 
-  // Initialize analytics
-  useEffect(() => {
-    initAnalytics();
-
-    let mounted = true;
-    
-    // Immediate session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('[app] initial getSession →', { session: !!session, user: session?.user?.id });
-      if (!mounted) return;
-      const u = session?.user;
-      if (u) {
-        setTimeout(() => ensureProfile(u.id, u.email ?? undefined), 0);
-        handleUserSignIn(session);
-      }
-      setAuthReady(true); // never block render on data stores
-    });
-    
-    let cancelled = false;
-
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT') {
-        handleUserSignOut();
-        return;
-      }
-
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-        // Some environments emit INITIAL_SESSION with null; resolve explicitly. 
-        console.log('[app] auth event:', event, 'user:', session?.user?.id);
-        let s = session;
-        if (!s?.user) {
-          const { data } = await supabase.auth.getSession();
-          s = data?.session ?? null;
-        }
-        if (!cancelled) {
-          await handleUserSignIn(s);
-        }
-        if (!cancelled) {
-          setAuthReady(true);
-        }
-        // If you land on /login and we just signed in, push to the app
-        if (event === 'SIGNED_IN' && (location.pathname === '/login' || location.pathname === '/signin')) {
-          console.log('[app] SIGNED_IN on /login → redirecting to app');
-          navigate('/', { replace: true });
-          setTimeout(() => navigate('/dashboard', { replace: true }), 50);
-        }
-      }
-    });
-    
-    // Failsafe: even if getSession is slow, unlock UI after 3s
-    const t = setTimeout(() => setAuthReady(true), 3000);
-    return () => {
-      cancelled = true;
-      mounted = false;
-      clearTimeout(t);
-      try {
-        sub.subscription.unsubscribe();
-      } catch {}
-    };
-  }, [location.pathname, navigate]);
-
-  // Post-auth redirect from /login
-  useEffect(() => {
-    if (!authReady) return;
-    getSession().then((session) => {
-      if (session?.user && (location.pathname === '/login' || location.pathname === '/signin')) {
-        navigate('/dashboard', { replace: true });
-      }
-    });
-  }, [authReady, location.pathname, navigate]);
-
-  // Set up iOS viewport height fix
-  React.useEffect(() => {
-    setVHProperty();
-    
-    const handleResize = () => {
-      setVHProperty();
-    };
-    
-    const handleOrientationChange = () => {
-      setTimeout(setVHProperty, 100);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleOrientationChange);
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleOrientationChange);
-    };
-  }, []);
-
-  // Helper to set --vh property for iOS Safari
-  const setVHProperty = () => {
-    const vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
-  };
-
-  // RLS-friendly auth/profile bootstrap
-  async function handleUserSignIn(session: Session | null) {
+  // Handle user sign-in events
+  const handleUserSignIn = async (session: any) => {
     if (!session?.user) {
       console.warn('[Auth] handleUserSignIn called without session.user, skipping.');
       return;
@@ -229,7 +99,7 @@ function App() {
     try {
       const user = session.user;
 
-      // 1) Read existing profile (RLS-safe; null if absent)
+      // Read existing profile (RLS-safe; null if absent)
       const { data: profile, error: selError } = await supabase
         .from('profiles')
         .select('*')
@@ -239,7 +109,7 @@ function App() {
 
       let current = profile;
 
-      // 2) Create if missing (allowed by owner policy)
+      // Create if missing (allowed by owner policy)
       if (!current) {
         const { data, error: upsertError } = await supabase
           .from('profiles')
@@ -249,7 +119,7 @@ function App() {
               email: user.email ?? null,
               name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
               beta_user: false,
-              role: 'free_user'
+              role: 'user'
             },
             { onConflict: 'user_id' }
           )
@@ -257,56 +127,131 @@ function App() {
           .single();
         if (upsertError) throw upsertError;
         current = data;
-
-        // Track daily active user for existing profiles
-        analytics.trackEvent?.('daily_active_user', { user_id: user.id });
-      } else {
-        // Track daily active user for existing profiles
-        analytics.trackEvent?.('daily_active_user', { user_id: user.id });
       }
 
-      // 3) Persist to app state
+      // Persist to app state
       setUserProfile(current as UserProfile);
-      setIsAuthenticated(true);
+      setHasSession(true);
 
-      // run once after auth state is set
-      await useOrgStore.getState().init();
+      // Bootstrap org store
+      setTimeout(() => useOrgStore.getState().init(), 0);
 
-      // Role-aware redirect
-      await postLoginRedirect();
-
-      // Set user properties for analytics
-      analytics.identifyUser?.(user.id);
-      analytics.setUserProperties?.({
-        beta_user: current?.beta_user,
-        role: current?.role,
-      });
+      console.log('[auth] user profile loaded:', current?.role);
 
     } catch (e) {
       console.error('handleUserSignIn:', e);
       setError(`Login failed: ${e instanceof Error ? e.message : String(e)}. Please try again.`);
-      setIsAuthenticated(false);
+      setHasSession(false);
       setUserProfile(null);
-      navigate('/login');
     }
   };
 
-  // Handle user sign-in/sign-up events
+  // Non-blocking boot: never wait for profile/org/flags to render the app
   useEffect(() => {
-    // Removed - handled in onAuthStateChange effect above
-  }, []);
+    initAnalytics();
 
-  // Get initial session
+    let mounted = true;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      const authed = !!session?.user;
+      console.log('[app] initial session:', { authed, path: location.pathname });
+      setHasSession(authed);
+      if (session?.user) {
+        // fire-and-forget profile bootstrap; do NOT block UI
+        setTimeout(() => {
+          ensureProfile(session.user!.id, session.user!.email ?? undefined);
+          handleUserSignIn(session);
+        }, 0);
+      }
+      setAuthReady(true);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+      
+      const authed = !!session?.user;
+      console.log('[app] auth event:', event, 'authed:', authed, 'path:', location.pathname);
+      setHasSession(authed);
+      
+      if (event === 'SIGNED_OUT') {
+        setUserProfile(null);
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        setTimeout(() => {
+          ensureProfile(session.user!.id, session.user!.email ?? undefined);
+          handleUserSignIn(session);
+        }, 0);
+      }
+
+      // Robust redirect: if we sign in, leave any login-ish path immediately
+      if (event === 'SIGNED_IN') {
+        const p = location.pathname.toLowerCase();
+        if (p === '/' || p.includes('login') || p.includes('signin') || p.includes('auth')) {
+          console.log('[app] SIGNED_IN on auth page → redirecting to app');
+          await postLoginRedirect();
+        }
+      }
+    });
+
+    // Failsafe unlock so UI never blocks
+    const t = setTimeout(() => setAuthReady(true), 3000);
+
+    return () => {
+      authListener.subscription.unsubscribe();
+      clearTimeout(t);
+      mounted = false;
+    };
+  }, [location.pathname, navigate]);
+
+  // Post-auth redirect from /login if already authenticated
   useEffect(() => {
-    // Removed - handled in onAuthStateChange effect above
-  }, []);
+    if (!authReady) return;
+    getSession().then((s) => {
+      if (s?.user && (location.pathname === '/login' || location.pathname === '/signin')) {
+        console.log('[app] authenticated user on /login → redirecting to dashboard');
+        navigate('/dashboard', { replace: true });
+      }
+    });
+  }, [authReady, location.pathname, navigate]);
 
-  const handleUserSignOut = () => {
-    setIsAuthenticated(false);
-    setUserProfile(null);
-    navigate('/login');
-    setError(null);
-  };
+  // While we're doing the very first session check, show spinner
+  if (!authReady) {
+    return (
+      <div className="min-h-dvh grid place-items-center bg-gray-950 text-gray-100">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white">Loading HiPat…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-red-900 text-white flex items-center justify-center p-4">
+        <div className="text-center bg-red-800 p-6 rounded-lg shadow-lg">
+          <h1 className="text-2xl font-bold mb-4">Error</h1>
+          <p className="mb-4">{error}</p>
+          <button
+            onClick={() => {
+              setError(null);
+              window.location.reload();
+            }}
+            className="px-4 py-2 bg-red-700 hover:bg-red-600 rounded-lg"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // SESSION-ONLY gate at the ROUTE level (not on org/profile/flags)
+  const isAuthed = hasSession === true;
 
   // Create onNavigate wrapper for components that still use string-based navigation
   const createOnNavigateWrapper = () => {
@@ -330,66 +275,34 @@ function App() {
     };
   };
 
-  if (!authReady) {
-    return (
-      <div className="min-h-dvh grid place-items-center text-sm text-gray-400">
-        Loading HiPat…
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-red-900 text-white flex items-center justify-center p-4">
-        <div className="text-center bg-red-800 p-6 rounded-lg shadow-lg">
-          <h1 className="text-2xl font-bold mb-4">Error</h1>
-          <p className="mb-4">{error}</p>
-          <button
-            onClick={() => {
-              setError(null);
-              setLoading(true);
-              supabase.auth.getSession().then(({ data: { session } }) => {
-                if (session) {
-                  handleUserSignIn(session);
-                } else {
-                  setLoading(false);
-                }
-              });
-            }}
-            className="px-4 py-2 bg-red-700 hover:bg-red-600 rounded-lg"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <TimerProvider>
-      <div className="App">
+      <ErrorBoundary>
+        <Toaster position="top-right" />
         <Routes>
-          {/* Public auth routes */}
+          {/* PUBLIC ROUTES */}
           <Route 
             path="/login" 
-            element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" replace />}
+            element={!isAuthed ? <LoginPage /> : <Navigate to="/dashboard" replace />}
+          />
+          <Route 
+            path="/signin" 
+            element={!isAuthed ? <LoginPage /> : <Navigate to="/dashboard" replace />}
           />
           <Route 
             path="/register" 
-            element={!isAuthenticated ? <RegisterPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />}
+            element={!isAuthed ? <RegisterPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />}
           />
           <Route 
             path="/forgot-password" 
-            element={!isAuthenticated ? <ForgotPasswordPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />}
+            element={!isAuthed ? <ForgotPasswordPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />}
           />
 
-          {/* Authenticated shell with global navigation */}
+          {/* PROTECTED ROUTES — use session-only guard */}
           <Route
             path="/"
             element={
-              <ProtectedRoute isAuthenticated={isAuthenticated}>
-                <AppLayout /> 
-              </ProtectedRoute>
+              isAuthed ? <AppLayout /> : <Navigate to="/login" replace />
             }
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
@@ -409,13 +322,10 @@ function App() {
             </Route>
           </Route>
 
-          {/* Catch-all */}
-          <Route
-            path="*"
-            element={<NotFoundPage />}
-          />
+          {/* FALLBACK: if authed go dashboard, else go login */}
+          <Route path="*" element={isAuthed ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} />
         </Routes>
-      </div>
+      </ErrorBoundary>
     </TimerProvider>
   );
 }
