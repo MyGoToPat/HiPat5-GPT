@@ -11,6 +11,8 @@ import { TimerProvider } from './context/TimerContext';
 import { useOrgStore } from './store/org';
 import AdminPage from './pages/AdminPage';
 
+// Import the new auth helpers
+import { getSession, onAuthChange } from './lib/auth';
 
 // Import page components
 import { LoginPage } from './pages/auth/LoginPage';
@@ -43,6 +45,18 @@ function App() {
   const [authReady, setAuthReady] = useState(false);
   const [loading, setLoading] = useState(false); // Keep for internal use if needed, but not for initial gate
   const location = useLocation();
+  
+  // Post-auth redirect if user lands on /login after startup
+  useEffect(() => {
+    // If already authenticated and currently on /login, bounce to dashboard
+    if (!authReady) return;
+    getSession().then((s) => {
+      if (s?.user && (location.pathname === '/login' || location.pathname === '/signin')) {
+        console.log('[app] authenticated user on /login → redirecting to dashboard');
+        navigate('/dashboard', { replace: true });
+      }
+    });
+  }, [authReady, location.pathname, navigate]);
 
   // Protected route wrapper with explicit props
   function ProtectedRoute({
@@ -110,12 +124,13 @@ function App() {
 
   // Initialize analytics
   useEffect(() => {
-    initAnalytics(); // safe no-op in preview
+    initAnalytics();
 
     let mounted = true;
     
     // Immediate session check
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('[app] initial getSession →', { session: !!session, user: session?.user?.id });
       if (!mounted) return;
       const u = session?.user;
       if (u) {
@@ -135,6 +150,7 @@ function App() {
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
         // Some environments emit INITIAL_SESSION with null; resolve explicitly. 
+        console.log('[app] auth event:', event, 'user:', session?.user?.id);
         let s = session;
         if (!s?.user) {
           const { data } = await supabase.auth.getSession();
@@ -145,6 +161,12 @@ function App() {
         }
         if (!cancelled) {
           setAuthReady(true);
+        }
+        // If you land on /login and we just signed in, push to the app
+        if (event === 'SIGNED_IN' && (location.pathname === '/login' || location.pathname === '/signin')) {
+          console.log('[app] SIGNED_IN on /login → redirecting to app');
+          navigate('/', { replace: true });
+          setTimeout(() => navigate('/dashboard', { replace: true }), 50);
         }
       }
     });
@@ -159,7 +181,7 @@ function App() {
         sub.subscription.unsubscribe();
       } catch {}
     };
-  }, []);
+  }, [location.pathname, navigate]);
 
   // Post-auth redirect from /login
   useEffect(() => {
@@ -351,7 +373,7 @@ function App() {
           {/* Public auth routes */}
           <Route 
             path="/login" 
-            element={!isAuthenticated ? <LoginPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />}
+            element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" replace />}
           />
           <Route 
             path="/register" 
@@ -366,7 +388,7 @@ function App() {
           <Route
             path="/"
             element={
-              <ProtectedRoute loading={loading} isAuthenticated={isAuthenticated}>
+              <ProtectedRoute isAuthenticated={isAuthenticated}>
                 <AppLayout /> 
               </ProtectedRoute>
             }

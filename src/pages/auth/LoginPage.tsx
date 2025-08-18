@@ -4,75 +4,53 @@ import { useNavigate } from 'react-router-dom';
 import { PatAvatar } from '../../components/PatAvatar';
 import { signInWithPassword, getSession } from '../../lib/auth';
 
-interface LoginPageProps {
-  onNavigate: (page: string) => void;
-}
-
-export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
+export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [errMsg, setErrMsg] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // If already authenticated, redirect to dashboard
+  // If already authenticated, bounce away from /login
   useEffect(() => {
-    getSession().then((session) => {
-      if (session?.user) {
-        navigate('/dashboard', { replace: true });
+    getSession().then((s) => {
+      if (s?.user) {
+        console.log('[login] already authenticated → redirecting');
+        navigate('/', { replace: true });
       }
     });
   }, [navigate]);
 
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  const validateEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrMsg(null);
+    setError('');
 
-    // Client-side validation
-    if (typeof email !== 'string' || !email.trim()) {
-      setErrMsg('Please enter your email address');
-      return;
-    }
+    if (!email.trim()) return setError('Please enter your email address');
+    if (!validateEmail(email)) return setError('Please enter a valid email address');
+    if (!password) return setError('Please enter your password');
 
-    if (!validateEmail(email)) {
-      setErrMsg('Please enter a valid email address');
-      return;
-    }
-
-    if (typeof password !== 'string' || !password) {
-      setErrMsg('Please enter your password');
-      return;
-    }
-
-    setSubmitting(true);
+    setIsLoading(true);
 
     try {
-      const { error } = await signInWithPassword(email.trim(), password);
-
-      if (error) {
-        if (error.message.includes('Invalid login credentials')) {
-          setErrMsg('Invalid email or password. Please try again.');
-        } else if (error.message.includes('Email not confirmed')) {
-          setErrMsg('Please check your email and click the confirmation link before signing in.');
-        } else {
-          setErrMsg(error.message || 'Sign in failed. Check your email and password.');
-        }
+      const { error: authError } = await signInWithPassword(email.trim(), password);
+      if (authError) {
+        const msg = authError.message || 'Sign in failed. Check your email and password.';
+        console.warn('[login] auth error:', authError);
+        setError(msg);
         return;
       }
-
-      // Success: navigate to dashboard
-      navigate('/dashboard', { replace: true });
-    } catch (error) {
-      console.error('Login error:', error);
-      setErrMsg('An unexpected error occurred. Please try again.');
+      console.log('[login] success → redirecting to app root');
+      navigate('/', { replace: true }); // root is safest; router can land you on dashboard
+      // If your dashboard route is strictly '/dashboard', also push a delayed fallback:
+      setTimeout(() => navigate('/dashboard', { replace: true }), 50);
+    } catch (err: any) {
+      console.error('[login] unexpected error:', err);
+      setError(err?.message ?? 'Unexpected error during sign in.');
     } finally {
-      setSubmitting(false);
+      setIsLoading(false);
     }
   };
 
@@ -87,9 +65,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* Error Message */}
-        {errMsg && (
+        {error && (
           <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600 text-sm">{errMsg}</p>
+            <p className="text-red-600 text-sm">{error}</p>
           </div>
         )}
 
@@ -107,7 +85,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your.email@example.com"
                 className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={submitting}
+                disabled={isLoading}
                 autoComplete="email"
               />
             </div>
@@ -125,14 +103,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 className="w-full pl-10 pr-12 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={submitting}
+                disabled={isLoading}
                 autoComplete="current-password"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
-                disabled={submitting}
+                disabled={isLoading}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -141,10 +119,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={isLoading}
             className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
           >
-            {submitting ? (
+            {isLoading ? (
               <>
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 Signing In...
@@ -161,18 +139,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
         {/* Footer Links */}
         <div className="mt-6 text-center space-y-2">
           <button
-            onClick={() => onNavigate('forgot-password')}
+            onClick={() => navigate('/forgot-password')}
             className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
-            disabled={submitting}
+            disabled={isLoading}
           >
             Forgot your password?
           </button>
           <div className="text-gray-500 text-sm">
             Don't have an account?{' '}
             <button
-              onClick={() => onNavigate('register')}
+              onClick={() => navigate('/register')}
               className="text-blue-400 hover:text-blue-300 transition-colors"
-              disabled={submitting}
+              disabled={isLoading}
             >
               Sign up
             </button>
