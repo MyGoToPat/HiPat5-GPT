@@ -42,7 +42,6 @@ function App() {
   const navigate = useNavigate();
   const [authReady, setAuthReady] = useState(false);
   const [loading, setLoading] = useState(false); // Keep for internal use if needed, but not for initial gate
-  const navigate = useNavigate();
   const location = useLocation();
 
   // Protected route wrapper with explicit props
