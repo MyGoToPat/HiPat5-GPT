@@ -22,32 +22,56 @@ export const LoginPage: React.FC = () => {
 
   // If already authenticated, bounce away from /login
   useEffect(() => {
+      if (!email) {
       return setError('Please enter a valid email address');
+      }
+      if (s?.user) {
         console.log('[login] already authenticated → redirecting');
         navigate('/', { replace: true });
       }
+      if (!password) {
       return setError('Please enter your password');
+      }
+  }, [navigate]);
 
   const validateEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    
+    if (!email) {
+      return setError('Please enter your email address');
+    }
+    
+    if (!validateEmail(email)) {
+      return setError('Please enter a valid email address');
+    }
+    
+    if (!password) {
+      return setError('Please enter your password');
+    }
+    
+    try {
       const { error: authError } = await signInWithPassword(email.trim(), password);
-    if (!password) return setError('Please enter your password');
+      
+      if (authError) {
         const msg = authError.message || 'Sign in failed. Check your email and password.';
         console.warn('[login] auth error:', authError);
         setError(msg);
-      if (authError) {
-        const msg = authError.message || 'Sign in failed. Check your email and password.';
+        return;
+      }
+      
       console.log('[login] success → redirecting to app root');
       navigate('/', { replace: true }); // root is safest; router can land you on dashboard
       // If your dashboard route is strictly '/dashboard', also push a delayed fallback:
       setTimeout(() => navigate('/dashboard', { replace: true }), 50);
-      setTimeout(() => navigate('/dashboard', { replace: true }), 50);
+    } catch (error) {
       console.error('[login] unexpected error:', error);
       setError((error as any)?.message ?? 'Unexpected error during sign in.');
-      setError(err?.message ?? 'Unexpected error during sign in.');
-      return setError('Please enter your email address');
+    } finally {
+      setIsLoading(false);
     }
   };
 
