@@ -17,3 +17,5 @@ export async function safeFetchJSON<T>(
     return fallback;
   }
 }
+
+export default safeFetchJSON;

@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import App from './App.tsx';
 import './index.css';
 
@@ -20,11 +21,12 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 try {
   createRoot(rootElement).render(
     <StrictMode>
-      <BrowserRouter>
-        <Toaster position="top-right" />
-        <Toaster position="top-right" />
-        <App />
-      </BrowserRouter>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <Toaster position="top-right" />
+          <App />
+        </BrowserRouter>
+      </ErrorBoundary>
     </StrictMode>
   );
 } catch (error) {

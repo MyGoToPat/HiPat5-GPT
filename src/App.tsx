@@ -36,7 +36,6 @@ export function useNav() {
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -45,14 +44,11 @@ function App() {
   // Protected route wrapper with explicit props
   function ProtectedRoute({
     children,
-    loading,
     isAuthenticated,
   }: {
     children: React.ReactNode;
-    loading: boolean;
     isAuthenticated: boolean;
   }) {
-    if (loading) return null;
     if (!isAuthenticated) return <Navigate to="/login" replace />;
     return <>{children}</>;
   }
@@ -112,6 +108,54 @@ function App() {
   // Initialize analytics
   useEffect(() => {
     initAnalytics(); // safe no-op in preview
+
+    let mounted = true;
+
+    // Immediate session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      const u = session?.user;
+      if (u) {
+        setTimeout(() => ensureProfile(u.id, u.email ?? undefined), 0);
+        handleUserSignIn(session);
+      }
+      setAuthReady(true); // never block render on data stores
+    });
+
+    let cancelled = false;
+
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        handleUserSignOut();
+        return;
+      }
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        // Some environments emit INITIAL_SESSION with null; resolve explicitly.
+        let s = session;
+        if (!s?.user) {
+          const { data } = await supabase.auth.getSession();
+          s = data?.session ?? null;
+        }
+        if (!cancelled) {
+          await handleUserSignIn(s);
+        }
+        if (!cancelled) {
+          setAuthReady(true);
+        }
+      }
+    });
+
+    // Failsafe: even if getSession is slow, unlock UI after 3s
+    const t = setTimeout(() => setAuthReady(true), 3000);
+    return () => {
+      cancelled = true;
+      mounted = false;
+      clearTimeout(t);
+      try {
+        sub?.subscription?.unsubscribe?.();
+      } catch {}
+    };
   }, []);
 
   // Set up iOS viewport height fix
@@ -215,53 +259,7 @@ function App() {
 
   // Handle user sign-in/sign-up events
   useEffect(() => {
-    let mounted = true;
-
-    // Immediate session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      const u = session?.user;
-      if (u) {
-        setTimeout(() => ensureProfile(u.id, u.email ?? undefined), 0);
-        handleUserSignIn(session);
-      }
-      setAuthReady(true); // never block render on data stores
-    });
-
-    let cancelled = false;
-
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT') {
-        handleUserSignOut();
-        return;
-      }
-
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-        // Some environments emit INITIAL_SESSION with null; resolve explicitly.
-        let s = session;
-        if (!s?.user) {
-          const { data } = await supabase.auth.getSession();
-          s = data?.session ?? null;
-        }
-        if (!cancelled) {
-          await handleUserSignIn(s);
-        }
-        if (!cancelled) {
-          setAuthReady(true);
-        }
-      }
-    });
-
-    // Failsafe: even if getSession is slow, unlock UI after 3s
-    const t = setTimeout(() => setAuthReady(true), 3000);
-    return () => {
-      cancelled = true;
-      mounted = false;
-      clearTimeout(t);
-      try {
-        sub?.subscription?.unsubscribe?.();
-      } catch {}
-    };
+    // Removed - handled in onAuthStateChange effect above
   }, []);
 
   // Get initial session
