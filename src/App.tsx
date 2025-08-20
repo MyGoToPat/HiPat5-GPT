@@ -5,7 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { TimerProvider } from './context/TimerContext';
 import { initAnalytics } from './lib/analytics';
 import { ensureProfile } from './lib/profiles';
-import { getSupabase } from './lib/supabase';
+import { getSupabase, supabase } from './lib/supabase';
 import { getSession, onAuthChange } from './lib/auth';
 import { useOrgStore } from './store/org';
 
