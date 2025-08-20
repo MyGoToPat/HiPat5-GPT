@@ -5,7 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { TimerProvider } from './context/TimerContext';
 import { initAnalytics } from './lib/analytics';
 import { ensureProfile } from './lib/profiles';
-import { supabase } from './lib/supabase';
+import { getSupabase } from './lib/supabase';
 import { getSession, onAuthChange } from './lib/auth';
 import { useOrgStore } from './store/org';
 
@@ -13,6 +13,7 @@ import { useOrgStore } from './store/org';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import HealthPage from './pages/Health';
 import DashboardPage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
 import ChatPage from './pages/ChatPage';
@@ -71,7 +72,7 @@ function App() {
         } else if (role === 'trainer') {
           dest = '/trainer-dashboard';
         } else {
-          const { data: um, error: umErr } = await supabase
+          const { data: um, error: umErr } = await getSupabase()
             .from('user_metrics')
             .select('tdee')
             .eq('user_id', user.id)
@@ -100,7 +101,7 @@ function App() {
       const user = session.user;
 
       // Read existing profile (RLS-safe; null if absent)
-      const { data: profile, error: selError } = await supabase
+      const { data: profile, error: selError } = await getSupabase()
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
@@ -111,7 +112,7 @@ function App() {
 
       // Create if missing (allowed by owner policy)
       if (!current) {
-        const { data, error: upsertError } = await supabase
+        const { data, error: upsertError } = await getSupabase()
           .from('profiles')
           .upsert(
             {
@@ -152,7 +153,7 @@ function App() {
 
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    getSupabase().auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
       const authed = !!session?.user;
       console.log('[app] initial session:', { authed, path: location.pathname });
@@ -167,7 +168,7 @@ function App() {
       setAuthReady(true);
     });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: authListener } = getSupabase().auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
       
       const authed = !!session?.user;
@@ -297,6 +298,7 @@ function App() {
             path="/forgot-password" 
             element={!isAuthed ? <ForgotPasswordPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />}
           />
+          <Route path="/health" element={<HealthPage />} />
 
           {/* PROTECTED ROUTES — use session-only guard */}
           <Route

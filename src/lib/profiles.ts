@@ -1,9 +1,9 @@
-import { supabase } from './supabase';
+import { getSupabase } from './supabase';
 
 export async function ensureProfile(userId: string, email?: string): Promise<void> {
   try {
     // Check if profile exists
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('profiles')
       .select('user_id')
       .eq('user_id', userId)
@@ -11,7 +11,7 @@ export async function ensureProfile(userId: string, email?: string): Promise<voi
 
     if (!data) {
       const handle = (email || '').split('@')[0] || 'user';
-      const { error: insErr } = await supabase.from('profiles').insert({
+      const { error: insErr } = await getSupabase().from('profiles').insert({
         user_id: userId,
         email,
         display_name: handle,

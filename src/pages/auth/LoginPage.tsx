@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { getSupabase } from '../../lib/supabase';
+import { PatAvatar } from '../../components/PatAvatar';
+import { signInWithPassword, getSession } from '../../lib/auth';
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
