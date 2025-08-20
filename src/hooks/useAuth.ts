@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
 
 interface AuthState {
@@ -17,6 +17,7 @@ export const useAuth = () => {
 
   useEffect(() => {
     const getSession = async () => {
+      const supabase = getSupabase();
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user || null;
       const isAdmin = user?.app_metadata?.role === 'admin';
@@ -25,6 +26,7 @@ export const useAuth = () => {
 
     getSession();
 
+    const supabase = getSupabase();
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       const user = session?.user || null;
       const isAdmin = user?.app_metadata?.role === 'admin';

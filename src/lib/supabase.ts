@@ -16,10 +16,7 @@ export function getSupabase() {
   return client;
 }
 
-// Legacy export for backward compatibility
-export const supabase = getSupabase();
-
-// Legacy types and helper functions for compatibility
+// Legacy types for compatibility
 export type AppRole = 'user' | 'coach' | 'admin';
 
 // Legacy profile helper functions for compatibility
@@ -54,12 +51,16 @@ export async function upsertUserProfile(userId: string, profileData: any) {
 export type Role = 'admin' | 'trainer' | 'user';
 
 // Upgrade request functions
-export async function requestRoleUpgrade(requestedRole: string) {
+export async function requestRoleUpgrade(requestedRole: string, reason?: string | null) {
+  const { data: { user } } = await getSupabase().auth.getUser();
+  if (!user) throw new Error('No authenticated user');
+
   const { data, error } = await getSupabase()
     .from('upgrade_requests')
     .insert({
       requested_role: requestedRole,
-      user_id: (await getSupabase().auth.getUser()).data.user?.id
+      user_id: user.id,
+      reason: reason
     })
     .select()
     .single();
@@ -68,28 +69,41 @@ export async function requestRoleUpgrade(requestedRole: string) {
   return data;
 }
 
-export async function approveUpgradeRequest(requestId: string) {
-  const { data, error } = await getSupabase()
+export async function approveUpgradeRequest(requestId: string, userId: string, newRole: string) {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No authenticated user');
+
+  // Update the request status
+  const { error: requestError } = await supabase
     .from('upgrade_requests')
     .update({
       status: 'approved',
-      processed_by: (await getSupabase().auth.getUser()).data.user?.id,
+      processed_by: user.id,
       processed_at: new Date().toISOString()
     })
-    .eq('id', requestId)
-    .select()
-    .single();
+    .eq('id', requestId);
 
-  if (error) throw error;
-  return data;
+  if (requestError) throw requestError;
+
+  // Update the user's role
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ role: newRole })
+    .eq('user_id', userId);
+
+  if (profileError) throw profileError;
 }
 
 export async function denyUpgradeRequest(requestId: string) {
+  const { data: { user } } = await getSupabase().auth.getUser();
+  if (!user) throw new Error('No authenticated user');
+
   const { data, error } = await getSupabase()
     .from('upgrade_requests')
     .update({
       status: 'denied',
-      processed_by: (await getSupabase().auth.getUser()).data.user?.id,
+      processed_by: user.id,
       processed_at: new Date().toISOString()
     })
     .eq('id', requestId)
@@ -99,5 +113,3 @@ export async function denyUpgradeRequest(requestId: string) {
   if (error) throw error;
   return data;
 }
-
-export { getSupabase as default };

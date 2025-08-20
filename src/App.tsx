@@ -25,6 +25,7 @@ import TrainerDashboardPage from './pages/TrainerDashboardPage';
 import DebugPage from './pages/DebugPage';
 import AdminPage from './pages/AdminPage';
 import NotFoundPage from './pages/NotFoundPage';
+import HealthPage from './pages/Health';
 import AgentsListPage from './pages/admin/AgentsListPage';
 import AgentDetailPage from './pages/admin/AgentDetailPage';
 import AppLayout from './layouts/AppLayout';
@@ -300,6 +301,7 @@ function App() {
             path="/forgot-password" 
             element={!isAuthed ? <ForgotPasswordPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />}
           />
+          <Route path="/health" element={<HealthPage />} />
           <Route path="/health" element={<HealthPage />} />
 
           {/* PROTECTED ROUTES — use session-only guard */}

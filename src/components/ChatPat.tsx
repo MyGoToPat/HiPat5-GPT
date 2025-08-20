@@ -13,7 +13,7 @@ import { AgentSession } from '../types/agents';
 import { ChatManager } from '../utils/chatManager';
 import { ChatHistory, ChatMessage, ChatState } from '../types/chat';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 import { trackFirstChatMessage } from '../lib/analytics';
 
 interface ChatPatProps {
@@ -207,6 +207,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
             
             // Save AI response to database
             try {
+              const supabase = getSupabase();
               const newChatId = await ChatManager.saveMessage(activeChatId, patResponse);
               if (newChatId && !activeChatId) {
                 setActiveChatId(newChatId);
@@ -217,6 +218,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
 
             // Track first chat message
             if (messages.length === 1) { // Only initial greeting before this
+              const supabase = getSupabase();
               const user = await supabase.auth.getUser();
               if (user.data.user) {
                 trackFirstChatMessage(user.data.user.id);

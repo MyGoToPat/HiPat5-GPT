@@ -1,6 +1,6 @@
 import React from 'react';
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 
 export function useRole() {
   const [role, setRole] = useState<string | null>(null);
@@ -9,6 +9,7 @@ export function useRole() {
   useEffect(() => {
     const getRole = async () => {
       try {
+        const supabase = getSupabase();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           setRole(null);

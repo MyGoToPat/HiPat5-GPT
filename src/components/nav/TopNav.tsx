@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ActiveLink from './ActiveLink';
-import { supabase } from '../../lib/supabase';
+import { getSupabase } from '../../lib/supabase';
 
 type Role = 'admin' | 'trainer' | 'user' | null;
 
@@ -12,6 +12,7 @@ export default function TopNav() {
     let alive = true;
     (async () => {
       try {
+        const supabase = getSupabase();
         const { data: { user } } = await supabase.auth.getUser();
         setEmail(user?.email ?? null);
         if (user) {
@@ -35,6 +36,7 @@ export default function TopNav() {
   }, []);
 
   const signOut = async () => {
+    const supabase = getSupabase();
     await supabase.auth.signOut();
   };
 
