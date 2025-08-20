@@ -5,7 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { TimerProvider } from './context/TimerContext';
 import { initAnalytics } from './lib/analytics';
 import { ensureProfile } from './lib/profiles';
-import { getSupabase, supabase } from './lib/supabase';
+import { getSupabase } from './lib/supabase';
 import { getSession, onAuthChange } from './lib/auth';
 import { useOrgStore } from './store/org';
 
@@ -41,6 +41,7 @@ function App() {
   // Safe role-aware post-login redirect
   const postLoginRedirect = async () => {
     try {
+      const supabase = getSupabase();
       // Prefer local session to avoid unnecessary network calls
       const { data: { session } } = await supabase.auth.getSession();
       let user = session?.user ?? null;
@@ -153,7 +154,8 @@ function App() {
 
     let mounted = true;
 
-    getSupabase().auth.getSession().then(({ data: { session } }) => {
+    const supabase = getSupabase();
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
       const authed = !!session?.user;
       console.log('[app] initial session:', { authed, path: location.pathname });
@@ -168,7 +170,7 @@ function App() {
       setAuthReady(true);
     });
 
-    const { data: authListener } = getSupabase().auth.onAuthStateChange(async (event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
       
       const authed = !!session?.user;

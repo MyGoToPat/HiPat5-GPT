@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { getSupabase } from '../../lib/supabase';
 import { PatAvatar } from '../../components/PatAvatar';
 import { signInWithPassword, getSession } from '../../lib/auth';
+
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -20,20 +22,6 @@ export const LoginPage: React.FC = () => {
         navigate('/dashboard', { replace: true });
       }
     });
-  }, [navigate]);
-
-  // If already authenticated, bounce away from /login
-  useEffect(() => {
-      if (!email) {
-      return setError('Please enter a valid email address');
-      }
-      if (s?.user) {
-        console.log('[login] already authenticated → redirecting');
-        navigate('/', { replace: true });
-      }
-      if (!password) {
-      return setError('Please enter your password');
-      }
   }, [navigate]);
 
   const validateEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
