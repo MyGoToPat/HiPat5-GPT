@@ -11,7 +11,7 @@ export function getSupabase() {
   if (!anon) throw new Error('VITE_SUPABASE_ANON_KEY is missing');
 
   client = createClient(url, anon, {
-    auth: { persistSession: true, autoRefreshToken: true },
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
   });
   return client;
 }

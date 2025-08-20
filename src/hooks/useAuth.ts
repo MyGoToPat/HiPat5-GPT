@@ -1,42 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { getSupabase } from '../lib/supabase';
-import { User } from '@supabase/supabase-js';
 
-interface AuthState {
-  user: User | null;
-  isAdmin: boolean;
-  loading: boolean;
-}
-
-export const useAuth = () => {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    isAdmin: false,
-    loading: true,
-  });
+export function useAuth() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getSession = async () => {
-      const supabase = getSupabase();
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user || null;
-      const isAdmin = user?.app_metadata?.role === 'admin';
-      setAuthState({ user, isAdmin, loading: false });
-    };
-
-    getSession();
-
     const supabase = getSupabase();
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      const user = session?.user || null;
-      const isAdmin = user?.app_metadata?.role === 'admin';
-      setAuthState({ user, isAdmin, loading: false });
+
+    // Prime with current session to avoid redirect "flicker"
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session ?? null);
+      setLoading(false);
+    });
+
+    // Subscribe to changes
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
+      setSession(s);
     });
 
     return () => {
-      authListener.subscription.unsubscribe();
+      sub.subscription?.unsubscribe();
     };
   }, []);
 
-  return authState;
-};
+  return { session, loading };
+}

@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { getSupabase } from '../../lib/supabase';
 import { PatAvatar } from '../../components/PatAvatar';
-import { signInWithPassword, getSession } from '../../lib/auth';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -13,15 +12,6 @@ export const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // If already authenticated, bounce away from /login
-  useEffect(() => {
-    getSession().then((s) => {
-      if (s?.user) {
-        console.log('[login] already authenticated → redirecting');
-        navigate('/dashboard', { replace: true });
-      }
-    });
-  }, [navigate]);
 
   const validateEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
@@ -43,7 +33,11 @@ export const LoginPage: React.FC = () => {
     }
     
     try {
-      const { error: authError } = await signInWithPassword(email.trim(), password);
+      const supabase = getSupabase();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password
+      });
       
       if (authError) {
         const msg = authError.message || 'Sign in failed. Check your email and password.';
@@ -52,10 +46,7 @@ export const LoginPage: React.FC = () => {
         return;
       }
       
-      console.log('[login] success → redirecting to app root');
-      navigate('/', { replace: true }); // root is safest; router can land you on dashboard
-      // If your dashboard route is strictly '/dashboard', also push a delayed fallback:
-      setTimeout(() => navigate('/dashboard', { replace: true }), 50);
+      navigate('/', { replace: true });
     } catch (error) {
       console.error('[login] unexpected error:', error);
       setError((error as any)?.message ?? 'Unexpected error during sign in.');
