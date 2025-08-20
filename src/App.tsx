@@ -13,7 +13,6 @@ import { useOrgStore } from './store/org';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
-import HealthPage from './pages/Health';
 import DashboardPage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
 import ChatPage from './pages/ChatPage';
@@ -25,7 +24,7 @@ import TrainerDashboardPage from './pages/TrainerDashboardPage';
 import DebugPage from './pages/DebugPage';
 import AdminPage from './pages/AdminPage';
 import NotFoundPage from './pages/NotFoundPage';
-import HealthPage from './pages/Health';
+import Health from './pages/Health';
 import AgentsListPage from './pages/admin/AgentsListPage';
 import AgentDetailPage from './pages/admin/AgentDetailPage';
 import AppLayout from './layouts/AppLayout';
@@ -301,8 +300,7 @@ function App() {
             path="/forgot-password" 
             element={!isAuthed ? <ForgotPasswordPage onNavigate={createOnNavigateWrapper()} /> : <Navigate to="/dashboard" replace />}
           />
-          <Route path="/health" element={<HealthPage />} />
-          <Route path="/health" element={<HealthPage />} />
+          <Route path="/health" element={<Health />} />
 
           {/* PROTECTED ROUTES — use session-only guard */}
           <Route
