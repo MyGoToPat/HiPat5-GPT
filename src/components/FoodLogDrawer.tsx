@@ -3,7 +3,7 @@ import { X, Search, Plus, Minus, Edit3 } from 'lucide-react';
 import { FoodEntry, FoodSearchResult, AnalysedFoodItem, FoodAnalysisResult } from '../types/food';
 import { getTotalMacros } from '../utils/getTotalMacros';
 import { FoodVerificationScreen } from './FoodVerificationScreen';
-import { getSupabase } from '../lib/supabase';
+import { fetchFoodMacros } from '../lib/food';
 import { trackFoodMacroLookup } from '../lib/analytics';
 
 interface FoodLogDrawerProps {
@@ -91,26 +91,24 @@ export const FoodLogDrawer: React.FC<FoodLogDrawerProps> = ({
     setIsLookingUpMacros(true);
     
     try {
-      const supabase = getSupabase();
-      const user = await supabase.auth.getUser();
+      const user = await getSupabase().auth.getUser();
       if (user.data.user) {
         trackFoodMacroLookup(user.data.user.id, foodName, source);
       }
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-food-macros`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          foodName: foodName.trim()
-        })
-      });
-
-      if (response.status === 404) {
-        // OpenAI was unconfident
-        const errorData = await response.json();
+      try {
+        const macroData = await fetchFoodMacros(foodName.trim());
+        
+        // Show verification screen with LLM results
+        setVerificationData({
+          foodName: foodName.trim(),
+          macros: macroData,
+          grams: 100,
+          patMessage: `I found nutrition information for "${foodName.trim()}." Please review and edit if needed before saving.`
+        });
+        setShowVerificationScreen(true);
+      } catch (fetchError: any) {
+        // Handle unconfident or error responses
         setVerificationData({
           foodName: foodName.trim(),
           macros: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
@@ -118,27 +116,7 @@ export const FoodLogDrawer: React.FC<FoodLogDrawerProps> = ({
           patMessage: "I couldn't find reliable nutrition data for this food. Please enter your best estimate below."
         });
         setShowVerificationScreen(true);
-        return;
       }
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const macroData = await response.json();
-      
-      if (macroData.error) {
-        throw new Error(macroData.error);
-      }
-
-      // Show verification screen with LLM results
-      setVerificationData({
-        foodName: foodName.trim(),
-        macros: macroData,
-        grams: 100,
-        patMessage: `I found nutrition information for "${foodName.trim()}." Please review and edit if needed before saving.`
-      });
-      setShowVerificationScreen(true);
       
     } catch (error) {
       console.error('Error looking up macros:', error);
@@ -378,7 +356,7 @@ export const FoodLogDrawer: React.FC<FoodLogDrawerProps> = ({
               {/* Individual Food Items */}
               <div className="space-y-4">
                 <h3 className="text-white font-medium">Detected Foods</h3>
-                {foodItems.map((item) => (
+                {foodItems.map((item, index) => (
                   <div key={item.id} className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-white font-medium">{item.name}</h4>

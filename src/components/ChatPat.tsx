@@ -13,7 +13,7 @@ import { AgentSession } from '../types/agents';
 import { ChatManager } from '../utils/chatManager';
 import { ChatHistory, ChatMessage, ChatState } from '../types/chat';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
-import { getSupabase } from '../lib/supabase';
+import { callChat, type ChatMessage as EdgeChatMessage } from '../lib/chat';
 import { trackFirstChatMessage } from '../lib/analytics';
 
 interface ChatPatProps {
@@ -167,32 +167,13 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
         const getAIResponse = async () => {
           try {
             // Prepare conversation history for OpenAI
-            const conversationHistory = [...messages, newMessage].map(msg => ({
+            const conversationHistory: EdgeChatMessage[] = [...messages, newMessage].map(msg => ({
               role: msg.isUser ? 'user' : 'assistant',
               content: msg.text
             }));
 
-            // Call OpenAI chat function
-            const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-chat`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                messages: conversationHistory.slice(-10) // Keep last 10 messages for context
-              })
-            });
-
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
-            
-            if (data.error) {
-              throw new Error(data.error);
-            }
+            // Call chat via Edge Function wrapper
+            const data = await callChat(conversationHistory.slice(-10)); // Keep last 10 messages for context
 
             const responseText = data.message || "I'm here to help! How can I assist you today?";
             
@@ -207,7 +188,6 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
             
             // Save AI response to database
             try {
-              const supabase = getSupabase();
               const newChatId = await ChatManager.saveMessage(activeChatId, patResponse);
               if (newChatId && !activeChatId) {
                 setActiveChatId(newChatId);
@@ -218,8 +198,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
 
             // Track first chat message
             if (messages.length === 1) { // Only initial greeting before this
-              const supabase = getSupabase();
-              const user = await supabase.auth.getUser();
+              const user = await getSupabase().auth.getUser();
               if (user.data.user) {
                 trackFirstChatMessage(user.data.user.id);
               }
@@ -476,13 +455,13 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
   const handleSaveFoodEntry = (entry: FoodEntry) => {
     const saveFoodEntry = async () => {
       try {
-        const user = await supabase.auth.getUser();
+        const user = await getSupabase().auth.getUser();
         if (!user.data.user) {
           console.error('No authenticated user');
           return;
         }
 
-        const { error } = await supabase
+        const { error } = await getSupabase()
           .from('food_logs')
           .insert({
             user_id: user.data.user.id,
@@ -499,7 +478,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
         }
 
         // Track first food log
-        const { data: existingLogs } = await supabase
+        const { data: existingLogs } = await getSupabase()
           .from('food_logs')
           .select('id')
           .eq('user_id', user.data.user.id)
