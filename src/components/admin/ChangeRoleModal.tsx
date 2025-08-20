@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { supabase, type AppRole } from '../../lib/supabase';
+import { getSupabase, type AppRole } from '../../lib/supabase';
 
 type Role = AppRole;
 
@@ -22,6 +22,7 @@ export default function ChangeRoleModal({ userId, currentRole, onClose, onChange
   const submit = async () => {
     setSaving(true);
     setErr(null);
+    const supabase = getSupabase();
     const { error } = await supabase
       .from('profiles')
       .update({ role, updated_at: new Date().toISOString() })

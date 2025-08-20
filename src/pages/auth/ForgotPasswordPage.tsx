@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, ArrowLeft, Send } from 'lucide-react';
 import { PatAvatar } from '../../components/PatAvatar';
-import { supabase } from '../../lib/supabase';
+import { getSupabase } from '../../lib/supabase';
 
 interface ForgotPasswordPageProps {
   onNavigate: (page: string) => void;
@@ -37,6 +37,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
     setIsLoading(true);
 
     try {
+      const supabase = getSupabase();
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email.trim(),
         {

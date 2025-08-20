@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { getSupabase } from '../../lib/supabase';
 
 type Counts = {
   total: number;
@@ -21,6 +21,7 @@ export default function MetricsSummary() {
         setLoading(true);
         setError(null);
 
+        const supabase = getSupabase();
         // First attempt: role, beta_user, created_at
         let all: any[] | null = null;
         let queryError: any = null;

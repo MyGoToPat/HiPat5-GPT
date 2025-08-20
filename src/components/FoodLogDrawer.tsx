@@ -3,7 +3,7 @@ import { X, Search, Plus, Minus, Edit3 } from 'lucide-react';
 import { FoodEntry, FoodSearchResult, AnalysedFoodItem, FoodAnalysisResult } from '../types/food';
 import { getTotalMacros } from '../utils/getTotalMacros';
 import { FoodVerificationScreen } from './FoodVerificationScreen';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 import { trackFoodMacroLookup } from '../lib/analytics';
 
 interface FoodLogDrawerProps {
@@ -91,6 +91,7 @@ export const FoodLogDrawer: React.FC<FoodLogDrawerProps> = ({
     setIsLookingUpMacros(true);
     
     try {
+      const supabase = getSupabase();
       const user = await supabase.auth.getUser();
       if (user.data.user) {
         trackFoodMacroLookup(user.data.user.id, foodName, source);

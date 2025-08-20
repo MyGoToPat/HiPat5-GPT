@@ -12,7 +12,7 @@ import { AlertCenter } from './dashboard/AlertCenter';
 import { CrossMetricInsights } from './dashboard/CrossMetricInsights';
 import { MetricAlert, CrossMetricInsight } from '../types/metrics';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 import { EnergyData } from '../types/metrics';
 
 interface DashboardPageProps {
@@ -97,6 +97,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
+        const supabase = getSupabase();
         const user = await supabase.auth.getUser();
         if (!user.data.user) return;
 

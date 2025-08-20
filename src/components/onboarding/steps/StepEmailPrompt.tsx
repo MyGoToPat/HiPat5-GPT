@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useOnboarding } from '../../../context/OnboardingContext';
 import { Mail, User, Save, Send } from 'lucide-react';
-import { supabase } from '../../../lib/supabase';
+import { getSupabase } from '../../../lib/supabase';
 import { trackTDEEWizardCompleted } from '../../../lib/analytics';
 
 export const StepEmailPrompt: React.FC = () => {
@@ -40,6 +40,7 @@ export const StepEmailPrompt: React.FC = () => {
   const handleSaveToProfile = async () => {
     setIsSubmitting(true);
     try {
+      const supabase = getSupabase();
       const user = await supabase.auth.getUser();
       if (!user.data.user) {
         throw new Error('No authenticated user');

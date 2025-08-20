@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, User, ArrowRight } from 'lucide-react';
 import { PatAvatar } from '../../components/PatAvatar';
-import { supabase } from '../../lib/supabase';
+import { getSupabase } from '../../lib/supabase';
 
 interface RegisterPageProps {
   onNavigate: (page: string) => void;
@@ -66,6 +66,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
     setIsLoading(true);
 
     try {
+      const supabase = getSupabase();
       const { data, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password: password,

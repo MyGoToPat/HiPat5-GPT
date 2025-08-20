@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { getSupabase } from '../../lib/supabase';
 
 type Item = {
   id: number;
@@ -19,6 +19,7 @@ export default function RoleChangeHistory({ userId }: { userId: string }) {
     (async () => {
       setLoading(true);
       setErr(null);
+      const supabase = getSupabase();
       const { data, error } = await supabase
         .from('role_change_history')
         .select('id, changed_by, target_user_id, old_role, new_role, changed_at')

@@ -4,7 +4,7 @@ import { Search, Edit, User, MessageSquare, X, BarChart3, Users } from 'lucide-r
 import { useRole } from '../hooks/useRole';
 import { ChatManager } from '../utils/chatManager';
 import { ChatHistory } from '../types/chat';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 import { UserProfile } from '../types/user';
 
 interface NavigationSidebarProps {
@@ -77,6 +77,7 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
 
   const handleSignOut = async () => {
     try {
+      const supabase = getSupabase();
       await supabase.auth.signOut();
       onClose();
     } catch (error) {

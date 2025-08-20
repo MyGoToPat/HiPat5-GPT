@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 import { useOrgStore } from './org';
 
 interface Agent {
@@ -47,6 +47,7 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
   fetchAgents: async (isAdmin, userId) => {
     set({ loading: true, error: null });
     try {
+      const supabase = getSupabase();
       let query = supabase.from('agents').select('*');
       if (!isAdmin) {
         const activeOrgId = useOrgStore.getState().getActiveOrgId();
@@ -68,6 +69,7 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const activeOrgId = useOrgStore.getState().getActiveOrgId();
+      const supabase = getSupabase();
       const { data, error } = await supabase
         .from('agents')
         .insert({ name, created_by: userId, org_id: activeOrgId })
@@ -85,6 +87,7 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
   fetchAgentVersions: async (agentId) => {
     set({ loading: true, error: null });
     try {
+      const supabase = getSupabase();
       const { data, error } = await supabase
         .from('agent_versions')
         .select('*')
@@ -104,6 +107,7 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const activeOrgId = useOrgStore.getState().getActiveOrgId();
+      const supabase = getSupabase();
       // Create new version
       const { data: newVersion, error: insertError } = await supabase
         .from('agent_versions')
@@ -141,6 +145,7 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
   updateAgentCurrentVersion: async (agentId, versionId) => {
     set({ loading: true, error: null });
     try {
+      const supabase = getSupabase();
       const { error } = await supabase
         .from('agents')
         .update({ current_version_id: versionId })
@@ -160,6 +165,7 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
   deleteAgentVersion: async (versionId) => {
     set({ loading: true, error: null });
     try {
+      const supabase = getSupabase();
       const { error } = await supabase
         .from('agent_versions')
         .delete()

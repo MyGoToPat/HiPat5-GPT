@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase, type AppRole } from '../../lib/supabase';
+import { getSupabase, type AppRole } from '../../lib/supabase';
 import ChangeRoleModal from './ChangeRoleModal';
 import RoleChangeHistory from './RoleChangeHistory';
 
@@ -21,6 +21,7 @@ export default function AdminUsersTable() {
   async function load() {
     setLoading(true);
     setError(null);
+    const supabase = getSupabase();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setError('No active session'); setLoading(false); return; }
 

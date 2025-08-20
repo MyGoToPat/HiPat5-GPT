@@ -1,10 +1,11 @@
 import { ChatHistory, ChatMessage, ChatState } from '../types/chat';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 
 export class ChatManager {
   
   static async loadChatState(): Promise<ChatState> {
     try {
+      const supabase = getSupabase();
       const user = await supabase.auth.getUser();
       if (!user.data.user) {
         return this.getDefaultChatState();
@@ -51,6 +52,7 @@ export class ChatManager {
 
   static async saveNewChat(messages: ChatMessage[]): Promise<ChatHistory | null> {
     try {
+      const supabase = getSupabase();
       const user = await supabase.auth.getUser();
       if (!user.data.user) return null;
 
@@ -109,6 +111,7 @@ export class ChatManager {
 
   static async loadChatMessages(chatHistoryId: string): Promise<ChatMessage[]> {
     try {
+      const supabase = getSupabase();
       const { data: messages, error } = await supabase
         .from('chat_messages')
         .select('*')
@@ -134,6 +137,7 @@ export class ChatManager {
 
   static async saveMessage(chatHistoryId: string | null, message: ChatMessage): Promise<string | null> {
     try {
+      const supabase = getSupabase();
       const user = await supabase.auth.getUser();
       if (!user.data.user) return null;
 

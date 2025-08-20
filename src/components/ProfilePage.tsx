@@ -8,7 +8,7 @@ import { ProgressVisualizations } from './profile/ProgressVisualizations';
 import { AIInsights } from './profile/AIInsights';
 import { QuickActions } from './profile/QuickActions';
 import { CustomizableHeader } from './profile/CustomizableHeader';
-import { supabase, getUserProfile, upsertUserProfile } from '../lib/supabase';
+import { getSupabase, getUserProfile, upsertUserProfile } from '../lib/supabase';
 import RequestRoleUpgrade from './settings/RequestRoleUpgrade';
 
 interface ProfilePageProps {
@@ -113,6 +113,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   useEffect(() => {
     const loadUserProfile = async () => {
       try {
+        const supabase = getSupabase();
         const user = await supabase.auth.getUser();
         if (!user.data.user) {
           console.error('No authenticated user');
@@ -248,6 +249,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
       setSaveSuccess('');
       
       try {
+        const supabase = getSupabase();
         const user = await supabase.auth.getUser();
         if (!user.data.user) {
           throw new Error('No authenticated user');

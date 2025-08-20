@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { approveUpgradeRequest, denyUpgradeRequest } from '../../lib/supabase';
+import { getSupabase, approveUpgradeRequest, denyUpgradeRequest } from '../../lib/supabase';
 
 type Req = {
   id: string;
@@ -22,6 +22,7 @@ export default function UpgradeRequests() {
       setLoading(true);
       setError(null);
 
+      const supabase = getSupabase();
       // list requests if table exists
       const { data: reqs, error: rErr } = await supabase
         .from('upgrade_requests')
