@@ -1,16 +1,16 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import TopBar from '../components/Nav/TopBar';
-import TopBar from '../components/Nav/TopBar';
-import OrgSwitcher from '../components/orgs/OrgSwitcher';
 
 export default function AppLayout() {
   return (
-    <div>
+    <div style={root}>
       <TopBar />
-      <div style={{ padding: 16 }}>
-        <Outlet />
-      </div>
+      <main style={main}><Outlet /></main>
     </div>
   );
 }
+
+const ROOT_H = 56; // TopBar height
+const root: React.CSSProperties = { '--topbar-h': `${ROOT_H}px` } as any;
+const main: React.CSSProperties = { padding: '16px', paddingTop: `calc(var(--topbar-h) + 8px)` };
