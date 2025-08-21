@@ -102,18 +102,26 @@ export const FoodLogDrawer: React.FC<FoodLogDrawerProps> = ({
         // Show verification screen with LLM results
         setVerificationData({
           foodName: foodName.trim(),
-          macros: macroData,
+          macros: {
+            kcal: macroData.macros.calories,
+            protein_g: macroData.macros.protein_g,
+            carbs_g: macroData.macros.carbs_g,
+            fat_g: macroData.macros.fat_g
+          },
           grams: 100,
           patMessage: `I found nutrition information for "${foodName.trim()}." Please review and edit if needed before saving.`
         });
         setShowVerificationScreen(true);
       } catch (fetchError: any) {
-        // Handle unconfident or error responses
+        console.error('Error fetching food macros:', fetchError);
+        // Handle error responses with user-friendly message
         setVerificationData({
           foodName: foodName.trim(),
           macros: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
           grams: 100,
-          patMessage: "I couldn't find reliable nutrition data for this food. Please enter your best estimate below."
+          patMessage: fetchError.message?.includes('unconfident') 
+            ? "I couldn't find reliable nutrition data for this food. Please enter your best estimate below."
+            : "I'm having trouble right now. Please enter the nutrition information manually."
         });
         setShowVerificationScreen(true);
       }

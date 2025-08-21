@@ -212,9 +212,11 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
           } catch (error) {
             console.error('Error getting AI response:', error);
             
+            const errorMessage = error instanceof Error ? error.message : 'I\'m having trouble connecting right now. Please try again in a moment.';
+            
             const errorResponse: ChatMessage = {
               id: (Date.now() + 1).toString(),
-              text: "I'm having trouble connecting right now. Please try again in a moment.",
+              text: errorMessage.includes('OpenAI') ? 'I\'m a bit busy right now. Please try again in a moment.' : errorMessage,
               timestamp: new Date(),
               isUser: false
             };

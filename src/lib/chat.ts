@@ -9,5 +9,11 @@ export async function callChat(messages: ChatMessage[]) {
     body: { messages },
   });
   if (error) throw error;
-  return data; // pass-through edge response
+  if (!data) throw new Error('No data returned from chat service');
+  
+  return {
+    ok: true,
+    message: data.message || "I'm here to help!",
+    usage: data.usage
+  };
 }
