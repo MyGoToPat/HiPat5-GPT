@@ -129,6 +129,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
 
   const handleSendMessage = () => {
     if (inputText.trim()) {
+      setIsSending(true);
       setIsThinking(true);
       
       // Check if input triggers a specific agent
@@ -172,20 +173,16 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
               content: msg.text
             }));
             
-            console.log("[chat:req]", { messages: conversationHistory.slice(-10) });
-            const reply = await callChat(conversationHistory.slice(-10)); // Keep last 10 messages for context
+            const payload = conversationHistory.slice(-10);
+            console.log("[chat:req]", { messages: payload });
+            const reply = await callChat(payload);
             console.log("[chat:res]", reply);
 
             if (!reply.ok) {
               console.error('callChat error:', reply.error);
-              const errorResponse: ChatMessage = {
-                id: (Date.now() + 1).toString(),
-                text: reply.error || 'I\'m having trouble connecting right now. Please try again in a moment.',
-                timestamp: new Date(),
-                isUser: false
-              };
-              
-              setMessages(prev => [...prev, errorResponse]);
+              toast.error(reply.error || 'Chat failed');
+              setIsSending(false);
+              setIsThinking(false);
               setIsSpeaking(false);
               return;
             }
@@ -213,21 +210,27 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
 
             // Track first chat message
             if (messages.length === 1) { // Only initial greeting before this
-              const user = await getSupabase().auth.getUser();
-              if (user.data.user) {
-                trackFirstChatMessage(user.data.user.id);
+              try {
+                const supabase = getSupabase();
+                const user = await supabase.auth.getUser();
+                if (user.data.user) {
+                  trackFirstChatMessage(user.data.user.id);
+                }
+              } catch (error) {
+                console.error('Error tracking first chat:', error);
               }
             }
             
             // Simulate speaking duration
             setTimeout(() => {
               setIsSpeaking(false);
+              setIsSending(false);
             }, responseText.length * 50);
             
           } catch (error) {
             console.error('Error getting AI response:', error);
             
-            const errorMessage = error instanceof Error ? error.message : 'I\'m having trouble connecting right now. Please try again in a moment.';
+            toast.error('Chat failed');
             
             const errorResponse: ChatMessage = {
               id: (Date.now() + 1).toString(),
@@ -238,6 +241,8 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
             
             setMessages(prev => [...prev, errorResponse]);
             setIsSpeaking(false);
+            setIsSending(false);
+            setIsThinking(false);
           }
         };
 
