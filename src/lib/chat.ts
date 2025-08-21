@@ -14,7 +14,6 @@ export async function callChat(
   let content: string | undefined = undefined;
   if (typeof data === 'string') content = data;
   else if (typeof data?.content === 'string') content = data.content;
-  else if (typeof data?.message === 'string') content = data.message;
   else if (Array.isArray(data?.choices) && data.choices[0]?.message?.content)
     content = data.choices[0].message.content;
 

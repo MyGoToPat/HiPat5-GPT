@@ -26,7 +26,7 @@ export async function fetchFoodMacros(
     protein_g: Number(src.protein_g ?? src.protein ?? 0),
     carbs_g: Number(src.carbs_g ?? src.carbs ?? 0),
     fat_g: Number(src.fat_g ?? src.fat ?? 0),
-    confidence: Number(src.confidence ?? 0.85),
+    confidence: Number(src.confidence ?? 0),
   };
 
   return { ok: true, macros };
