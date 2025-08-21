@@ -179,7 +179,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   }
 
   return (
-    <div className="h-screen bg-gray-950 text-gray-100">
+    <div className="h-screen bg-gray-950 text-gray-100 flex flex-col">
       <NavigationSidebar 
         isOpen={showNavigation} 
         onClose={() => setShowNavigation(false)} 
@@ -188,8 +188,38 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         userProfile={null}
       />
       
-      {/* Main Content Area - Full height with scrolling */}
-      <div className="h-full overflow-hidden relative">
+      {/* Fixed Header - 60px height */}
+      <div className="h-[60px] flex-shrink-0">
+        <div className="flex items-center justify-between h-full px-4 bg-white border-b border-gray-100">
+          <div className="flex items-center">
+            {/* Empty space for symmetry */}
+          </div>
+          
+          <h1 className="text-xs font-semibold text-gray-900 tracking-wide">
+            PAT
+          </h1>
+          
+          <div className="flex items-center gap-2">
+            <AlertCenter 
+              alerts={alerts} 
+              onDismissAlert={handleDismissAlert}
+            />
+            <button
+              onClick={() => setShowNavigation(true)}
+              className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-900">
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      {/* Main Content Area - Dynamic height with scrolling */}
+      <div className="flex-1 overflow-hidden relative">
         {/* Animated Pat Avatar in corner */}
         <div className="absolute top-4 right-4 z-10">
           <button 
@@ -253,26 +283,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             />
           </div>
         </div>
-      </div>
-      
-      {/* Floating Action Button for Navigation */}
-      <button
-        onClick={() => setShowNavigation(true)}
-        className="fixed top-4 left-4 z-20 p-3 bg-gray-800 hover:bg-gray-700 rounded-lg shadow-lg transition-colors"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-          <line x1="3" y1="6" x2="21" y2="6"/>
-          <line x1="3" y1="12" x2="21" y2="12"/>
-          <line x1="3" y1="18" x2="21" y2="18"/>
-        </svg>
-      </button>
-      
-      {/* Alert Center - Moved to floating position */}
-      <div className="fixed top-4 left-20 z-20">
-        <AlertCenter 
-          alerts={alerts} 
-          onDismissAlert={handleDismissAlert}
-        />
       </div>
       
       {/* Fixed Footer - 40px height */}
