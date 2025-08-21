@@ -95,9 +95,10 @@ export const FoodLogDrawer: React.FC<FoodLogDrawerProps> = ({
       if (user.data.user) {
         trackFoodMacroLookup(user.data.user.id, foodName, source);
       }
-
-      try {
+        
+        console.log("[macros:req]", { foodName: foodName.trim() });
         const res = await fetchFoodMacros(foodName.trim());
+        console.log("[macros:res]", res);
         
         if (!res.ok) {
           console.error('fetchFoodMacros error:', res.error);
@@ -127,17 +128,6 @@ export const FoodLogDrawer: React.FC<FoodLogDrawerProps> = ({
           patMessage: `I found nutrition information for "${foodName.trim()}." Please review and edit if needed before saving.`
         });
         setShowVerificationScreen(true);
-      } catch (fetchError: any) {
-        console.error('Error fetching food macros:', fetchError);
-        // Handle wrapper errors with user-friendly message
-        setVerificationData({
-          foodName: foodName.trim(),
-          macros: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-          grams: 100,
-          patMessage: "I'm having trouble right now. Please enter the nutrition information manually."
-        });
-        setShowVerificationScreen(true);
-      }
       
     } catch (error) {
       console.error('Error looking up macros:', error);

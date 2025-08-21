@@ -171,13 +171,23 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
               role: msg.isUser ? 'user' : 'assistant',
               content: msg.text
             }));
-
-            // Call chat via Edge Function wrapper
+            
+            console.log("[chat:req]", { messages: conversationHistory.slice(-10) });
             const reply = await callChat(conversationHistory.slice(-10)); // Keep last 10 messages for context
+            console.log("[chat:res]", reply);
 
             if (!reply.ok) {
               console.error('callChat error:', reply.error);
-              throw new Error(reply.error || 'Chat failed');
+              const errorResponse: ChatMessage = {
+                id: (Date.now() + 1).toString(),
+                text: reply.error || 'I\'m having trouble connecting right now. Please try again in a moment.',
+                timestamp: new Date(),
+                isUser: false
+              };
+              
+              setMessages(prev => [...prev, errorResponse]);
+              setIsSpeaking(false);
+              return;
             }
             
             const responseText = reply.content || "I'm here to help! How can I assist you today?";
