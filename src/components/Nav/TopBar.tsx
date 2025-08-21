@@ -62,7 +62,11 @@ export default function TopBar() {
                   </Link>
                 </li>
               ))}
-              <li><Link to="/signout" style={link}>Sign out</Link></li>
+              <li>
+                <button onClick={() => { signOut(); setOpen(false); }} style={{...link, background: 'transparent', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer'}}>
+                  Sign out
+                </button>
+              </li>
             </ul>
           </nav>
         </>
