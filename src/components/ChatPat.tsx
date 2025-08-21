@@ -598,6 +598,15 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
                 </div>
               </div>
             ))}
+            
+            {/* Typing Indicator */}
+            {isSending && (
+              <div className="flex justify-start">
+                <div className="max-w-xs lg:max-w-md px-4 py-3 rounded-2xl bg-gray-800 text-gray-100">
+                  <p className="text-sm text-gray-400">Pat is thinking...</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         
