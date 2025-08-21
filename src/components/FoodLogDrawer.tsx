@@ -568,20 +568,20 @@ export const FoodLogDrawer: React.FC<FoodLogDrawerProps> = ({
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Enter food name (e.g., chicken breast, apple, rice)"
                       className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={isLookingUpMacros}
+                      disabled={isFetching}
                     />
                   </div>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={!searchQuery.trim() || isLookingUpMacros}
+                  disabled={!searchQuery.trim() || isFetching}
                   className="w-full mt-4 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
                 >
-                  {isLookingUpMacros ? (
+                  {isFetching ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Pat is looking up nutrition info...
+                      Fetching...
                     </>
                   ) : (
                     <>

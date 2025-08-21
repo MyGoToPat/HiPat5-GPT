@@ -741,6 +741,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
                 {isDictating ? (
                   <button
                     onClick={submitDictation}
+                    disabled={isSending}
                     className="w-10 h-10 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center transition-all duration-300"
                   >
                     <Check size={20} className="text-white" />
@@ -748,6 +749,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
                 ) : isTyping ? (
                   <button
                     onClick={handleSendMessage}
+                    disabled={isSending}
                     className="w-10 h-10 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center transition-all duration-300 transform"
                   >
                     <ArrowUp size={20} className="text-white" />
