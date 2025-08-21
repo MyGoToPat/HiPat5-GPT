@@ -173,9 +173,14 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
             }));
 
             // Call chat via Edge Function wrapper
-            const data = await callChat(conversationHistory.slice(-10)); // Keep last 10 messages for context
+            const reply = await callChat(conversationHistory.slice(-10)); // Keep last 10 messages for context
 
-            const responseText = data.message || "I'm here to help! How can I assist you today?";
+            if (!reply.ok) {
+              console.error('callChat error:', reply.error);
+              throw new Error(reply.error || 'Chat failed');
+            }
+            
+            const responseText = reply.content || "I'm here to help! How can I assist you today?";
             
             const patResponse: ChatMessage = {
               id: (Date.now() + 1).toString(),
@@ -216,7 +221,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
             
             const errorResponse: ChatMessage = {
               id: (Date.now() + 1).toString(),
-              text: errorMessage.includes('OpenAI') ? 'I\'m a bit busy right now. Please try again in a moment.' : errorMessage,
+              text: 'I\'m a bit busy right now. Please try again in a moment.',
               timestamp: new Date(),
               isUser: false
             };
