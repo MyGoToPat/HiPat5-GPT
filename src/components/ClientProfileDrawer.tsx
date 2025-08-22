@@ -3,7 +3,7 @@ import { ProgressTabEnhanced } from './dashboard/ProgressTabEnhanced';
 import { AISummaryTab } from './dashboard/AISummaryTab';
 import { PTDirectivesTab } from './dashboard/PTDirectivesTab';
 import { WorkoutPlansTab } from './dashboard/WorkoutPlansTab';
-import { X, Edit3, Save, User, Mail, Phone, MapPin, Calendar, Target, CreditCard, Settings, Shield, FileText, CheckCircle, AlertTriangle, TrendingUp, Download, Copy, Trash2, Plus, Activity } from 'lucide-react';
+import { X, Edit3, Save, User, Mail, Phone, MapPin, Calendar, Target, CreditCard, Settings, Shield, FileText, AlertTriangle, TrendingUp, Download, Copy, Trash2, Plus, Activity } from 'lucide-react';
 
 interface Client {
   id: string;
@@ -658,12 +658,12 @@ export const ClientProfileDrawer: React.FC<ClientProfileDrawerProps> = ({
                   Data Access Permissions // eslint-disable-next-line react/jsx-key
                 </label>
                 <div className="grid grid-cols-2 gap-3">
-                  {Object.entries(agent.dataPermissions || {}).map(([key, value]) => (
+                  {Object.entries(agent.dataPermissions || {}).map(([key, value]: [string, boolean]) => (
                     <label key={key} className="flex items-center gap-2">
                       <input
                         type="checkbox"
                         checked={value}
-                        onChange={(e) => handleAgentConfigChange(agent.id, 'dataPermissions', {
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleAgentConfigChange(agent.id, 'dataPermissions', {
                           ...agent.dataPermissions,
                           [key]: e.target.checked
                         })}

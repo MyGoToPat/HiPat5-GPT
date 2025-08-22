@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { AppBar } from './AppBar';
 import { NavigationSidebar } from './NavigationSidebar';
 import { PatAvatar } from './PatAvatar';
 import { FrequencySection } from './dashboard/FrequencySection';
@@ -13,17 +12,23 @@ import { CrossMetricInsights } from './dashboard/CrossMetricInsights';
 import { MetricAlert, CrossMetricInsight } from '../types/metrics';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
 import { getSupabase } from '../lib/supabase';
-import { EnergyData } from '../types/metrics';
+import type { EnergyData } from '../types/metrics';
 
 interface DashboardPageProps {
   onNavigate: (page: string) => void;
+}
+
+interface UserMetricsData {
+  tdee?: number;
+  protein_g?: number;
+  bmr?: number;
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const [showNavigation, setShowNavigation] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<{
-    userMetrics: any;
+    userMetrics: UserMetricsData | null;
     todaysFoodLogs: any[];
     totalCalories: number;
     totalMacros: { protein: number; carbs: number; fat: number };
