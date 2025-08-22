@@ -3,17 +3,16 @@ import {
   Menu, 
   X, 
   Edit, 
-  User, 
-  BarChart3, 
-  Users, 
-  MessageSquare,
   MessageSquarePlus,
   LayoutDashboard,
+  User,
+  Users,
   Shield,
   Bot,
   Timer,
   Calculator,
-  Bug
+  Bug,
+  MessageSquare
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useRole } from '../../hooks/useRole';
@@ -76,10 +75,13 @@ export default function InlineMenu() {
     }
   }, [open]);
 
-  const filteredNavItems = NAV_ITEMS[role as NavRole] || [];
+  const filteredNavItems = NAV_ITEMS.filter(item => {
+    if (!item.roles) return true;
+    return item.roles.includes(role as NavRole);
+  });
 
   const getNavItemIcon = (label: string) => {
-    return ICONS[label] || BarChart3;
+    return ICONS[label] || MessageSquare;
   };
 
   const signOut = async () => {
@@ -133,7 +135,9 @@ export default function InlineMenu() {
                       style={{ ...link, ...(loc.pathname === item.to ? active : {}) }}
                       onClick={() => setOpen(false)}
                     >
-                      <IconComponent size={16} />
+                      <span style={iconBox}>
+                        <IconComponent size={16} aria-hidden="true" />
+                      </span>
                       <span>{item.label}</span>
                     </Link>
                   </li>
@@ -153,11 +157,9 @@ export default function InlineMenu() {
             {/* Sign Out */}
             <div style={footer}>
               <button onClick={signOut} style={signOutBtn}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                  <polyline points="16,17 21,12 16,7"/>
-                  <line x1="21" y1="12" x2="9" y2="12"/>
-                </svg>
+                <span style={iconBox}>
+                  <MessageSquare size={16} aria-hidden="true" />
+                </span>
                 <span>Sign Out</span>
               </button>
             </div>
