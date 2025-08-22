@@ -18,6 +18,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useRole } from '../../hooks/useRole';
 import { getSupabase } from '../../lib/supabase';
 import { NAV_ITEMS, type NavRole } from '../../config/nav';
+import { listThreads } from '../../lib/history';
 import '../../styles/nav.css';
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -162,8 +163,8 @@ export default function InlineMenu() {
             
             {/* Top Actions */}
             <div style={section}>
-              <Link to="/chat" style={primaryBtn} onClick={() => setOpen(false)}>
-                <Edit size={16} />
+              <Link to="/chat?new=1" style={primaryBtn} onClick={() => setOpen(false)}>
+                <Edit size={16} aria-hidden="true" />
                 <span>New chat</span>
               </Link>
             </div>
@@ -194,10 +195,33 @@ export default function InlineMenu() {
             {/* Recent Chats Section */}
             <div style={section}>
               <h3 style={sectionTitle}>Recent Chats</h3>
-              <div style={chatsPlaceholder}>
-                <MessageSquare size={16} className="text-gray-400" />
-                <span style={placeholderText}>No chat history yet</span>
-              </div>
+              {(() => {
+                const recent = listThreads().slice(0, 5);
+                return recent.length === 0 ? (
+                  <div style={chatsPlaceholder}>
+                    <MessageSquare size={16} className="text-gray-400" />
+                    <span style={placeholderText}>No chat history yet</span>
+                  </div>
+                ) : (
+                  <ul style={list}>
+                    {recent.map(t => (
+                      <li key={t.id}>
+                        <Link 
+                          to={`/chat?t=${encodeURIComponent(t.id)}`} 
+                          onClick={() => setOpen(false)} 
+                          className="nav-link" 
+                          style={link}
+                        >
+                          <span style={iconBox}>
+                            <MessageSquare size={16} aria-hidden="true" />
+                          </span>
+                          <span>{t.title}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()}
             </div>
 
             {/* Sign Out */}

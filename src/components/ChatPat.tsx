@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { AppBar } from './AppBar';
 import { PatAvatar } from './PatAvatar';
 import { NavigationSidebar } from './NavigationSidebar';
@@ -15,12 +16,30 @@ import { ChatHistory, ChatMessage, ChatState } from '../types/chat';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { callChat, type ChatMessage as EdgeChatMessage } from '../lib/chat';
 import { trackFirstChatMessage } from '../lib/analytics';
+import { 
+  listThreads, 
+  getThread, 
+  upsertThread, 
+  deleteThread, 
+  makeTitleFrom, 
+  newThreadId,
+  type ChatThread 
+} from '../lib/history';
+import toast from 'react-hot-toast';
+import { getSupabase } from '../lib/supabase';
 
 interface ChatPatProps {
   onNavigate: (page: string, state?: { autoStartMode?: 'takePhoto' | 'videoStream' }) => void;
 }
 
 export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  
+  // Thread management
+  const [threadId, setThreadId] = useState<string>(() => newThreadId());
+  const [isSending, setIsSending] = useState(false);
+  
   // Load initial chat state from localStorage
   const [chatState, setChatState] = useState<ChatState>({
     currentMessages: ChatManager.getInitialMessages(),
@@ -43,6 +62,38 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
 
   // Load chat state on mount
   useEffect(() => {
+    // Handle URL params for thread loading
+    const newParam = searchParams.get('new');
+    const threadParam = searchParams.get('t');
+    
+    if (newParam === '1') {
+      // Start new chat
+      const newId = newThreadId();
+      setThreadId(newId);
+      setMessages(ChatManager.getInitialMessages());
+      setActiveChatId(null);
+      return;
+    }
+    
+    if (threadParam) {
+      // Load existing thread
+      const thread = getThread(threadParam);
+      if (thread) {
+        setThreadId(thread.id);
+        // Convert ChatThread messages to ChatMessage format
+        const convertedMessages: ChatMessage[] = thread.messages.map((msg, index) => ({
+          id: `${thread.id}-${index}`,
+          text: msg.content,
+          timestamp: new Date(thread.updatedAt),
+          isUser: msg.role === 'user'
+        }));
+        setMessages(convertedMessages);
+        setActiveChatId(thread.id);
+        return;
+      }
+    }
+    
+    // Default: load chat state
     const loadInitialChatState = async () => {
       try {
         const state = await ChatManager.loadChatState();
@@ -56,7 +107,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
     };
 
     loadInitialChatState();
-  }, []);
+  }, [searchParams]);
 
   // Speech recognition hook for dictation
   const speechRecognition = useSpeechRecognition({
@@ -197,6 +248,22 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
             };
             
             setMessages(prev => [...prev, patResponse]);
+            
+            // Save thread after successful assistant reply
+            const finalMessages = [...messages, newMessage, patResponse];
+            const messagesForSave: EdgeChatMessage[] = finalMessages.map(msg => ({
+              role: msg.isUser ? 'user' : 'assistant',
+              content: msg.text
+            }));
+            
+            // Save to local history
+            const threadToSave: ChatThread = {
+              id: threadId,
+              title: makeTitleFrom(messagesForSave),
+              updatedAt: Date.now(),
+              messages: messagesForSave
+            };
+            upsertThread(threadToSave);
             
             // Save AI response to database
             try {
@@ -396,6 +463,10 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
   const handleNewChat = () => {
     const saveAndStartNewChat = async () => {
       try {
+        // Reset thread ID for new chat
+        const newId = newThreadId();
+        setThreadId(newId);
+        
         // Save current chat to history if it has meaningful content
         if (messages.length > 1) {
           const savedChat = await ChatManager.saveNewChat(messages);
@@ -415,6 +486,8 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
       } catch (error) {
         console.error('Error starting new chat:', error);
         // Still reset UI even if save failed
+        const newId = newThreadId();
+        setThreadId(newId);
         const initialMessages = ChatManager.getInitialMessages();
         setMessages(initialMessages);
         setActiveChatId(null);
@@ -433,6 +506,9 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
   const handleLoadChat = (chatHistory: ChatHistory) => {
     const loadSelectedChat = async () => {
       try {
+        // Update thread ID
+        setThreadId(chatHistory.id);
+        
         setIsLoadingChat(true);
         
         // Save current chat first if it has content

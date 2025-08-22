@@ -3,6 +3,14 @@ import { MemoryRouter } from 'react-router-dom';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import InlineMenu from '../InlineMenu';
 
+// Mock the history module
+vi.mock('../../../lib/history', () => ({
+  listThreads: vi.fn(() => [
+    { id: '1', title: 'Test Chat 1', updatedAt: Date.now(), messages: [] },
+    { id: '2', title: 'Test Chat 2', updatedAt: Date.now() - 1000, messages: [] }
+  ])
+}));
+
 // Mock the useRole hook
 vi.mock('../../../hooks/useRole', () => ({
   useRole: vi.fn(() => ({ role: 'user', loading: false })),
@@ -172,6 +180,29 @@ describe('InlineMenu', () => {
     await waitFor(() => {
       const profileLink = screen.getByRole('link', { name: /Profile/i });
       expect(profileLink).toHaveAttribute('aria-current', 'page');
+    });
+  });
+
+  it('displays recent chats when available', async () => {
+    render(<MemoryRouter><InlineMenu /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    
+    await waitFor(() => {
+      expect(screen.getByText('Test Chat 1')).toBeInTheDocument();
+      expect(screen.getByText('Test Chat 2')).toBeInTheDocument();
+    });
+  });
+
+  it('shows placeholder when no chat history exists', async () => {
+    // Mock empty history
+    const mockListThreads = vi.mocked(vi.importMock('../../../lib/history')).listThreads;
+    mockListThreads.mockReturnValue([]);
+    
+    render(<MemoryRouter><InlineMenu /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    
+    await waitFor(() => {
+      expect(screen.getByText('No chat history yet')).toBeInTheDocument();
     });
   });
 });
