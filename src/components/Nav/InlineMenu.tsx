@@ -12,13 +12,17 @@ import {
   Timer,
   Calculator,
   Bug,
-  MessageSquare
+  MessageSquare,
+  AlertTriangle,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useRole } from '../../hooks/useRole';
 import { getSupabase } from '../../lib/supabase';
 import { NAV_ITEMS, type NavRole } from '../../config/nav';
-import { listThreads } from '../../lib/history';
+import { listThreads, renameThread, deleteThread, clearThreads } from '../../lib/history';
+import type { ChatThread } from '../../lib/history';
 import '../../styles/nav.css';
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -44,6 +48,7 @@ const iconBox: React.CSSProperties = {
 
 export default function InlineMenu() {
   const [open, setOpen] = useState(false);
+  const [recent, setRecent] = useState<ChatThread[]>([]);
   const ref = useRef<HTMLDivElement | null>(null);
   const nav = useNavigate();
   const loc = useLocation();
