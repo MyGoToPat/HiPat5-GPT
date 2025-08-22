@@ -76,10 +76,21 @@ export default function InlineMenu() {
     }
   }, [open]);
 
+  const filteredNavItems = NAV_ITEMS[role as NavRole] || [];
+
+  const getNavItemIcon = (label: string) => {
+    return ICONS[label] || BarChart3;
+  };
+
   const signOut = async () => {
     try { 
       await getSupabase().auth.signOut(); 
-          <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      nav('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
   return (
     <div style={wrap}>
       <button 
