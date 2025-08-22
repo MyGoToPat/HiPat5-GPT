@@ -121,4 +121,57 @@ describe('InlineMenu', () => {
       expect(screen.queryByRole('dialog', { name: /menu/i })).not.toBeInTheDocument();
     });
   });
+
+  it('locks body scroll on open and restores on close', async () => {
+    const prevOverflow = document.body.style.overflow;
+    const prevPosition = document.body.style.position;
+    const prevTop = document.body.style.top;
+    const prevWidth = document.body.style.width;
+    
+    render(<MemoryRouter><InlineMenu /></MemoryRouter>);
+    const trigger = screen.getByRole('button', { name: /open menu/i });
+    
+    // Open menu
+    fireEvent.click(trigger);
+    expect(document.body.style.overflow).toBe('hidden');
+    expect(document.body.style.position).toBe('fixed');
+    expect(document.body.style.width).toBe('100%');
+    
+    // Close menu
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => {
+      expect(document.body.style.overflow).toBe(prevOverflow);
+      expect(document.body.style.position).toBe(prevPosition);
+      expect(document.body.style.top).toBe(prevTop);
+      expect(document.body.style.width).toBe(prevWidth);
+    });
+  });
+
+  it('manages focus correctly on open and close', async () => {
+    render(<MemoryRouter><InlineMenu /></MemoryRouter>);
+    const trigger = screen.getByRole('button', { name: /open menu/i });
+    
+    // Open menu
+    fireEvent.click(trigger);
+    await waitFor(() => {
+      const firstTabbable = screen.getAllByRole('link')[0];
+      expect(document.activeElement).toBe(firstTabbable);
+    });
+    
+    // Close menu
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(trigger);
+    });
+  });
+
+  it('marks active route with aria-current="page"', async () => {
+    render(<MemoryRouter initialEntries={['/profile']}><InlineMenu /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    
+    await waitFor(() => {
+      const profileLink = screen.getByRole('link', { name: /Profile/i });
+      expect(profileLink).toHaveAttribute('aria-current', 'page');
+    });
+  });
 });

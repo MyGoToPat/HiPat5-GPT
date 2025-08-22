@@ -1,0 +1,18 @@
+.nav-link {
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.nav-link[aria-current="page"] {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.nav-link:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}

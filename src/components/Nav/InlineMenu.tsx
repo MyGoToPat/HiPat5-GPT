@@ -18,6 +18,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useRole } from '../../hooks/useRole';
 import { getSupabase } from '../../lib/supabase';
 import { NAV_ITEMS, type NavRole } from '../../config/nav';
+import '../../styles/nav.css';
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   'New chat': MessageSquarePlus,
@@ -48,6 +49,49 @@ export default function InlineMenu() {
   const { role } = useRole();
 
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  // Refs for scroll lock restoration
+  const prevOverflowRef = useRef<string>('');
+  const prevPositionRef = useRef<string>('');
+  const prevTopRef = useRef<string>('');
+  const prevWidthRef = useRef<string>('');
+  const scrollYRef = useRef<number>(0);
+
+  // Body scroll lock with iOS support
+  useEffect(() => {
+    if (open) {
+      // Snapshot current styles
+      prevOverflowRef.current = document.body.style.overflow;
+      prevPositionRef.current = document.body.style.position;
+      prevTopRef.current = document.body.style.top;
+      prevWidthRef.current = document.body.style.width;
+      scrollYRef.current = window.scrollY || window.pageYOffset || 0;
+
+      // Lock scroll
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollYRef.current}px`;
+      document.body.style.width = '100%';
+
+      // iOS background scroll guard
+      const blockTouch = (e: TouchEvent) => {
+        if (ref.current && !ref.current.contains(e.target as Node)) {
+          e.preventDefault();
+        }
+      };
+      document.addEventListener('touchmove', blockTouch, { passive: false });
+
+      return () => {
+        document.removeEventListener('touchmove', blockTouch);
+        // Restore styles
+        document.body.style.overflow = prevOverflowRef.current || '';
+        document.body.style.position = prevPositionRef.current || '';
+        document.body.style.top = prevTopRef.current || '';
+        document.body.style.width = prevWidthRef.current || '';
+        window.scrollTo(0, scrollYRef.current || 0);
+      };
+    }
+  }, [open]);
 
   useEffect(() => { setOpen(false); }, [loc.pathname]);
   useEffect(() => {
@@ -131,6 +175,8 @@ export default function InlineMenu() {
                 return (
                   <li key={item.to}>
                     <Link 
+                      className="nav-link"
+                      aria-current={loc.pathname === item.to ? 'page' : undefined}
                       to={item.to} 
                       style={{ ...link, ...(loc.pathname === item.to ? active : {}) }}
                       onClick={() => setOpen(false)}
@@ -181,9 +227,9 @@ const title: React.CSSProperties = { fontWeight:600, fontSize:16, opacity:0.9 };
 const section: React.CSSProperties = { paddingBottom:12, borderBottom:'1px solid rgba(255,255,255,0.1)' };
 const sectionTitle: React.CSSProperties = { fontSize:12, fontWeight:500, color:'rgba(255,255,255,0.6)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:8 };
 const primaryBtn: React.CSSProperties = { display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'#2563eb', color:'#fff', textDecoration:'none', borderRadius:8, fontWeight:500, fontSize:14 };
-const list: React.CSSProperties = { listStyle:'none', margin:0, padding:0, display:'flex', flexDirection:'column', gap:4 };
-const link: React.CSSProperties = { display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:8, color:'#fff', textDecoration:'none', border:'1px solid transparent', fontSize:14 };
-const active: React.CSSProperties = { borderColor:'rgba(255,255,255,0.18)', background:'rgba(255,255,255,0.05)' };
+const list: React.CSSProperties = { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 };
+const link: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 8, color: '#fff', textDecoration: 'none', border: '1px solid transparent', fontSize: 14, lineHeight: '20px', outline: 'none' };
+const active: React.CSSProperties = { borderColor: 'rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.05)' };
 const chatsPlaceholder: React.CSSProperties = { display:'flex', alignItems:'center', gap:8, padding:'12px', color:'rgba(255,255,255,0.5)', fontSize:14 };
 const placeholderText: React.CSSProperties = { fontSize:14 };
 const footer: React.CSSProperties = { marginTop:'auto', paddingTop:12, borderTop:'1px solid rgba(255,255,255,0.1)' };
