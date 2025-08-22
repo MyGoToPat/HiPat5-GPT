@@ -3,7 +3,7 @@ import { AppBar } from './AppBar';
 import { PatAvatar } from './PatAvatar';
 import { NavigationSidebar } from './NavigationSidebar';
 import { VoiceWaveform } from './VoiceWaveform';
-import { Plus, Mic, Send, Folder, Camera, Image, Upload, Share, ArrowUp, Check, X } from 'lucide-react';
+import { Plus, Mic, Folder, Camera, Image, ArrowUp, Check, X } from 'lucide-react';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
 import { MetricAlert } from '../types/metrics';
 import { FoodEntry } from '../types/food';

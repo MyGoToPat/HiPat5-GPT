@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor, screen } from '@testing-library/react';
+import { render, fireEvent, waitFor } from '@testing-library/react';
 import { OnboardingProvider } from '../src/context/OnboardingContext';
 import { StepAge } from '../src/components/onboarding/steps/StepAge';
 
