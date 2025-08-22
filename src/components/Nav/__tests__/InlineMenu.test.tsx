@@ -317,41 +317,93 @@ describe('InlineMenu', () => {
     window.confirm = originalConfirm;
   });
 
-  it('refreshes recent chats on storage events', async () => {
-    const mockListThreads = vi.mocked(vi.importMock('../../../lib/history')).listThreads;
+  it('navigates to new chat when deleting current thread', async () => {
+    const mockDeleteThread = vi.mocked(vi.importMock('../../../lib/history')).deleteThread;
     
     // Initially return one thread
     mockListThreads.mockReturnValue([
-      { id: '1', title: 'Original Thread', updatedAt: Date.now(), messages: [] }
-    ]);
+    // Mock window.confirm
+    const originalConfirm = window.confirm;
+    window.confirm = vi.fn(() => true);
+    
+    let navigatedTo = '';
+    const TestComponent = () => {
+      const navigate = useNavigate();
+      const location = useLocation();
+      
+      // Track navigation calls
+      React.useEffect(() => {
+        const originalNavigate = navigate;
+        // Override navigate to track calls
+        (navigate as any) = (path: string) => {
+          navigatedTo = path;
+          return originalNavigate(path);
+        };
+      }, [navigate]);
+      
+      return (
+        <div>
+          <InlineMenu />
+          <div data-testid="location">{location.pathname + location.search}</div>
+        </div>
+      );
+    };
+    
+    render(
+      <MemoryRouter initialEntries={['/chat?t=1']}>
+        <Routes>
+          <Route path="/chat" element={<TestComponent />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    
+    await waitFor(() => {
+      const deleteButtons = screen.getAllByRole('button', { name: /delete chat/i });
+      fireEvent.click(deleteButtons[0]); // Delete thread with id '1'
+    });
+    
+    expect(mockDeleteThread).toHaveBeenCalledWith('1');
+    expect(navigatedTo).toBe('/chat?new=1');
+    
+    // Restore original confirm
+    window.confirm = originalConfirm;
+  });
+
+  it('refreshes recent chats on storage events', async () => {
+    const mockListThreads = vi.mocked(vi.importMock('../../../lib/history')).listThreads;
+    
+    // Start with empty threads
+    mockListThreads.mockReturnValue([]);
     
     render(<MemoryRouter><InlineMenu /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
     
     await waitFor(() => {
-      expect(screen.getByText('Original Thread')).toBeInTheDocument();
+      expect(screen.getByText('No chat history yet')).toBeInTheDocument();
     });
     
-    // Update mock to return different threads
+    // Update mock to return new thread
     mockListThreads.mockReturnValue([
-      { id: '2', title: 'Updated Thread', updatedAt: Date.now(), messages: [] }
+      { id: 'new-1', title: 'Storage Synced Thread', updatedAt: Date.now(), messages: [] }
     ]);
     
     // Dispatch storage event
     window.dispatchEvent(new StorageEvent('storage', {
       key: 'hipat:threads:anon',
       newValue: JSON.stringify([
-        { id: '2', title: 'Updated Thread', updatedAt: Date.now(), messages: [] }
+        { id: 'new-1', title: 'Storage Synced Thread', updatedAt: Date.now(), messages: [] }
       ])
     }));
     
     await waitFor(() => {
-      expect(screen.getByText('Updated Thread')).toBeInTheDocument();
+      expect(screen.getByText('Storage Synced Thread')).toBeInTheDocument();
       expect(screen.queryByText('Original Thread')).not.toBeInTheDocument();
     });
   });
 
-  it('ensures action buttons have proper aria-labels', async () => {
+  it('ensures all icon-only buttons have proper aria-labels', async () => {
     render(<MemoryRouter><InlineMenu /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
     
@@ -409,6 +461,22 @@ describe('InlineMenu', () => {
     vi.clearAllMocks();
   });
 
+  it('returns focus to trigger button on close', async () => {
+    render(<MemoryRouter><InlineMenu /></MemoryRouter>);
+    const triggerButton = screen.getByRole('button', { name: /open menu/i });
+    
+    // Open drawer
+    fireEvent.click(triggerButton);
+    expect(await screen.findByRole('dialog', { name: /menu/i })).toBeInTheDocument();
+    
+    // Close drawer with escape key
+    fireEvent.keyDown(document, { key: 'Escape' });
+    
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /menu/i })).not.toBeInTheDocument();
+      expect(document.activeElement).toBe(triggerButton);
+    });
+  });
   it('handles clear all threads action', async () => {
     const mockClearThreads = vi.mocked(vi.importMock('../../../lib/history')).clearThreads;
     

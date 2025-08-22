@@ -21,7 +21,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useRole } from '../../hooks/useRole';
 import { getSupabase } from '../../lib/supabase';
 import { NAV_ITEMS, type NavRole } from '../../config/nav';
-import { listThreads, renameThread, deleteThread, clearThreads, type ChatThread } from '../../lib/history';
+import type { ChatThread } from '../../lib/history';
 import '../../styles/nav.css';
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -53,7 +53,6 @@ export default function InlineMenu() {
   const loc = useLocation();
   const { role } = useRole();
 
-  // Helper to get current thread ID from URL
   const getCurrentThreadId = (): string | null => {
     return new URLSearchParams(loc.search).get('t');
   };
@@ -119,16 +118,17 @@ export default function InlineMenu() {
     }
   }, [open]);
   
-  // Cross-component/cross-tab freshness via storage events
+  // Storage event sync for cross-tab freshness
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key && e.key.startsWith('hipat:threads:')) {
+    function onStorage(e: StorageEvent) {
+      if (!e.key) return;
+      if (e.key.startsWith('hipat:threads:')) {
         setRecent(listThreads().slice(0, 5));
       }
-    };
+    }
     
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
   
   useEffect(() => {
@@ -188,8 +188,7 @@ export default function InlineMenu() {
       setRecent(listThreads().slice(0, 5));
       
       // If deleting current thread, redirect to new chat
-      const currentThreadId = getCurrentThreadId();
-      if (currentThreadId === threadId) {
+      if (getCurrentThreadId() === threadId) {
         nav('/chat?new=1');
       }
     }
@@ -201,8 +200,7 @@ export default function InlineMenu() {
       setRecent([]);
       
       // If currently viewing a thread, redirect to new chat
-      const currentThreadId = getCurrentThreadId();
-      if (currentThreadId) {
+      if (getCurrentThreadId()) {
         nav('/chat?new=1');
       }
     }
@@ -269,11 +267,11 @@ export default function InlineMenu() {
                 {recent.length > 0 && (
                   <button
                     aria-label="Clear all chats"
-                    onClick={handleClearAllThreads}
-                    style={{ padding: 4, border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 12 }}
-                  >
-                    <AlertTriangle size={12} />
-                  </button>
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleClearAllThreads();
+                    }}
                 )}
               </div>
               {recent.length === 0 ? (
