@@ -93,6 +93,8 @@ describe('history', () => {
   it('handles localStorage errors gracefully', () => {
     // Mock localStorage to throw
     const originalSetItem = localStorage.setItem;
+    const originalConsoleWarn = console.warn;
+    console.warn = () => {}; // Mock console.warn to prevent test runner from capturing it
     localStorage.setItem = () => { throw new Error('Storage full'); };
     
     // Should not throw
@@ -107,6 +109,7 @@ describe('history', () => {
     
     // Restore
     localStorage.setItem = originalSetItem;
+    console.warn = originalConsoleWarn;
   });
 
   it('newThreadId generates unique IDs', () => {

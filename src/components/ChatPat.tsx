@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { AppBar } from './AppBar';
 import { PatAvatar } from './PatAvatar';
 import { NavigationSidebar } from './NavigationSidebar';
@@ -17,10 +17,8 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { callChat, type ChatMessage as EdgeChatMessage } from '../lib/chat';
 import { trackFirstChatMessage } from '../lib/analytics';
 import { 
-  listThreads, 
   getThread, 
   upsertThread, 
-  deleteThread, 
   makeTitleFrom, 
   newThreadId,
   type ChatThread 
@@ -33,7 +31,6 @@ interface ChatPatProps {
 }
 
 export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   
   // Thread management
@@ -184,7 +181,6 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
       setIsThinking(true);
       
       // Check if input triggers a specific agent
-      const triggeredAgent = ConversationAgentManager.findAgentByTrigger(inputText);
       
       const newMessage: ChatMessage = {
         id: Date.now().toString(),
