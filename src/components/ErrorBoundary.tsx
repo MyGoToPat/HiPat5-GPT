@@ -6,11 +6,11 @@ type State = { hasError: boolean; message?: string };
 export class ErrorBoundary extends React.Component<Props, State> {
   state: State = { hasError: false };
 
-  static getDerivedStateFromError(err: any) {
+  static getDerivedStateFromError(err: unknown) {
     return { hasError: true, message: String(err?.message || err) };
   }
 
-  componentDidCatch(err: any, info: any) {
+  componentDidCatch(err: unknown, info: unknown) {
     console.error('[ErrorBoundary]', err, info);
   }
 

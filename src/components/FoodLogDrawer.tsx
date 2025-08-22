@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Search, Plus, Minus, Edit3 } from 'lucide-react';
+import { X, Search, Minus, Edit3 } from 'lucide-react';
 import { FoodEntry, FoodSearchResult, AnalysedFoodItem, FoodAnalysisResult } from '../types/food';
 import { getTotalMacros } from '../utils/getTotalMacros';
 import { FoodVerificationScreen } from './FoodVerificationScreen';

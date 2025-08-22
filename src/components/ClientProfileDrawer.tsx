@@ -265,7 +265,7 @@ export const ClientProfileDrawer: React.FC<ClientProfileDrawerProps> = ({
     console.log('Agent toggled:', agentId);
   };
 
-  const handleAgentConfigChange = (agentId: string, field: string, value: any) => {
+  const handleAgentConfigChange = (agentId: string, field: string, value: unknown) => {
     setAgentConfigs(prev => prev.map(agent => 
       agent.id === agentId 
         ? { ...agent, [field]: value }

@@ -12,7 +12,7 @@ import { CrossMetricInsights } from './dashboard/CrossMetricInsights';
 import { MetricAlert, CrossMetricInsight } from '../types/metrics';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
 import { getSupabase } from '../lib/supabase';
-import type { EnergyData } from '../types/metrics';
+import type { FoodEntry } from '../types/food';
 
 interface DashboardPageProps {
   onNavigate: (page: string) => void;
@@ -29,7 +29,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<{
     userMetrics: UserMetricsData | null;
-    todaysFoodLogs: any[];
+    todaysFoodLogs: FoodEntry[];
     totalCalories: number;
     totalMacros: { protein: number; carbs: number; fat: number };
   } | null>(null);
