@@ -322,6 +322,8 @@ describe('InlineMenu', () => {
     
     // Initially return one thread
     mockListThreads.mockReturnValue([
+    ]
+    )
     // Mock window.confirm
     const originalConfirm = window.confirm;
     window.confirm = vi.fn(() => true);
