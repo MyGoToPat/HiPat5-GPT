@@ -48,7 +48,6 @@ const iconBox: React.CSSProperties = {
 export default function InlineMenu() {
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<ChatThread[]>([]);
-  const [recent, setRecent] = useState<ChatThread[]>([]);
   const drawerRef = useRef<HTMLDivElement | null>(null);
   const nav = useNavigate();
   const loc = useLocation();
