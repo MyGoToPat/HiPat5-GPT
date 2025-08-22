@@ -1,9 +1,45 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Menu, X, Edit, User, BarChart3, Users, MessageSquare } from 'lucide-react';
+import { 
+  Menu, 
+  X, 
+  Edit, 
+  User, 
+  BarChart3, 
+  Users, 
+  MessageSquare,
+  MessageSquarePlus,
+  LayoutDashboard,
+  Shield,
+  Bot,
+  Timer,
+  Calculator,
+  Bug
+} from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useRole } from '../../hooks/useRole';
 import { getSupabase } from '../../lib/supabase';
 import { NAV_ITEMS, type NavRole } from '../../config/nav';
+
+const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  'New chat': MessageSquarePlus,
+  'Dashboard': LayoutDashboard,
+  'Profile': User,
+  'Client Management': Users,
+  'Admin': Shield,
+  'Agents': Bot,
+  'Interval Timer': Timer,
+  'TDEE Calculator': Calculator,
+  'Debug': Bug,
+};
+
+const iconBox: React.CSSProperties = {
+  width: 18, 
+  height: 18, 
+  display: 'inline-flex',
+  alignItems: 'center', 
+  justifyContent: 'center', 
+  flexShrink: 0
+};
 
 export default function InlineMenu() {
   const [open, setOpen] = useState(false);
@@ -43,67 +79,7 @@ export default function InlineMenu() {
   const signOut = async () => {
     try { 
       await getSupabase().auth.signOut(); 
-    } finally { 
-      nav('/login'); 
-    }
-  };
-
-  // Filter nav items by role
-  const userRole = (role || 'user') as NavRole;
-  const filteredNavItems = NAV_ITEMS.filter(item => {
-    if (!item.roles) return true;
-    return item.roles.includes(userRole);
-  });
-
-  const getNavItemIcon = (label: string) => {
-    switch (label) {
-      case 'New chat': return Edit;
-      case 'Dashboard': return BarChart3;
-      case 'Profile': return User;
-      case 'Client Management': return Users;
-      case 'Admin': 
-        return (props: any) => (
           <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-            <circle cx="12" cy="16" r="1"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-          </svg>
-        );
-      case 'Agents':
-        return (props: any) => (
-          <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M12 1v6m0 6v6"/>
-            <path d="M12 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
-          </svg>
-        );
-      case 'Interval Timer':
-        return (props: any) => (
-          <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12,6 12,12 16,14"/>
-          </svg>
-        );
-      case 'TDEE Calculator':
-        return (props: any) => (
-          <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-            <line x1="9" y1="9" x2="15" y2="15"/>
-            <line x1="15" y1="9" x2="9" y2="15"/>
-          </svg>
-        );
-      case 'Debug':
-        return (props: any) => (
-          <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 12v4"/>
-            <path d="M12 8h.01"/>
-            <circle cx="12" cy="12" r="10"/>
-          </svg>
-        );
-      default: return MessageSquare;
-    }
-  };
-
   return (
     <div style={wrap}>
       <button 
