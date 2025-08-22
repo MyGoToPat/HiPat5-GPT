@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
+    "build:ci": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest",
-    "test:run": "vitest run --reporter=basic"
+    "test:run": "vitest run --reporter=basic",
+    "ci:verify": "npm run lint && npm run test:run && npm run build:ci && node tools/findPattern.mjs \"TopBar\" && node tools/findPattern.mjs \"Tabs\\W\" && node tools/findPattern.mjs \"<svg\\s\"",
+    "ci:verify:soft": "npm run lint && npm run test:run && npm run build:ci && (node tools/findPattern.mjs \"TopBar\" || true) && (node tools/findPattern.mjs \"Tabs\\W\" || true) && (node tools/findPattern.mjs \"<svg\\s\" || true)"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.53.0",
