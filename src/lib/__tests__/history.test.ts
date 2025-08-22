@@ -1,6 +1,27 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { listThreads, upsertThread, getThread, deleteThread, makeTitleFrom, newThreadId, type ChatThread } from '../history';
 
+// Mock localStorage for tests
+const localStorageMock = {
+  store: {} as Record<string, string>,
+  getItem(key: string) {
+    return this.store[key] || null;
+  },
+  setItem(key: string, value: string) {
+    this.store[key] = value;
+  },
+  removeItem(key: string) {
+    delete this.store[key];
+  },
+  clear() {
+    this.store = {};
+  }
+};
+
+Object.defineProperty(global, 'localStorage', {
+  value: localStorageMock
+});
+
 describe('history', () => {
   beforeEach(() => {
     localStorage.clear();
