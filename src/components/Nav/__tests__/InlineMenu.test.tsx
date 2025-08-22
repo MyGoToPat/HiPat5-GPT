@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import InlineMenu from '../InlineMenu';
 
@@ -268,6 +268,145 @@ describe('InlineMenu', () => {
     
     // Restore original confirm
     window.confirm = originalConfirm;
+  });
+
+  it('navigates to new chat when deleting current thread', async () => {
+    const mockDeleteThread = vi.mocked(vi.importMock('../../../lib/history')).deleteThread;
+    
+    // Mock window.confirm
+    const originalConfirm = window.confirm;
+    window.confirm = vi.fn(() => true);
+    
+    let mockNavigate = vi.fn();
+    
+    // Create test component with navigation tracking
+    const TestComponent = () => {
+      const navigate = useNavigate();
+      const location = useLocation();
+      mockNavigate = navigate;
+      
+      return (
+        <div>
+          <InlineMenu />
+          <div data-testid="current-path">{location.pathname}</div>
+          <div data-testid="current-search">{location.search}</div>
+        </div>
+      );
+    };
+    
+    render(
+      <MemoryRouter initialEntries={['/chat?t=1']}>
+        <Routes>
+          <Route path="/chat" element={<TestComponent />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    
+    await waitFor(() => {
+      const deleteButtons = screen.getAllByRole('button', { name: /delete chat/i });
+      expect(deleteButtons.length).toBeGreaterThan(0);
+      fireEvent.click(deleteButtons[0]); // Delete thread with id '1'
+    });
+    
+    expect(mockDeleteThread).toHaveBeenCalledWith('1');
+    expect(mockNavigate).toHaveBeenCalledWith('/chat?new=1');
+    
+    // Restore original confirm
+    window.confirm = originalConfirm;
+  });
+
+  it('refreshes recent chats on storage events', async () => {
+    const mockListThreads = vi.mocked(vi.importMock('../../../lib/history')).listThreads;
+    
+    // Initially return one thread
+    mockListThreads.mockReturnValue([
+      { id: '1', title: 'Original Thread', updatedAt: Date.now(), messages: [] }
+    ]);
+    
+    render(<MemoryRouter><InlineMenu /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    
+    await waitFor(() => {
+      expect(screen.getByText('Original Thread')).toBeInTheDocument();
+    });
+    
+    // Update mock to return different threads
+    mockListThreads.mockReturnValue([
+      { id: '2', title: 'Updated Thread', updatedAt: Date.now(), messages: [] }
+    ]);
+    
+    // Dispatch storage event
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'hipat:threads:anon',
+      newValue: JSON.stringify([
+        { id: '2', title: 'Updated Thread', updatedAt: Date.now(), messages: [] }
+      ])
+    }));
+    
+    await waitFor(() => {
+      expect(screen.getByText('Updated Thread')).toBeInTheDocument();
+      expect(screen.queryByText('Original Thread')).not.toBeInTheDocument();
+    });
+  });
+
+  it('ensures action buttons have proper aria-labels', async () => {
+    render(<MemoryRouter><InlineMenu /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    
+    await waitFor(() => {
+      // Check that rename and delete buttons have aria-labels
+      const renameButtons = screen.getAllByRole('button', { name: /rename chat/i });
+      const deleteButtons = screen.getAllByRole('button', { name: /delete chat/i });
+      const clearButton = screen.getByRole('button', { name: /clear all chats/i });
+      
+      expect(renameButtons.length).toBe(2);
+      expect(deleteButtons.length).toBe(2);
+      expect(clearButton).toBeInTheDocument();
+    });
+  });
+
+  it('prevents action button clicks from triggering parent link navigation', async () => {
+    const originalPrompt = window.prompt;
+    const originalConfirm = window.confirm;
+    window.prompt = vi.fn(() => null); // Cancel rename
+    window.confirm = vi.fn(() => false); // Cancel delete
+    
+    let navigateCallCount = 0;
+    const mockNavigate = vi.fn(() => { navigateCallCount++; });
+    
+    // Mock useNavigate and useLocation to track navigation calls
+    vi.doMock('react-router-dom', async () => {
+      const actual = await vi.importActual('react-router-dom');
+      return {
+        ...actual,
+        useNavigate: () => mockNavigate,
+        useLocation: () => ({ pathname: '/dashboard', search: '' })
+      };
+    });
+    
+    render(<MemoryRouter><InlineMenu /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    
+    await waitFor(() => {
+      const renameButton = screen.getAllByRole('button', { name: /rename chat/i })[0];
+      const deleteButton = screen.getAllByRole('button', { name: /delete chat/i })[0];
+      
+      const initialNavigateCount = navigateCallCount;
+      
+      // These should not trigger navigation
+      fireEvent.click(renameButton);
+      fireEvent.click(deleteButton);
+      
+      // Navigation count should not increase from action button clicks
+      expect(navigateCallCount).toBe(initialNavigateCount);
+    });
+    
+    // Restore
+    window.prompt = originalPrompt;
+    window.confirm = originalConfirm;
+    vi.clearAllMocks();
   });
 
   it('handles clear all threads action', async () => {

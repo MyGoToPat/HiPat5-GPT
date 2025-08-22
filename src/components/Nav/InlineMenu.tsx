@@ -53,6 +53,11 @@ export default function InlineMenu() {
   const loc = useLocation();
   const { role } = useRole();
 
+  // Helper to get current thread ID from URL
+  const getCurrentThreadId = (): string | null => {
+    return new URLSearchParams(loc.search).get('t');
+  };
+
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   // Refs for scroll lock restoration
@@ -114,6 +119,18 @@ export default function InlineMenu() {
     }
   }, [open]);
   
+  // Cross-component/cross-tab freshness via storage events
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key && e.key.startsWith('hipat:threads:')) {
+        setRecent(listThreads().slice(0, 5));
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+  
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
     window.addEventListener('keydown', onKey);
@@ -171,7 +188,7 @@ export default function InlineMenu() {
       setRecent(listThreads().slice(0, 5));
       
       // If deleting current thread, redirect to new chat
-      const currentThreadId = new URLSearchParams(loc.search).get('t');
+      const currentThreadId = getCurrentThreadId();
       if (currentThreadId === threadId) {
         nav('/chat?new=1');
       }
@@ -184,7 +201,7 @@ export default function InlineMenu() {
       setRecent([]);
       
       // If currently viewing a thread, redirect to new chat
-      const currentThreadId = new URLSearchParams(loc.search).get('t');
+      const currentThreadId = getCurrentThreadId();
       if (currentThreadId) {
         nav('/chat?new=1');
       }
