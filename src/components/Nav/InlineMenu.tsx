@@ -21,8 +21,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useRole } from '../../hooks/useRole';
 import { getSupabase } from '../../lib/supabase';
 import { NAV_ITEMS, type NavRole } from '../../config/nav';
-import { listThreads, renameThread, deleteThread, clearThreads } from '../../lib/history';
-import type { ChatThread } from '../../lib/history';
+import { listThreads, renameThread, deleteThread, clearThreads, type ChatThread } from '../../lib/history';
 import '../../styles/nav.css';
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -49,7 +48,8 @@ const iconBox: React.CSSProperties = {
 export default function InlineMenu() {
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<ChatThread[]>([]);
-  const ref = useRef<HTMLDivElement | null>(null);
+  const [recent, setRecent] = useState<ChatThread[]>([]);
+  const drawerRef = useRef<HTMLDivElement | null>(null);
   const nav = useNavigate();
   const loc = useLocation();
   const { role } = useRole();
@@ -108,6 +108,13 @@ export default function InlineMenu() {
     }
   }, [open]);
   
+  // Refresh recent chats when drawer opens
+  useEffect(() => {
+    if (open) {
+      setRecent(listThreads().slice(0, 5));
+    }
+  }, [open]);
+  
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
     window.addEventListener('keydown', onKey);
@@ -115,7 +122,7 @@ export default function InlineMenu() {
   }, []);
   useEffect(() => {
     const onClick = (e: MouseEvent) => { 
-      if (open && ref.current && !ref.current.contains(e.target as Node)) setOpen(false); 
+      if (open && drawerRef.current && !drawerRef.current.contains(e.target as Node)) setOpen(false); 
     };
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
@@ -125,7 +132,7 @@ export default function InlineMenu() {
   useEffect(() => {
     if (open) {
       // Focus first tabbable element in drawer
-      const firstTabbable = ref.current?.querySelector('a, button') as HTMLElement;
+      const firstTabbable = drawerRef.current?.querySelector('a, button') as HTMLElement;
       firstTabbable?.focus();
     } else {
       // Return focus to trigger when closed
@@ -163,6 +170,12 @@ export default function InlineMenu() {
     if (window.confirm('Delete this chat?')) {
       deleteThread(threadId);
       setRecent(listThreads().slice(0, 5));
+      
+      // If deleting current thread, redirect to new chat
+      const currentThreadId = new URLSearchParams(loc.search).get('t');
+      if (currentThreadId === threadId) {
+        nav('/chat?new=1');
+      }
     }
   };
 
@@ -170,6 +183,12 @@ export default function InlineMenu() {
     if (window.confirm('Clear all chat history?')) {
       clearThreads();
       setRecent([]);
+      
+      // If currently viewing a thread, redirect to new chat
+      const currentThreadId = new URLSearchParams(loc.search).get('t');
+      if (currentThreadId) {
+        nav('/chat?new=1');
+      }
     }
   };
 
@@ -188,7 +207,7 @@ export default function InlineMenu() {
       {open && (
         <>
           <div aria-hidden="true" style={backdrop} onClick={() => setOpen(false)} />
-          <aside ref={ref} role="dialog" aria-label="Menu" style={drawer}>
+          <aside ref={drawerRef} role="dialog" aria-label="Menu" style={drawer}>
             <div style={head}>
               <span style={title}>Menu</span>
               <button aria-label="Close menu" onClick={() => setOpen(false)} style={closeBtn}>

@@ -69,6 +69,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
       setThreadId(newId);
       setMessages(ChatManager.getInitialMessages());
       setActiveChatId(null);
+      setIsLoadingChat(false);
       return;
     }
     
@@ -86,6 +87,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
         }));
         setMessages(convertedMessages);
         setActiveChatId(thread.id);
+        setIsLoadingChat(false);
         return;
       }
     }
