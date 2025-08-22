@@ -3,6 +3,7 @@ import { Menu, X, Edit, User, BarChart3, Users, MessageSquare } from 'lucide-rea
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useRole } from '../../hooks/useRole';
 import { getSupabase } from '../../lib/supabase';
+import { NAV_ITEMS, type NavRole } from '../../config/nav';
 
 export default function InlineMenu() {
   const [open, setOpen] = useState(false);
@@ -10,6 +11,8 @@ export default function InlineMenu() {
   const nav = useNavigate();
   const loc = useLocation();
   const { role } = useRole();
+
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => { setOpen(false); }, [loc.pathname]);
   useEffect(() => {
@@ -25,6 +28,18 @@ export default function InlineMenu() {
     return () => document.removeEventListener('mousedown', onClick);
   }, [open]);
 
+  // Focus management
+  useEffect(() => {
+    if (open) {
+      // Focus first tabbable element in drawer
+      const firstTabbable = ref.current?.querySelector('a, button') as HTMLElement;
+      firstTabbable?.focus();
+    } else {
+      // Return focus to trigger when closed
+      triggerRef.current?.focus();
+    }
+  }, [open]);
+
   const signOut = async () => {
     try { 
       await getSupabase().auth.signOut(); 
@@ -33,9 +48,66 @@ export default function InlineMenu() {
     }
   };
 
+  // Filter nav items by role
+  const userRole = (role || 'user') as NavRole;
+  const filteredNavItems = NAV_ITEMS.filter(item => {
+    if (!item.roles) return true;
+    return item.roles.includes(userRole);
+  });
+
+  const getNavItemIcon = (label: string) => {
+    switch (label) {
+      case 'New chat': return Edit;
+      case 'Dashboard': return BarChart3;
+      case 'Profile': return User;
+      case 'Client Management': return Users;
+      case 'Admin': 
+        return (props: any) => (
+          <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <circle cx="12" cy="16" r="1"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        );
+      case 'Agents':
+        return (props: any) => (
+          <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v6m0 6v6"/>
+            <path d="M12 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+          </svg>
+        );
+      case 'Interval Timer':
+        return (props: any) => (
+          <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12,6 12,12 16,14"/>
+          </svg>
+        );
+      case 'TDEE Calculator':
+        return (props: any) => (
+          <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+          </svg>
+        );
+      case 'Debug':
+        return (props: any) => (
+          <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 12v4"/>
+            <path d="M12 8h.01"/>
+            <circle cx="12" cy="12" r="10"/>
+          </svg>
+        );
+      default: return MessageSquare;
+    }
+  };
+
   return (
     <div style={wrap}>
       <button 
+        ref={triggerRef}
         aria-label="Open menu" 
         aria-expanded={open} 
         onClick={() => setOpen(true)} 
@@ -57,7 +129,7 @@ export default function InlineMenu() {
             
             {/* Top Actions */}
             <div style={section}>
-              <Link to="/chat" style={primaryBtn}>
+              <Link to="/chat" style={primaryBtn} onClick={() => setOpen(false)}>
                 <Edit size={16} />
                 <span>New chat</span>
               </Link>
@@ -65,85 +137,21 @@ export default function InlineMenu() {
             
             {/* Main Navigation */}
             <ul style={list}>
-              <li>
-                <Link to="/dashboard" style={{ ...link, ...(loc.pathname === '/dashboard' ? active : {}) }}>
-                  <BarChart3 size={16} />
-                  <span>Dashboard</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/profile" style={{ ...link, ...(loc.pathname === '/profile' ? active : {}) }}>
-                  <User size={16} />
-                  <span>Profile</span>
-                </Link>
-              </li>
-              
-              {/* Trainer Dashboard - Role-based visibility */}
-              {(role === 'admin' || role === 'trainer') && (
-                <li>
-                  <Link to="/trainer-dashboard" style={{ ...link, ...(loc.pathname === '/trainer-dashboard' ? active : {}) }}>
-                    <Users size={16} />
-                    <span>Client Management</span>
-                  </Link>
-                </li>
-              )}
-              
-              {/* Admin Links - Admin-only visibility */}
-              {role === 'admin' && (
-                <>
-                  <li>
-                    <Link to="/admin" style={{ ...link, ...(loc.pathname === '/admin' ? active : {}) }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                        <circle cx="12" cy="16" r="1"/>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                      </svg>
-                      <span>Admin</span>
+              {filteredNavItems.filter(item => item.label !== 'New chat').map(item => {
+                const IconComponent = getNavItemIcon(item.label);
+                return (
+                  <li key={item.to}>
+                    <Link 
+                      to={item.to} 
+                      style={{ ...link, ...(loc.pathname === item.to ? active : {}) }}
+                      onClick={() => setOpen(false)}
+                    >
+                      <IconComponent size={16} />
+                      <span>{item.label}</span>
                     </Link>
                   </li>
-                  <li>
-                    <Link to="/admin/agents" style={{ ...link, ...(loc.pathname === '/admin/agents' ? active : {}) }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M12 1v6m0 6v6"/>
-                        <path d="M12 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
-                      </svg>
-                      <span>Agents</span>
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/debug" style={{ ...link, ...(loc.pathname === '/debug' ? active : {}) }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 12v4"/>
-                        <path d="M12 8h.01"/>
-                        <circle cx="12" cy="12" r="10"/>
-                      </svg>
-                      <span>Debug</span>
-                    </Link>
-                  </li>
-                </>
-              )}
-              
-              <li>
-                <Link to="/interval-timer" style={{ ...link, ...(loc.pathname === '/interval-timer' ? active : {}) }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="12,6 12,12 16,14"/>
-                  </svg>
-                  <span>Interval Timer</span>
-                </Link>
-              </li>
-              
-              <li>
-                <Link to="/tdee" style={{ ...link, ...(loc.pathname === '/tdee' ? active : {}) }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="9" y1="9" x2="15" y2="15"/>
-                    <line x1="15" y1="9" x2="9" y2="15"/>
-                  </svg>
-                  <span>TDEE Calculator</span>
-                </Link>
-              </li>
+                );
+              })}
             </ul>
 
             {/* Recent Chats Section */}

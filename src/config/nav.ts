@@ -1,8 +1,14 @@
-export const NAV_ITEMS = [
-  { label: 'HiPat', to: '/' },
-  { label: 'Dashboard', to: '/dashboard' },
-  { label: 'Trainer', to: '/trainer-dashboard' },
-  { label: 'TDEE', to: '/tdee' },
-  { label: 'Profile', to: '/profile' },
-  { label: 'Admin', to: '/admin' },
+export type NavRole = 'user' | 'admin' | 'trainer';
+export type NavItem = { label: string; to: string; roles?: NavRole[] };
+
+export const NAV_ITEMS: NavItem[] = [
+  { label: 'New chat',         to: '/chat',              roles: ['user','admin','trainer'] },
+  { label: 'Dashboard',        to: '/dashboard',         roles: ['user','admin','trainer'] },
+  { label: 'Profile',          to: '/profile',           roles: ['user','admin','trainer'] },
+  { label: 'Client Management',to: '/trainer-dashboard', roles: ['admin','trainer'] },
+  { label: 'Admin',            to: '/admin',             roles: ['admin'] },
+  { label: 'Agents',           to: '/admin/agents',      roles: ['admin'] },
+  { label: 'Interval Timer',   to: '/interval-timer',    roles: ['user','admin','trainer'] },
+  { label: 'TDEE Calculator',  to: '/tdee',              roles: ['user','admin','trainer'] },
+  { label: 'Debug',            to: '/debug',             roles: ['admin'] },
 ] as const;
