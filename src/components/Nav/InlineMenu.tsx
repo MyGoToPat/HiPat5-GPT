@@ -22,6 +22,7 @@ import { useRole } from '../../hooks/useRole';
 import { getSupabase } from '../../lib/supabase';
 import { NAV_ITEMS, type NavRole } from '../../config/nav';
 import type { ChatThread } from '../../lib/history';
+import { listThreads, renameThread, deleteThread, clearThreads } from '../../lib/history';
 import '../../styles/nav.css';
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -84,7 +85,7 @@ export default function InlineMenu() {
 
       // iOS background scroll guard
       const blockTouch = (e: TouchEvent) => {
-        if (ref.current && !ref.current.contains(e.target as Node)) {
+        if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
           e.preventDefault();
         }
       };
@@ -272,6 +273,10 @@ export default function InlineMenu() {
                       e.stopPropagation();
                       handleClearAllThreads();
                     }}
+                    style={{ padding: 4, border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 )}
               </div>
               {recent.length === 0 ? (
