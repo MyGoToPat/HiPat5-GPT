@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { listThreads, upsertThread, getThread, deleteThread, makeTitleFrom, newThreadId, type ChatThread } from '../history';
+import { listThreads, upsertThread, getThread, deleteThread, renameThread, clearThreads, makeTitleFrom, newThreadId, type ChatThread } from '../history';
 
 // Mock localStorage for tests
 const localStorageMock = {
@@ -116,5 +116,55 @@ describe('history', () => {
     expect(id1).toBeTruthy();
     expect(id2).toBeTruthy();
     expect(id1).not.toBe(id2);
+  });
+
+  it('renameThread changes title and updatedAt', () => {
+    const id = newThreadId();
+    const originalTime = Date.now() - 1000;
+    upsertThread({
+      id,
+      title: 'Original Title',
+      updatedAt: originalTime,
+      messages: [{ role: 'user', content: 'test' }]
+    });
+    
+    renameThread(id, 'New Title');
+    
+    const thread = getThread(id);
+    expect(thread?.title).toBe('New Title');
+    expect(thread?.updatedAt).toBeGreaterThan(originalTime);
+  });
+
+  it('renameThread preserves title if empty string provided', () => {
+    const id = newThreadId();
+    upsertThread({
+      id,
+      title: 'Original Title',
+      updatedAt: Date.now(),
+      messages: [{ role: 'user', content: 'test' }]
+    });
+    
+    renameThread(id, '   ');
+    
+    const thread = getThread(id);
+    expect(thread?.title).toBe('Original Title');
+  });
+
+  it('clearThreads removes all threads', () => {
+    // Add some threads
+    for (let i = 0; i < 3; i++) {
+      upsertThread({
+        id: String(i),
+        title: `Thread ${i}`,
+        updatedAt: Date.now(),
+        messages: [{ role: 'user', content: `msg ${i}` }]
+      });
+    }
+    
+    expect(listThreads().length).toBe(3);
+    
+    clearThreads();
+    
+    expect(listThreads().length).toBe(0);
   });
 });

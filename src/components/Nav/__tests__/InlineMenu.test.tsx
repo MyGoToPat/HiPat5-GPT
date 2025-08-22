@@ -8,7 +8,10 @@ vi.mock('../../../lib/history', () => ({
   listThreads: vi.fn(() => [
     { id: '1', title: 'Test Chat 1', updatedAt: Date.now(), messages: [] },
     { id: '2', title: 'Test Chat 2', updatedAt: Date.now() - 1000, messages: [] }
-  ])
+  ]),
+  deleteThread: vi.fn(),
+  renameThread: vi.fn(),
+  clearThreads: vi.fn()
 }));
 
 // Mock the useRole hook
@@ -204,5 +207,87 @@ describe('InlineMenu', () => {
     await waitFor(() => {
       expect(screen.getByText('No chat history yet')).toBeInTheDocument();
     });
+  });
+
+  it('displays rename and delete buttons for each chat', async () => {
+    render(<MemoryRouter><InlineMenu /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: /rename chat/i })).toHaveLength(2);
+      expect(screen.getAllByRole('button', { name: /delete chat/i })).toHaveLength(2);
+    });
+  });
+
+  it('displays clear all button when chats exist', async () => {
+    render(<MemoryRouter><InlineMenu /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /clear all chats/i })).toBeInTheDocument();
+    });
+  });
+
+  it('handles rename thread action', async () => {
+    const mockRenameThread = vi.mocked(vi.importMock('../../../lib/history')).renameThread;
+    
+    // Mock window.prompt
+    const originalPrompt = window.prompt;
+    window.prompt = vi.fn(() => 'New Chat Title');
+    
+    render(<MemoryRouter><InlineMenu /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    
+    await waitFor(() => {
+      const renameButtons = screen.getAllByRole('button', { name: /rename chat/i });
+      fireEvent.click(renameButtons[0]);
+    });
+    
+    expect(mockRenameThread).toHaveBeenCalledWith('1', 'New Chat Title');
+    
+    // Restore original prompt
+    window.prompt = originalPrompt;
+  });
+
+  it('handles delete thread action', async () => {
+    const mockDeleteThread = vi.mocked(vi.importMock('../../../lib/history')).deleteThread;
+    
+    // Mock window.confirm
+    const originalConfirm = window.confirm;
+    window.confirm = vi.fn(() => true);
+    
+    render(<MemoryRouter><InlineMenu /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    
+    await waitFor(() => {
+      const deleteButtons = screen.getAllByRole('button', { name: /delete chat/i });
+      fireEvent.click(deleteButtons[0]);
+    });
+    
+    expect(mockDeleteThread).toHaveBeenCalledWith('1');
+    
+    // Restore original confirm
+    window.confirm = originalConfirm;
+  });
+
+  it('handles clear all threads action', async () => {
+    const mockClearThreads = vi.mocked(vi.importMock('../../../lib/history')).clearThreads;
+    
+    // Mock window.confirm
+    const originalConfirm = window.confirm;
+    window.confirm = vi.fn(() => true);
+    
+    render(<MemoryRouter><InlineMenu /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    
+    await waitFor(() => {
+      const clearButton = screen.getByRole('button', { name: /clear all chats/i });
+      fireEvent.click(clearButton);
+    });
+    
+    expect(mockClearThreads).toHaveBeenCalled();
+    
+    // Restore original confirm
+    window.confirm = originalConfirm;
   });
 });

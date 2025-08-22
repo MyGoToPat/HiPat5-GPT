@@ -79,3 +79,24 @@ export function makeTitleFrom(messages: ChatThread['messages']): string {
 export function newThreadId(): string {
   return crypto?.randomUUID ? crypto.randomUUID() : String(Date.now());
 }
+
+export function renameThread(id: string, newTitle: string): void {
+  const list = listThreads();
+  const ix = list.findIndex(t => t.id === id);
+  if (ix >= 0) {
+    list[ix] = { ...list[ix], title: newTitle.trim() || list[ix].title, updatedAt: Date.now() };
+    try {
+      localStorage.setItem(keyFor(null), JSON.stringify(list));
+    } catch (e) {
+      console.warn('Failed to rename chat thread:', e);
+    }
+  }
+}
+
+export function clearThreads(): void {
+  try {
+    localStorage.removeItem(keyFor(null));
+  } catch (e) {
+    console.warn('Failed to clear chat threads:', e);
+  }
+}

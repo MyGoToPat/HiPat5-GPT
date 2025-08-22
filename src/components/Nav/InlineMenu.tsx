@@ -95,6 +95,14 @@ export default function InlineMenu() {
   }, [open]);
 
   useEffect(() => { setOpen(false); }, [loc.pathname]);
+  
+  // Refresh recent chats when drawer opens
+  useEffect(() => {
+    if (open) {
+      setRecent(listThreads().slice(0, 5));
+    }
+  }, [open]);
+  
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
     window.addEventListener('keydown', onKey);
@@ -135,6 +143,28 @@ export default function InlineMenu() {
       nav('/login');
     } catch (error) {
       console.error('Error signing out:', error);
+    }
+  };
+
+  const handleRenameThread = (threadId: string, currentTitle: string) => {
+    const newTitle = window.prompt('Rename chat', currentTitle);
+    if (newTitle !== null) {
+      renameThread(threadId, newTitle);
+      setRecent(listThreads().slice(0, 5));
+    }
+  };
+
+  const handleDeleteThread = (threadId: string) => {
+    if (window.confirm('Delete this chat?')) {
+      deleteThread(threadId);
+      setRecent(listThreads().slice(0, 5));
+    }
+  };
+
+  const handleClearAllThreads = () => {
+    if (window.confirm('Clear all chat history?')) {
+      clearThreads();
+      setRecent([]);
     }
   };
 
@@ -194,10 +224,19 @@ export default function InlineMenu() {
 
             {/* Recent Chats Section */}
             <div style={section}>
-              <h3 style={sectionTitle}>Recent Chats</h3>
-              {(() => {
-                const recent = listThreads().slice(0, 5);
-                return recent.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <h3 style={sectionTitle}>Recent Chats</h3>
+                {recent.length > 0 && (
+                  <button
+                    aria-label="Clear all chats"
+                    onClick={handleClearAllThreads}
+                    style={{ padding: 4, border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 12 }}
+                  >
+                    <AlertTriangle size={12} />
+                  </button>
+                )}
+              </div>
+              {recent.length === 0 ? (
                   <div style={chatsPlaceholder}>
                     <MessageSquare size={16} className="text-gray-400" />
                     <span style={placeholderText}>No chat history yet</span>
@@ -205,23 +244,47 @@ export default function InlineMenu() {
                 ) : (
                   <ul style={list}>
                     {recent.map(t => (
-                      <li key={t.id}>
+                      <li key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Link 
                           to={`/chat?t=${encodeURIComponent(t.id)}`} 
                           onClick={() => setOpen(false)} 
                           className="nav-link" 
-                          style={link}
+                          style={{ ...link, flex: 1, minWidth: 0 }}
                         >
                           <span style={iconBox}>
                             <MessageSquare size={16} aria-hidden="true" />
                           </span>
-                          <span>{t.title}</span>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
                         </Link>
+                        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                          <button
+                            aria-label="Rename chat"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleRenameThread(t.id, t.title);
+                            }}
+                            style={{ padding: 4, border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            aria-label="Delete chat"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDeleteThread(t.id);
+                            }}
+                            style={{ padding: 4, border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>
-                );
-              })()}
+                )
+              }
             </div>
 
             {/* Sign Out */}
