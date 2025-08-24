@@ -8,6 +8,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Client Management',to: '/trainer-dashboard', roles: ['admin','trainer'] },
   { label: 'Admin',            to: '/admin',             roles: ['admin'] },
   { label: 'Agents',           to: '/admin/agents',      roles: ['admin'] },
+  { label: 'ShopLens',         to: '/agents/shoplens',   roles: ['admin','trainer','user'] },
   { label: 'Interval Timer',   to: '/interval-timer',    roles: ['user','admin','trainer'] },
   { label: 'TDEE Calculator',  to: '/tdee',              roles: ['user','admin','trainer'] },
   { label: 'Debug',            to: '/debug',             roles: ['admin'] },

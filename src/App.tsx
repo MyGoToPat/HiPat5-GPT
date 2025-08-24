@@ -22,6 +22,7 @@ import AdminPage from './pages/AdminPage';
 import Health from './pages/Health';
 import AgentsListPage from './pages/admin/AgentsListPage';
 import AgentDetailPage from './pages/admin/AgentDetailPage';
+import ShopLensPage from './pages/agents/ShopLensPage';
 import AppLayout from './layouts/AppLayout';
 
 function App() {
@@ -72,6 +73,9 @@ function App() {
               <Route index element={<AdminPage />} />
               <Route path="agents" element={<AgentsListPage />} />
               <Route path="agents/:agentId" element={<AgentDetailPage />} />
+            </Route>
+            <Route path="agents">
+              <Route path="shoplens" element={<ShopLensPage />} />
             </Route>
           </Route>
 
