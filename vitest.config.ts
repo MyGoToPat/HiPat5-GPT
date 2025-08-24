@@ -5,5 +5,6 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['src/**/*.test.ts', 'src/**/__tests__/**/*.ts'],
+    reporters: [['default', { summary: false }]]
   },
 });

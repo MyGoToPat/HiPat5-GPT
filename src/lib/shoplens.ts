@@ -95,7 +95,7 @@ function parseIngredients(text: string): Ingredient[] {
   const baseIngredients = [
     { name: 'Whey Protein Isolate', amount: 25, unit: 'g', riskLevel: 'low' as const },
     { name: 'Natural Flavors', riskLevel: 'low' as const },
-    { name: 'Sucralose', riskLevel: 'medium' as const, notes: 'Artificial sweetener' },
+    { name: 'Sucralose', riskLevel: 'low' as const, notes: 'Artificial sweetener' },
     { name: 'Lecithin', riskLevel: 'low' as const },
     { name: 'Xanthan Gum', riskLevel: 'low' as const }
   ];
@@ -111,7 +111,7 @@ function parseIngredients(text: string): Ingredient[] {
     detectedIngredients.push({ name: 'Proprietary Blend', amount: 500, unit: 'mg', riskLevel: 'medium', notes: 'Undisclosed ingredient amounts' });
   }
   
-  return detectedIngredients.slice(0, Math.min(8, Math.max(2, text.length / 15)));
+  return detectedIngredients;
 }
 
 function extractClaims(text: string): Claim[] {
