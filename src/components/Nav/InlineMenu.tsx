@@ -145,6 +145,56 @@ export default function InlineMenu() {
     return () => document.removeEventListener('mousedown', onClick);
   }, [open]);
 
+// Focus trap for drawer
+useEffect(() => {
+  if (!open || !drawerRef.current) return;
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== 'Tab') return;
+
+    // Get all focusable elements within drawer
+    const focusableElements = Array.from(
+      drawerRef.current!.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => {
+      const element = el as HTMLElement;
+      return (
+        element.offsetParent !== null &&
+        getComputedStyle(element).visibility !== 'hidden' &&
+        !element.hasAttribute('aria-hidden')
+      );
+    }) as HTMLElement[];
+
+    if (focusableElements.length === 0) return;
+
+    const first = focusableElements[0];
+    const last = focusableElements[focusableElements.length - 1];
+    const active = document.activeElement as HTMLElement;
+
+    if (e.shiftKey) {
+      // Shift+Tab - if on first or outside drawer, go to last
+      if (active === first || !drawerRef.current!.contains(active)) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      // Tab - if on last or outside drawer, go to first
+      if (active === last || !drawerRef.current!.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  };
+
+  drawerRef.current.addEventListener('keydown', handleKeyDown);
+  return () => {
+    if (drawerRef.current) {
+      drawerRef.current.removeEventListener('keydown', handleKeyDown);
+    }
+  };
+}, [open]);
+
   // Focus management
   useEffect(() => {
     if (open) {

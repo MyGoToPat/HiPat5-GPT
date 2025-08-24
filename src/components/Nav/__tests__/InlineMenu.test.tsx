@@ -463,6 +463,59 @@ describe('InlineMenu', () => {
     vi.clearAllMocks();
   });
 
+  it('focus stays trapped while drawer is open', async () => {
+    render(<MemoryRouter><InlineMenu /></MemoryRouter>);
+    const triggerButton = screen.getByRole('button', { name: /open menu/i });
+    
+    // Open drawer
+    fireEvent.click(triggerButton);
+    const drawer = await screen.findByRole('dialog', { name: /menu/i });
+    expect(drawer).toBeInTheDocument();
+    
+    // Get all focusable elements within drawer
+    const focusableElements = Array.from(
+      drawer.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => {
+      const element = el as HTMLElement;
+      return (
+        element.offsetParent !== null &&
+        getComputedStyle(element).visibility !== 'hidden' &&
+        !element.hasAttribute('aria-hidden')
+      );
+    }) as HTMLElement[];
+    
+    expect(focusableElements.length).toBeGreaterThan(0);
+    
+    const first = focusableElements[0];
+    const last = focusableElements[focusableElements.length - 1];
+    
+    // Test Tab wrapping from last to first
+    last.focus();
+    expect(document.activeElement).toBe(last);
+    
+    fireEvent.keyDown(drawer, { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
+    
+    // Test Shift+Tab wrapping from first to last
+    first.focus();
+    expect(document.activeElement).toBe(first);
+    
+    fireEvent.keyDown(drawer, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(last);
+    
+    // Test focus stays within drawer during normal tabbing
+    for (let i = 0; i < focusableElements.length + 2; i++) {
+      const currentElement = document.activeElement as HTMLElement;
+      expect(drawer.contains(currentElement)).toBe(true);
+      fireEvent.keyDown(drawer, { key: 'Tab' });
+    }
+    
+    // Focus should still be within drawer
+    expect(drawer.contains(document.activeElement as HTMLElement)).toBe(true);
+  });
+
   it('returns focus to trigger button on close', async () => {
     render(<MemoryRouter><InlineMenu /></MemoryRouter>);
     const triggerButton = screen.getByRole('button', { name: /open menu/i });
