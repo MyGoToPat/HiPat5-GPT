@@ -75,6 +75,7 @@ function App() {
               <Route path="agents/:agentId" element={<AgentDetailPage />} />
             </Route>
             <Route path="agents">
+              <Route index element={<AgentsListPage />} />
               <Route path="shoplens" element={<ShopLensPage />} />
             </Route>
           </Route>
