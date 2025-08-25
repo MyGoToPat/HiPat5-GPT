@@ -6,3 +6,4 @@ export function parseBool(v: unknown, fallback = true): boolean {
 }
 
 export const FEATURE_SHOPLENS = parseBool(import.meta.env.VITE_FEATURE_SHOPLENS, true);
+export const FEATURE_FOODLOG = parseBool(import.meta.env.VITE_FEATURE_FOODLOG, true);

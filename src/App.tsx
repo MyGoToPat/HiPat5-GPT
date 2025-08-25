@@ -23,6 +23,7 @@ import Health from './pages/Health';
 import AgentsListPage from './pages/admin/AgentsListPage';
 import AgentDetailPage from './pages/admin/AgentDetailPage';
 import ShopLensPage from './pages/agents/ShopLensPage';
+import FoodLogPage from './pages/log/FoodLogPage';
 import AppLayout from './layouts/AppLayout';
 
 function App() {
@@ -77,6 +78,9 @@ function App() {
             <Route path="agents">
               <Route index element={<AgentsListPage />} />
               <Route path="shoplens" element={<ShopLensPage />} />
+            </Route>
+            <Route path="log">
+              <Route path="food" element={<FoodLogPage />} />
             </Route>
           </Route>
 
