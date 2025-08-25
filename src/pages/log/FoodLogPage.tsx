@@ -421,63 +421,63 @@ export default function FoodLogPage() {
                     </button>
                   </div>
                 </div>
-              )}
-
-              {/* Placeholder when no analysis */}
-              {!analysis && !isAnalyzing && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-                  <Utensils size={48} className="text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to Analyze</h3>
-                  <p className="text-gray-600">
-                    Describe your meal in the text area to get started.
-                  </p>
-                </div>
-              )}
-
-              {/* Today's Entries */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900">Today's Log</h2>
-                  <div className="flex gap-2">
-                    <MacroBadge label="Kcal" value={dayTotals.kcal} unit="" color="bg-blue-100 text-blue-800" />
-                    <MacroBadge label="P" value={dayTotals.protein} color="bg-red-100 text-red-800" />
-                    <MacroBadge label="C" value={dayTotals.carbs} color="bg-yellow-100 text-yellow-800" />
-                    <MacroBadge label="F" value={dayTotals.fat} color="bg-green-100 text-green-800" />
-                  </div>
-                </div>
-
-                {todaysEntries.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Plus size={32} className="text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-500">No entries logged today</p>
-                    <p className="text-gray-400 text-sm">Analyze a meal to get started</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {todaysEntries.map((entry, index) => (
-                      <div key={entry.id} className="p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-900">
-                            Entry #{index + 1}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(entry.timestamp).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {entry.items.map(item => item.name).join(', ')}
-                        </div>
-                        <div className="flex gap-2 mt-2">
-                          <MacroBadge label="Kcal" value={entry.totals.kcal} unit="" color="bg-gray-100 text-gray-700" />
-                          <MacroBadge label="P" value={entry.totals.protein} color="bg-gray-100 text-gray-700" />
-                          <MacroBadge label="C" value={entry.totals.carbs} color="bg-gray-100 text-gray-700" />
-                          <MacroBadge label="F" value={entry.totals.fat} color="bg-gray-100 text-gray-700" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
+            )}
+
+            {/* Placeholder when no analysis */}
+            {!analysis && !isAnalyzing && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+                <Utensils size={48} className="text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to Analyze</h3>
+                <p className="text-gray-600">
+                  Describe your meal in the text area to get started.
+                </p>
+              </div>
+            )}
+
+            {/* Today's Entries */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Today's Log</h2>
+                <div className="flex gap-2">
+                  <MacroBadge label="Kcal" value={dayTotals.kcal} unit="" color="bg-blue-100 text-blue-800" />
+                  <MacroBadge label="P" value={dayTotals.protein} color="bg-red-100 text-red-800" />
+                  <MacroBadge label="C" value={dayTotals.carbs} color="bg-yellow-100 text-yellow-800" />
+                  <MacroBadge label="F" value={dayTotals.fat} color="bg-green-100 text-green-800" />
+                </div>
+              </div>
+
+              {todaysEntries.length === 0 ? (
+                <div className="text-center py-8">
+                  <Plus size={32} className="text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">No entries logged today</p>
+                  <p className="text-gray-400 text-sm">Analyze a meal to get started</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {todaysEntries.map((entry, index) => (
+                    <div key={entry.id} className="p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-900">
+                          Entry #{index + 1}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(entry.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {entry.items.map(item => item.name).join(', ')}
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <MacroBadge label="Kcal" value={entry.totals.kcal} unit="" color="bg-gray-100 text-gray-700" />
+                        <MacroBadge label="P" value={entry.totals.protein} color="bg-gray-100 text-gray-700" />
+                        <MacroBadge label="C" value={entry.totals.carbs} color="bg-gray-100 text-gray-700" />
+                        <MacroBadge label="F" value={entry.totals.fat} color="bg-gray-100 text-gray-700" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         </div>
