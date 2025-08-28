@@ -206,20 +206,6 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
             
             <button 
               onClick={() => {
-                onNavigate?.('interval-timer');
-                onClose();
-              }}
-              className="w-full mt-2 flex items-center gap-3 px-3 py-2 text-left text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12,6 12,12 16,14"/>
-              </svg>
-              <span className="text-sm font-medium">Interval Timer</span>
-            </button>
-            
-            <button 
-              onClick={() => {
                 onNavigate?.('tdee-wizard');
                 onClose();
               }}
@@ -233,23 +219,6 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
               <span className="text-sm font-medium">TDEE Calculator</span>
             </button>
             
-            {/* Debug Page Link - Admin only */}
-            {role === 'admin' && (
-              <button 
-                onClick={() => {
-                  onNavigate?.('debug');
-                  onClose();
-                }}
-                className="w-full mt-2 flex items-center gap-3 px-3 py-2 text-left text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
-                  <path d="M12 12v4"/>
-                  <path d="M12 8h.01"/>
-                  <circle cx="12" cy="12" r="10"/>
-                </svg>
-                <span className="text-sm font-medium">Debug</span>
-              </button>
-            )}
           </div>
           
           {/* Chat Histories */}

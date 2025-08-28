@@ -5,10 +5,8 @@ import { FrequencySection } from './dashboard/FrequencySection';
 import { RestSection } from './dashboard/RestSection';
 import { EnergySection } from './dashboard/EnergySection';
 import { EffortSection } from './dashboard/EffortSection';
-import { ActivityLog } from './dashboard/ActivityLog';
 import { DailySummary } from './dashboard/DailySummary';
 import { AlertCenter } from './dashboard/AlertCenter';
-import { CrossMetricInsights } from './dashboard/CrossMetricInsights';
 import { MetricAlert, CrossMetricInsight } from '../types/metrics';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
 import { getSupabase } from '../lib/supabase';
@@ -277,15 +275,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             </div>
             </div>
             
-            {/* Cross-Metric Insights */}
-            <div className="mb-8">
-              <CrossMetricInsights insights={insights} />
-            </div>
-            
-            {/* Activity Log */}
-            <ActivityLog 
-              recentFoodLogs={dashboardData?.todaysFoodLogs || []}
-            />
           </div>
         </div>
       </div>

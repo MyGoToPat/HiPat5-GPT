@@ -4,8 +4,6 @@ import { NavigationSidebar } from './NavigationSidebar';
 import { PatAvatar } from './PatAvatar';
 import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, Edit3, Save, X, Camera, Globe, Moon, Sun, Volume2, Smartphone, Trophy, Target, Zap, TrendingUp, Award, Star, MessageSquare, Activity, Plus, ChevronRight, Brain, Lightbulb, CheckCircle, Clock, Siren as Fire } from 'lucide-react';
 import { AchievementBadges } from './profile/AchievementBadges';
-import { ProgressVisualizations } from './profile/ProgressVisualizations';
-import { AIInsights } from './profile/AIInsights';
 import { QuickActions } from './profile/QuickActions';
 import { CustomizableHeader } from './profile/CustomizableHeader';
 import { getSupabase, getUserProfile, upsertUserProfile } from '../lib/supabase';
@@ -335,14 +333,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
       {/* Quick Actions */}
       <QuickActions onNavigate={onNavigate} />
 
-      {/* AI Insights */}
-      <AIInsights insights={aiInsights} />
-
       {/* Achievement Badges */}
       <AchievementBadges achievements={achievements} />
-
-      {/* Progress Visualizations */}
-      <ProgressVisualizations />
 
       {/* Profile Picture Section */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">

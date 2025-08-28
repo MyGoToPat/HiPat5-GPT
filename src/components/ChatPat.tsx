@@ -14,7 +14,7 @@ import { AgentSession } from '../types/agents';
 import { ChatManager } from '../utils/chatManager';
 import { ChatHistory, ChatMessage, ChatState } from '../types/chat';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
-import { callChat, type ChatMessage as EdgeChatMessage } from '../lib/chat';
+import { callChat } from '../lib/chat';
 import { trackFirstChatMessage } from '../lib/analytics';
 import { 
   getThread, 
@@ -55,7 +55,6 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
   const [showNavigation, setShowNavigation] = useState(false);
   const [activeAgentSession, setActiveAgentSession] = useState<AgentSession | null>(null);
   const [silentMode, setSilentMode] = useState(false);
-  const [showFoodLogDrawer, setShowFoodLogDrawer] = useState(false);
 
   // Load chat state on mount
   useEffect(() => {
@@ -216,8 +215,8 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
         // Get AI response
         const getAIResponse = async () => {
           try {
-            // Prepare conversation history for OpenAI
-            const conversationHistory: EdgeChatMessage[] = [...messages, newMessage].map(msg => ({
+            // Prepare conversation history for chat API
+            const conversationHistory = [...messages, newMessage].map(msg => ({
               role: msg.isUser ? 'user' : 'assistant',
               content: msg.text
             }));
@@ -249,7 +248,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
             
             // Save thread after successful assistant reply
             const finalMessages = [...messages, newMessage, patResponse];
-            const messagesForSave: EdgeChatMessage[] = finalMessages.map(msg => ({
+            const messagesForSave = finalMessages.map(msg => ({
               role: msg.isUser ? 'user' : 'assistant',
               content: msg.text
             }));
@@ -737,7 +736,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
                         
                         // Handle food logging
                         if (option.id === 'log-food') {
-                          setShowFoodLogDrawer(true);
+                          // TODO: Implement food logging flow
                           return;
                         }
                         
@@ -865,12 +864,6 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
         </div>
       </div>
       
-      {/* Food Log Drawer */}
-      <FoodLogDrawer 
-        isOpen={showFoodLogDrawer}
-        onClose={() => setShowFoodLogDrawer(false)}
-        onSaveFood={handleSaveFoodEntry}
-      />
     </div>
   );
 };
