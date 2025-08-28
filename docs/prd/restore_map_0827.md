@@ -31,3 +31,16 @@ This list mirrors the "Temporary UI Suppressions (Restoration PRD)" in Canvas. U
 
 ## Debug page
 - src/pages/DebugPage.tsx
+
+## Profile (main tab)
+- Sections removed:
+  - "AI Insights" (component: AIInsights)
+  - "Progress Overview" (component: ProgressVisualizations)
+  - "Current Goal" (e.g., CurrentGoalCard/GoalSummary or a card headed "Current Goal")
+  - "Monthly Consistency Score" (e.g., MonthlyConsistencyScore/ConsistencyScoreCard or a card headed "Consistency")
+  - "Contact Support" block (to be replaced later by the "Make Me Better" agent)
+
+## Profile → Preferences
+- Removed UI:
+  - Pat's Personality adjustments (e.g., PersonalityControls section or JSX block)
+  - Voice Settings controls (e.g., VoiceSettings component or JSX block)

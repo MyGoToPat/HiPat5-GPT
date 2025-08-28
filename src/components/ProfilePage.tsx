@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppBar } from './AppBar';
 import { NavigationSidebar } from './NavigationSidebar';
 import { PatAvatar } from './PatAvatar';
-import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, Edit3, Save, X, Camera, Globe, Moon, Sun, Volume2, Smartphone, Trophy, Target, Zap, TrendingUp, Award, Star, MessageSquare, Activity, Plus, ChevronRight, Brain, Lightbulb, CheckCircle, Clock, Siren as Fire } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, Edit3, Save, X, Camera, Globe, Moon, Sun, Smartphone, Trophy, Target, Zap, TrendingUp, Award, Star, MessageSquare, Activity, Plus, ChevronRight, Brain, Lightbulb, CheckCircle, Clock, Siren as Fire } from 'lucide-react';
 import { AchievementBadges } from './profile/AchievementBadges';
 import { QuickActions } from './profile/QuickActions';
 import { CustomizableHeader } from './profile/CustomizableHeader';
@@ -451,107 +451,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               <MapPin size={16} className="inline mr-2" />
-              Location
-            </label>
-            {isEditing ? (
-              <input
-                type="text"
-                value={editedProfile?.location || ''}
-                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, location: e.target.value } : null)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={isSaving}
-              />
-            ) : (
-              <p className="px-4 py-3 bg-gray-800 rounded-lg text-white">{userProfile?.location || 'Not provided'}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Calendar size={16} className="inline mr-2" />
-              Date of Birth
-            </label>
-            {isEditing ? (
-              <input
-                type="date"
-                value={editedProfile?.dateOfBirth || ''}
-                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, dateOfBirth: e.target.value } : null)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={isSaving}
-              />
-            ) : (
-              <p className="px-4 py-3 bg-gray-800 rounded-lg text-white">
-                {userProfile?.dateOfBirth ? new Date(userProfile.dateOfBirth).toLocaleDateString() : 'Not provided'}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <label className="block text-sm font-medium text-gray-300 mb-2">Bio</label>
-          {isEditing ? (
-            <textarea
-              value={editedProfile?.bio || ''}
-              onChange={(e) => setEditedProfile(prev => prev ? { ...prev, bio: e.target.value } : null)}
-              rows={3}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              placeholder="Tell us about yourself..."
-              disabled={isSaving}
-            />
-          ) : (
-            <p className="px-4 py-3 bg-gray-800 rounded-lg text-white">{userProfile?.bio || 'No bio provided'}</p>
-          )}
-        </div>
-
-        {isEditing && (
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={handleSaveProfile}
-              disabled={isSaving}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-            >
-              {isSaving ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save size={16} />
-                  Save Changes
-                </>
-              )}
-            </button>
-            <button
-              onClick={handleCancelEdit}
-              disabled={isSaving}
-              className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Contact Support Section */}
-      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-        <h3 className="text-lg font-semibold text-white mb-4">Need Help?</h3>
-        <p className="text-gray-400 text-sm mb-4">
-          Have questions or need assistance? Our support team is here to help.
-        </p>
-        <a
-          href="mailto:support@hipat.app?subject=HiPat Support Request"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
-        >
-          <Mail size={16} />
-          Contact Support
-        </a>
-      </div>
-
-      {/* Role Upgrade Request Form (visible to non-admins only) */}
-      {dbProfile?.role !== 'admin' && (
-        <RequestRoleUpgrade />
-      )}
     </div>
 
   );
