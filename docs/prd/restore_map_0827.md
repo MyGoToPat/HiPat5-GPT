@@ -44,3 +44,10 @@ This list mirrors the "Temporary UI Suppressions (Restoration PRD)" in Canvas. U
 - Removed UI:
   - Pat's Personality adjustments (e.g., PersonalityControls section or JSX block)
   - Voice Settings controls (e.g., VoiceSettings component or JSX block)
+
+## Profile → Quick Actions
+- Removed component: QuickActions
+  - "Chat with Pat" button
+  - "View Dashboard" button  
+  - "Log Activity" button
+  - "Quick Check-in" button
