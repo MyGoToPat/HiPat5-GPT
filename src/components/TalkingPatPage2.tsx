@@ -4,9 +4,7 @@ import { VoiceWaveform } from './VoiceWaveform';
 import { AppBar } from './AppBar';
 import { NavigationSidebar } from './NavigationSidebar';
 import { ConversationAgentManager } from '../utils/conversationAgents';
-import { FoodLogDrawer } from './FoodLogDrawer';
-import { FoodAnalysisResult, AnalysedFoodItem } from '../types/food';
-import { getTotalMacros } from '../utils/getTotalMacros';
+import { AnalysedFoodItem } from '../types/food';
 import { Folder, Video, Image, Upload, Share, Plus, Mic, X, Camera, RotateCcw } from 'lucide-react';
 
 interface TalkingPatPage2Props {
@@ -22,12 +20,10 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ onNavigate, in
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string>('');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<FoodAnalysisResult | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<any | null>(null);
   const [caption, setCaption] = useState("Choose how you'd like to share with me");
   const [showNavigation, setShowNavigation] = useState(false);
   const [triggeredAgent, setTriggeredAgent] = useState<string>('');
-  const [showFoodLogDrawer, setShowFoodLogDrawer] = useState(false);
-  const [drawerInitialFoodData, setDrawerInitialFoodData] = useState<FoodAnalysisResult | undefined>(undefined);
 
   // Phase 2: Real-time streaming states
   const [isStreaming, setIsStreaming] = useState(false);
@@ -248,7 +244,7 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ onNavigate, in
           const macroData = await response.json();
           
           // Create analysis result for the drawer
-          const analysisResult: FoodAnalysisResult = {
+          const analysisResult: any = {
             foods: [{
               id: crypto.randomUUID(),
               name: recognizedFood,
@@ -268,7 +264,6 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ onNavigate, in
           };
           
           setAnalysisResult(analysisResult);
-          setDrawerInitialFoodData(analysisResult);
         } else {
           // Fallback to manual entry if macro lookup fails
           setCaption(`I detected ${recognizedFood}, but couldn't get nutrition info. Please enter manually.`);
@@ -277,8 +272,6 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ onNavigate, in
         console.error('Error getting macros for recognized food:', error);
         setCaption(`I detected ${recognizedFood}, but couldn't get nutrition info. Please enter manually.`);
       }
-      
-      setShowFoodLogDrawer(true);
       
       // Stop camera and reset states
       stopCamera();
@@ -295,22 +288,6 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ onNavigate, in
     setCapturedImage(null);
     setAnalysisResult(null);
     setCaption('Camera ready! Position your food in the frame and tap the camera button to capture.');
-  };
-
-  // Handle food log drawer close
-  const handleFoodLogDrawerClose = () => {
-    setShowFoodLogDrawer(false);
-    setDrawerInitialFoodData(undefined);
-    setCapturedImage(null);
-    setAnalysisResult(null);
-    setSelectedOption('');
-    setCaption("Choose how you'd like to share with me");
-  };
-
-  // Handle food save from drawer
-  const handleFoodSave = (entry: any) => {
-    // TODO: Save to backend when ready
-    console.log('Food entry saved:', entry);
   };
 
   // Cleanup on unmount
@@ -543,13 +520,6 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ onNavigate, in
       </div>
       </div>
 
-      {/* Food Log Drawer */}
-      <FoodLogDrawer 
-        isOpen={showFoodLogDrawer}
-        onClose={handleFoodLogDrawerClose}
-        onSaveFood={handleFoodSave}
-        initialFoodData={drawerInitialFoodData}
-      />
     </div>
   );
 };
