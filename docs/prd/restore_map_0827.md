@@ -42,7 +42,7 @@ This list mirrors the "Temporary UI Suppressions (Restoration PRD)" in Canvas. U
 
 ## Profile → Preferences
 - Removed UI:
-  - Pat's Personality adjustments (e.g., PersonalityControls section or JSX block)
+  - Pat's Personality adjustments (3-button grid: Professional/Friendly/Casual)
   - Voice Settings controls (e.g., VoiceSettings component or JSX block)
 
 ## Profile → Quick Actions

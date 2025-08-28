@@ -556,34 +556,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                     editedPreferences.theme === value
                       ? 'bg-blue-600 border-blue-500 text-white'
                       : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
-                  }`}
-                >
-                  <Icon size={16} />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-3">Language</label>
-            <select
-              value={editedPreferences.language}
-              onChange={(e) => {
-                setEditedPreferences({ ...editedPreferences, language: e.target.value });
-                handleSavePreferences();
-              }}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="English">English</option>
-              <option value="Spanish">Spanish</option>
-              <option value="French">French</option>
-              <option value="German">German</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
       {/* Notification Settings */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
         <h3 className="text-lg font-semibold text-white mb-4">
