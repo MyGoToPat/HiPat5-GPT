@@ -6,6 +6,7 @@ import { NavigationSidebar } from './NavigationSidebar';
 import { ConversationAgentManager } from '../utils/conversationAgents';
 import { AnalysedFoodItem } from '../types/food';
 import { Folder, Video, Image, Upload, Share, Plus, Mic, X, Camera, RotateCcw } from 'lucide-react';
+import { fetchFoodMacros } from '../lib/food';
 
 interface TalkingPatPage2Props {
   onNavigate: (page: string, state?: { autoStartMode?: 'takePhoto' | 'videoStream' }) => void;
@@ -229,19 +230,10 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ onNavigate, in
       
       // Use OpenAI to get macros for the recognized food
       try {
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-food-macros`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            foodName: recognizedFood
-          })
-        });
+        const reply = await fetchFoodMacros(recognizedFood);
 
-        if (response.ok) {
-          const macroData = await response.json();
+        if (reply.ok && reply.macros) {
+          const macroData = reply.macros;
           
           // Create analysis result for the drawer
           const analysisResult: any = {
@@ -266,6 +258,7 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ onNavigate, in
           setAnalysisResult(analysisResult);
         } else {
           // Fallback to manual entry if macro lookup fails
+          console.error('fetchFoodMacros error:', reply.error);
           setCaption(`I detected ${recognizedFood}, but couldn't get nutrition info. Please enter manually.`);
         }
       } catch (error) {

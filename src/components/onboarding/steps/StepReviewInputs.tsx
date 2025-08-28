@@ -103,7 +103,7 @@ export const StepReviewInputs: React.FC = () => {
       <p className="text-gray-600 mb-8 text-sm">Double-check everything below. Accuracy is key for your personalized plan!</p>
       
       <div className="space-y-3 text-left">
-        {reviewItems.map((item) => ( // eslint-disable-next-line react/jsx-key
+        {reviewItems.map((item, index) => (
           <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex-1">
               <div className="font-medium text-gray-900">{item.label}</div>
