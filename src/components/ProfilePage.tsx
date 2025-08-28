@@ -607,34 +607,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* Pat Personality */}
-      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-        <h3 className="text-lg font-semibold text-white mb-4">Pat's Personality</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {[
-            { value: 'professional', label: 'Professional', desc: 'Formal and business-like' },
-            { value: 'friendly', label: 'Friendly', desc: 'Warm and approachable' },
-            { value: 'casual', label: 'Casual', desc: 'Relaxed and informal' }
-          ].map(({ value, label, desc }) => (
-            <button
-              key={value}
-              onClick={() => {
-                setEditedPreferences({ ...editedPreferences, patPersonality: value as any });
-                handleSavePreferences();
-              }}
-              className={`p-4 rounded-lg border text-left transition-colors ${
-                editedPreferences.patPersonality === value
-                  ? 'bg-blue-600 border-blue-500 text-white'
-                  : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              <p className="font-medium">{label}</p>
-              <p className="text-sm opacity-80">{desc}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Voice Settings */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
         <h3 className="text-lg font-semibold text-white mb-4">
