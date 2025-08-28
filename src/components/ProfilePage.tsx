@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppBar } from './AppBar';
 import { NavigationSidebar } from './NavigationSidebar';
 import { PatAvatar } from './PatAvatar';
-import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, Edit3, Save, X, Camera, Globe, Moon, Sun, Smartphone, Trophy, Target, Zap, TrendingUp, Award, Star, MessageSquare, Activity, Plus, ChevronRight, Brain, Lightbulb, CheckCircle, Clock, Siren as Fire } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, Edit3, Save, X, Camera, Globe, Moon, Sun, Smartphone, Trophy, Target, Zap, TrendingUp, Award, Star, MessageSquare, Activity, Plus, ChevronRight, Brain, Lightbulb, CheckCircle, Clock, Siren as Fire, Volume2 } from 'lucide-react';
 import { AchievementBadges } from './profile/AchievementBadges';
 import { QuickActions } from './profile/QuickActions';
 import { CustomizableHeader } from './profile/CustomizableHeader';
@@ -451,8 +451,88 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               <MapPin size={16} className="inline mr-2" />
-    </div>
+              Location
+            </label>
+            {isEditing ? (
+              <input
+                type="text"
+                value={editedProfile?.location || ''}
+                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, location: e.target.value } : null)}
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isSaving}
+              />
+            ) : (
+              <p className="px-4 py-3 bg-gray-800 rounded-lg text-white">{userProfile?.location || 'Not provided'}</p>
+            )}
+          </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              <Calendar size={16} className="inline mr-2" />
+              Date of Birth
+            </label>
+            {isEditing ? (
+              <input
+                type="date"
+                value={editedProfile?.dateOfBirth || ''}
+                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, dateOfBirth: e.target.value } : null)}
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isSaving}
+              />
+            ) : (
+              <p className="px-4 py-3 bg-gray-800 rounded-lg text-white">{userProfile?.dateOfBirth || 'Not provided'}</p>
+            )}
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Bio
+            </label>
+            {isEditing ? (
+              <textarea
+                value={editedProfile?.bio || ''}
+                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, bio: e.target.value } : null)}
+                rows={3}
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Tell us about yourself..."
+                disabled={isSaving}
+              />
+            ) : (
+              <p className="px-4 py-3 bg-gray-800 rounded-lg text-white min-h-[80px]">{userProfile?.bio || 'No bio provided'}</p>
+            )}
+          </div>
+        </div>
+
+        {isEditing && (
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={handleSaveProfile}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg transition-colors"
+            >
+              {isSaving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  Save Changes
+                </>
+              )}
+            </button>
+            <button
+              onClick={handleCancelEdit}
+              disabled={isSaving}
+              className="px-6 py-3 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 
   const renderPreferencesTab = () => (
@@ -464,7 +544,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-3">Theme</label>
             <div className="flex gap-3">
-              {[ // eslint-disable-next-line react/jsx-key
+              {[
                 { value: 'light', label: 'Light', icon: Sun },
                 { value: 'dark', label: 'Dark', icon: Moon },
                 { value: 'auto', label: 'Auto', icon: Smartphone }
@@ -514,7 +594,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           Notifications
         </h3>
         <div className="space-y-4">
-          {Object.entries(editedPreferences.notifications).map(([key, value]) => ( // eslint-disable-next-line react/jsx-key
+          {Object.entries(editedPreferences.notifications).map(([key, value]) => (
             <div key={key} className="flex items-center justify-between">
               <div>
                 <p className="text-white font-medium capitalize">{key} Notifications</p>
@@ -551,7 +631,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
         <h3 className="text-lg font-semibold text-white mb-4">Pat's Personality</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {[ // eslint-disable-next-line react/jsx-key
+          {[
             { value: 'professional', label: 'Professional', desc: 'Formal and business-like' },
             { value: 'friendly', label: 'Friendly', desc: 'Warm and approachable' },
             { value: 'casual', label: 'Casual', desc: 'Relaxed and informal' }
@@ -826,7 +906,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         {/* Tab Navigation */}
         <div className="flex overflow-x-auto mb-6 bg-gray-900 rounded-2xl p-2">
           {tabs.map((tab) => {
-            const IconComponent = tab.icon; // eslint-disable-next-line react/jsx-key
+            const IconComponent = tab.icon;
             return (
               <button
                 key={tab.id}
