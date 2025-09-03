@@ -1,0 +1,1 @@
+export { AchievementBadges } from "../../../components/profile/AchievementBadges";
