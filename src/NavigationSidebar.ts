@@ -1,1 +1,0 @@
-export { NavigationSidebar as default, NavigationSidebar } from "./components/NavigationSidebar";
