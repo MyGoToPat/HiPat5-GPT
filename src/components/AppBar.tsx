@@ -1,4 +1,5 @@
 import React from 'react';
+
 export function AppBar() {
   return (
     <header className="h-14 w-full border-b px-4 flex items-center justify-between">
@@ -7,4 +8,5 @@ export function AppBar() {
     </header>
   );
 }
+
 export default AppBar;
