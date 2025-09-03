@@ -1,1 +1,0 @@
-export { PatAvatar } from "./components/PatAvatar";
