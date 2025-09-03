@@ -1,0 +1,1 @@
+export { PatAvatar as default, PatAvatar } from "./components/PatAvatar";
