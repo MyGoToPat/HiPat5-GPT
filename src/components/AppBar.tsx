@@ -29,6 +29,11 @@ export const AppBar: React.FC<AppBarProps> = ({
       
       <h1 className="text-xs font-semibold text-gray-900 tracking-wide">
         {title}
+        {import.meta?.env?.MODE !== 'production' && (
+          <a href="/admin/agents" className="ml-2 underline text-xs opacity-70 hover:opacity-100">
+            Admin → Agents
+          </a>
+        )}
       </h1>
       
       <button
