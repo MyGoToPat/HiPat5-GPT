@@ -649,7 +649,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="text-center p-3 bg-gray-800 rounded-lg">
               <div className="text-sm font-medium text-white">Average Response</div>
-              <div className="text-xs text-gray-400">< 2 hours</div>
+              <div className="text-xs text-gray-400">&lt; 2 hours</div>
             </div>
             <div className="text-center p-3 bg-gray-800 rounded-lg">
               <div className="text-sm font-medium text-white">Satisfaction</div>
@@ -916,7 +916,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="text-center p-3 bg-gray-800 rounded-lg">
               <div className="text-sm font-medium text-white">Average Response</div>
-              <div className="text-xs text-gray-400">< 2 hours</div>
+              <div className="text-xs text-gray-400">&lt; 2 hours</div>
             </div>
             <div className="text-center p-3 bg-gray-800 rounded-lg">
               <div className="text-sm font-medium text-white">Satisfaction</div>
@@ -945,7 +945,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
             <Edit3 size={16} className="text-gray-400" />
           </button>
 
-    </>
+          <RequestRoleUpgrade />
+        </div>
+      </div>
+
       {/* Recent Activity */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
         <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
@@ -968,6 +971,78 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
               }`}></div>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderUsageTab = () => (
+    <div className="space-y-6">
+      {/* Usage Statistics */}
+      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+        <h3 className="text-lg font-semibold text-white mb-4">
+          <BarChart3 size={20} className="inline mr-2" />
+          Usage Statistics
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Activity size={16} className="text-blue-400" />
+              <span className="text-gray-300 text-sm">Total Sessions</span>
+            </div>
+            <div className="text-2xl font-bold text-white">247</div>
+            <div className="text-xs text-gray-400">This month: 32</div>
+          </div>
+          
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock size={16} className="text-green-400" />
+              <span className="text-gray-300 text-sm">Total Time</span>
+            </div>
+            <div className="text-2xl font-bold text-white">156h</div>
+            <div className="text-xs text-gray-400">This month: 18h</div>
+          </div>
+          
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <MessageSquare size={16} className="text-purple-400" />
+              <span className="text-gray-300 text-sm">Messages</span>
+            </div>
+            <div className="text-2xl font-bold text-white">1,234</div>
+            <div className="text-xs text-gray-400">This month: 156</div>
+          </div>
+          
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle size={16} className="text-orange-400" />
+              <span className="text-gray-300 text-sm">Goals Completed</span>
+            </div>
+            <div className="text-2xl font-bold text-white">23</div>
+            <div className="text-xs text-gray-400">This month: 3</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Subscription Info */}
+      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+        <h3 className="text-lg font-semibold text-white mb-4">
+          <CreditCard size={20} className="inline mr-2" />
+          Subscription
+        </h3>
+        <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h4 className="font-semibold text-white">Pro Plan</h4>
+              <p className="text-blue-200 text-sm">Full access to all features</p>
+            </div>
+            <span className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded-full">
+              Active
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-blue-200">Next billing: March 15, 2024</span>
+            <span className="text-white font-medium">$29.99/month</span>
+          </div>
         </div>
       </div>
     </div>
