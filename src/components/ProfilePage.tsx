@@ -4,7 +4,10 @@ import { NavigationSidebar } from './NavigationSidebar';
 import { PatAvatar } from './PatAvatar';
 import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, Edit3, Save, X, Camera, Globe, Moon, Sun, Smartphone, Trophy, Target, Zap, TrendingUp, Award, Star, MessageSquare, Activity, Plus, ChevronRight, Brain, Lightbulb, CheckCircle, Clock, Siren as Fire, Volume2 } from 'lucide-react';
 import { AchievementBadges } from './profile/AchievementBadges';
+import { ProgressVisualizations } from './profile/ProgressVisualizations';
+import { AIInsights } from './profile/AIInsights';
 import { CustomizableHeader } from './profile/CustomizableHeader';
+import { QuickActions } from './QuickActions';
 import { getSupabase, getUserProfile, upsertUserProfile } from '../lib/supabase';
 import RequestRoleUpgrade from './settings/RequestRoleUpgrade';
 
@@ -530,6 +533,131 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         )}
       </div>
     </div>
+      {/* Current Goal */}
+      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+        <div className="flex items-center gap-2 mb-4">
+          <Target size={20} className="text-green-400" />
+          <h3 className="text-lg font-semibold text-white">Current Goal</h3>
+        </div>
+        <div className="bg-gradient-to-r from-green-600/20 to-blue-600/20 border border-green-500/30 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold text-white">Lose 10 lbs by March 2024</h4>
+            <span className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded-full">
+              Active
+            </span>
+          </div>
+          <p className="text-gray-300 text-sm mb-3">
+            Target weight: 175 lbs • Current: 185.2 lbs • Progress: 68%
+          </p>
+          <div className="w-full bg-gray-700 rounded-full h-2 mb-3">
+            <div className="bg-green-500 h-2 rounded-full transition-all duration-500" style={{ width: '68%' }}></div>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-green-300">
+            <TrendingUp size={14} />
+            <span>On track to reach goal 2 weeks early</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Monthly Consistency Score */}
+      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+        <div className="flex items-center gap-2 mb-4">
+          <Award size={20} className="text-purple-400" />
+          <h3 className="text-lg font-semibold text-white">Monthly Consistency Score</h3>
+        </div>
+        <div className="text-center">
+          <div className="relative w-24 h-24 mx-auto mb-4">
+            <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 96 96">
+              <circle
+                cx="48"
+                cy="48"
+                r="40"
+                stroke="currentColor"
+                strokeWidth="6"
+                fill="none"
+                className="text-gray-700"
+              />
+              <circle
+                cx="48"
+                cy="48"
+                r="40"
+                stroke="currentColor"
+                strokeWidth="6"
+                fill="none"
+                strokeDasharray={`${88 * 2.51} 251`}
+                className="text-purple-500 transition-all duration-500"
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-2xl font-bold text-white">88%</span>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <div className="text-white font-bold">92%</div>
+              <div className="text-gray-400 text-xs">Workouts</div>
+            </div>
+            <div>
+              <div className="text-white font-bold">85%</div>
+              <div className="text-gray-400 text-xs">Nutrition</div>
+            </div>
+            <div>
+              <div className="text-white font-bold">87%</div>
+              <div className="text-gray-400 text-xs">Sleep</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Progress Overview */}
+      <ProgressVisualizations />
+
+      {/* AI Insights */}
+      <AIInsights />
+
+      {/* Quick Actions */}
+      <QuickActions onNavigate={onNavigate} />
+
+      {/* Contact Support */}
+      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+        <div className="flex items-center gap-2 mb-4">
+          <MessageSquare size={20} className="text-blue-400" />
+          <h3 className="text-lg font-semibold text-white">Contact Support</h3>
+        </div>
+        <div className="space-y-4">
+          <div className="bg-blue-600/20 p-4 rounded-lg border border-blue-500/30">
+            <h4 className="font-medium text-blue-300 mb-2">Need Help?</h4>
+            <p className="text-blue-200 text-sm mb-3">
+              I'm here to help you get the most out of your health journey. You can reach out to our support team or chat with me directly.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => onNavigate('chat')}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Chat with Pat
+              </button>
+              <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm font-medium transition-colors">
+                Contact Support
+              </button>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="text-center p-3 bg-gray-800 rounded-lg">
+              <div className="text-sm font-medium text-white">Average Response</div>
+              <div className="text-xs text-gray-400">< 2 hours</div>
+            </div>
+            <div className="text-center p-3 bg-gray-800 rounded-lg">
+              <div className="text-sm font-medium text-white">Satisfaction</div>
+              <div className="text-xs text-gray-400">98.5%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
   );
 
   const renderPreferencesTab = () => (
