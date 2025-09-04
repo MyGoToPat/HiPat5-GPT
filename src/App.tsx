@@ -10,6 +10,7 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
+import VoicePage from './pages/VoicePage';
 import ChatPage from './pages/ChatPage';
 import CameraPage from './pages/CameraPage';
 import TDEEOnboardingWizard from './pages/TDEEOnboardingWizard';
@@ -54,6 +55,7 @@ function App() {
           <Route path="profile" element={<ProfilePage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="camera" element={<CameraPage />} />
+          <Route path="voice" element={<VoicePage />} />
           <Route 
             path="tdee" 
             element={
