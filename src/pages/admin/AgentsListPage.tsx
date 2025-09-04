@@ -22,7 +22,7 @@ export default function AgentsListPage() {
         // read-only listing; personality only; left join v1 version if present
         const { data, error } = await supabase
           .from("agents")
-          .select("id, slug, name, category, order, enabled, agent_versions(version)")
+          .select("id, slug, name, category, order, enabled, agent_versions!agent_versions_agent_id_fkey(version)")
           .eq("category", "personality")
           .order("order", { ascending: true });
 
