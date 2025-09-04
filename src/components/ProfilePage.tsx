@@ -322,8 +322,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   }
 
   const renderProfileTab = () => (
-    <>
-      <div className="space-y-6">
+    <div className="space-y-6">
       {/* Customizable Header */}
       <CustomizableHeader 
         profile={userProfile}
@@ -533,7 +532,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           </div>
         )}
       </div>
-    </div>
+
       {/* Current Goal */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
         <div className="flex items-center gap-2 mb-4">
@@ -658,7 +657,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           </div>
         </div>
       </div>
-
+    </div>
   );
 
   const renderPreferencesTab = () => (
