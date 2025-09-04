@@ -322,7 +322,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   }
 
   const renderProfileTab = () => (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       {/* Customizable Header */}
       <CustomizableHeader 
         profile={userProfile}
@@ -800,6 +801,130 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         </div>
       </div>
 
+      {/* Current Goal */}
+      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+        <div className="flex items-center gap-2 mb-4">
+          <Target size={20} className="text-green-400" />
+          <h3 className="text-lg font-semibold text-white">Current Goal</h3>
+        </div>
+        <div className="bg-gradient-to-r from-green-600/20 to-blue-600/20 border border-green-500/30 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold text-white">Lose 10 lbs by March 2024</h4>
+            <span className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded-full">
+              Active
+            </span>
+          </div>
+          <p className="text-gray-300 text-sm mb-3">
+            Target weight: 175 lbs • Current: 185.2 lbs • Progress: 68%
+          </p>
+          <div className="w-full bg-gray-700 rounded-full h-2 mb-3">
+            <div className="bg-green-500 h-2 rounded-full transition-all duration-500" style={{ width: '68%' }}></div>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-green-300">
+            <TrendingUp size={14} />
+            <span>On track to reach goal 2 weeks early</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Monthly Consistency Score */}
+      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+        <div className="flex items-center gap-2 mb-4">
+          <Award size={20} className="text-purple-400" />
+          <h3 className="text-lg font-semibold text-white">Monthly Consistency Score</h3>
+        </div>
+        <div className="text-center">
+          <div className="relative w-24 h-24 mx-auto mb-4">
+            <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 96 96">
+              <circle
+                cx="48"
+                cy="48"
+                r="40"
+                stroke="currentColor"
+                strokeWidth="6"
+                fill="none"
+                className="text-gray-700"
+              />
+              <circle
+                cx="48"
+                cy="48"
+                r="40"
+                stroke="currentColor"
+                strokeWidth="6"
+                fill="none"
+                strokeDasharray={`${88 * 2.51} 251`}
+                className="text-purple-500 transition-all duration-500"
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-2xl font-bold text-white">88%</span>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <div className="text-white font-bold">92%</div>
+              <div className="text-gray-400 text-xs">Workouts</div>
+            </div>
+            <div>
+              <div className="text-white font-bold">85%</div>
+              <div className="text-gray-400 text-xs">Nutrition</div>
+            </div>
+            <div>
+              <div className="text-white font-bold">87%</div>
+              <div className="text-gray-400 text-xs">Sleep</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Progress Overview */}
+      <ProgressVisualizations />
+
+      {/* AI Insights */}
+      <AIInsights />
+
+      {/* Quick Actions */}
+      <QuickActions onNavigate={onNavigate} />
+
+      {/* Contact Support */}
+      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+        <div className="flex items-center gap-2 mb-4">
+          <MessageSquare size={20} className="text-blue-400" />
+          <h3 className="text-lg font-semibold text-white">Contact Support</h3>
+        </div>
+        <div className="space-y-4">
+          <div className="bg-blue-600/20 p-4 rounded-lg border border-blue-500/30">
+            <h4 className="font-medium text-blue-300 mb-2">Need Help?</h4>
+            <p className="text-blue-200 text-sm mb-3">
+              I'm here to help you get the most out of your health journey. You can reach out to our support team or chat with me directly.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => onNavigate('chat')}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Chat with Pat
+              </button>
+              <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm font-medium transition-colors">
+                Contact Support
+              </button>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="text-center p-3 bg-gray-800 rounded-lg">
+              <div className="text-sm font-medium text-white">Average Response</div>
+              <div className="text-xs text-gray-400">< 2 hours</div>
+            </div>
+            <div className="text-center p-3 bg-gray-800 rounded-lg">
+              <div className="text-sm font-medium text-white">Satisfaction</div>
+              <div className="text-xs text-gray-400">98.5%</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 
@@ -820,131 +945,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
             <Edit3 size={16} className="text-gray-400" />
           </button>
 
-          <button className="w-full flex items-center justify-between p-4 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
-            <div className="text-left">
-              <p className="text-white font-medium">Two-Factor Authentication</p>
-              <p className="text-gray-400 text-sm">Add an extra layer of security</p>
-            </div>
-            <div className="text-green-400 text-sm">Enabled</div>
-          </button>
-
-          <button className="w-full flex items-center justify-between p-4 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
-            <div className="text-left">
-              <p className="text-white font-medium">Login History</p>
-              <p className="text-gray-400 text-sm">View recent account activity</p>
-            </div>
-            <Edit3 size={16} className="text-gray-400" />
-          </button>
-        </div>
-      </div>
-
-      {/* Subscription */}
-      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-        <h3 className="text-lg font-semibold text-white mb-4">
-          <CreditCard size={20} className="inline mr-2" />
-          Subscription
-        </h3>
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-4 mb-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white font-semibold">Pat Pro</p>
-              <p className="text-blue-100 text-sm">Advanced AI features & unlimited usage</p>
-            </div>
-            <div className="text-right">
-              <p className="text-white font-bold">$19.99</p>
-              <p className="text-blue-100 text-sm">/month</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="space-y-3">
-          <button className="w-full px-4 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors">
-            Manage Subscription
-          </button>
-          <button className="w-full px-4 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors">
-            Billing History
-          </button>
-        </div>
-      </div>
-
-      {/* Data & Privacy */}
-      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-        <h3 className="text-lg font-semibold text-white mb-4">Data & Privacy</h3>
-        <div className="space-y-3">
-          <button className="w-full flex items-center justify-between p-4 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
-            <div className="text-left">
-              <p className="text-white font-medium">Download My Data</p>
-              <p className="text-gray-400 text-sm">Export all your data</p>
-            </div>
-            <Edit3 size={16} className="text-gray-400" />
-          </button>
-
-          <button className="w-full flex items-center justify-between p-4 bg-red-900 hover:bg-red-800 rounded-lg transition-colors">
-            <div className="text-left">
-              <p className="text-red-300 font-medium">Delete Account</p>
-              <p className="text-red-400 text-sm">Permanently delete your account</p>
-            </div>
-            <Edit3 size={16} className="text-red-400" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderUsageTab = () => (
-    <div className="space-y-6">
-      {/* Usage Statistics */}
-      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-        <h3 className="text-lg font-semibold text-white mb-6">Usage Statistics</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-blue-400 mb-2">1,247</div>
-            <p className="text-gray-400 text-sm">Total Conversations</p>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-green-400 mb-2">89h</div>
-            <p className="text-gray-400 text-sm">Time Saved</p>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-purple-400 mb-2">156</div>
-            <p className="text-gray-400 text-sm">Goals Achieved</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <div className="flex justify-between text-sm text-gray-300 mb-2">
-              <span>Fitness Tracking</span>
-              <span>45%</span>
-            </div>
-            <div className="w-full bg-gray-700 rounded-full h-2">
-              <div className="bg-orange-500 h-2 rounded-full" style={{ width: '45%' }}></div>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex justify-between text-sm text-gray-300 mb-2">
-              <span>Meal Planning</span>
-              <span>30%</span>
-            </div>
-            <div className="w-full bg-gray-700 rounded-full h-2">
-              <div className="bg-green-500 h-2 rounded-full" style={{ width: '30%' }}></div>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex justify-between text-sm text-gray-300 mb-2">
-              <span>General Chat</span>
-              <span>25%</span>
-            </div>
-            <div className="w-full bg-gray-700 rounded-full h-2">
-              <div className="bg-blue-500 h-2 rounded-full" style={{ width: '25%' }}></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    </>
       {/* Recent Activity */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
         <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
