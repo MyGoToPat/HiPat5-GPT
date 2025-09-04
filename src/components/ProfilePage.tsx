@@ -672,63 +672,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-        <h3 className="text-lg font-semibold text-white mb-4">
-          <Volume2 size={20} className="inline mr-2" />
-          Voice Settings
-        </h3>
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-3">
-              Speech Speed: {editedPreferences.voiceSettings.speed}x
-            </label>
-            <input
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value={editedPreferences.voiceSettings.speed}
-              onChange={(e) => {
-                const newPrefs = {
-                  ...editedPreferences,
-                  voiceSettings: {
-                    ...editedPreferences.voiceSettings,
-                    speed: parseFloat(e.target.value)
-                  }
-                };
-                setEditedPreferences(newPrefs);
-                handleSavePreferences();
-              }}
-              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-3">
-              Voice Pitch: {editedPreferences.voiceSettings.pitch}x
-            </label>
-            <input
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value={editedPreferences.voiceSettings.pitch}
-              onChange={(e) => {
-                const newPrefs = {
-                  ...editedPreferences,
-                  voiceSettings: {
-                    ...editedPreferences.voiceSettings,
-                    pitch: parseFloat(e.target.value)
-                  }
-                };
-                setEditedPreferences(newPrefs);
-                handleSavePreferences();
-              }}
-              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
-            />
-          </div>
-        </div>
-      </div>
     </div>
   );
 
