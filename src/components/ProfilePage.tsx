@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppBar } from './AppBar';
 import { NavigationSidebar } from './NavigationSidebar';
 import { PatAvatar } from './PatAvatar';
-import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, Edit3, Save, X, Camera, Globe, Moon, Sun, Smartphone, Trophy, Target, MessageSquare, Award, TrendingUp, Activity, Clock, CheckCircle, Volume2, Fire } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, Edit3, Save, X, Camera, Globe, Moon, Sun, Smartphone, Trophy, Target, MessageSquare, Award, TrendingUp, Activity, Clock, CheckCircle, Volume2, Flame } from 'lucide-react';
 import { AchievementBadges } from './profile/AchievementBadges';
 import { ProgressVisualizations } from './profile/ProgressVisualizations';
 import { AIInsights } from './profile/AIInsights';
@@ -251,7 +251,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
       id: '5',
       title: 'Volume Victor',
       description: 'Reach 50k lbs weekly volume',
-      icon: Fire,
+      icon: Flame,
       earned: true,
       earnedDate: new Date('2024-01-20'),
       category: 'fitness'
