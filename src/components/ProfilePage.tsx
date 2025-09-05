@@ -586,7 +586,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           </div>
         )}
       </div>
-    </div>
+
       {/* Current Goal */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
         <div className="flex items-center gap-2 mb-4">
@@ -711,6 +711,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           </div>
         </div>
       </div>
+    </div>
     </>
   );
 
