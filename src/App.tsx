@@ -17,6 +17,7 @@ import TDEEOnboardingWizard from './pages/TDEEOnboardingWizard';
 import TrainerDashboardPage from './pages/TrainerDashboardPage';
 import AdminPage from './pages/AdminPage';
 import Health from './pages/Health';
+import AdminGuard from './components/guards/AdminGuard';
 import AgentsListPage from './pages/admin/AgentsListPage';
 import AgentDetailPage from './pages/admin/AgentDetailPage';
 import ShopLensPage from './pages/agents/ShopLensPage';
@@ -65,12 +66,9 @@ function App() {
           <Route path="trainer-dashboard" element={<TrainerDashboardPage userProfile={null} />} />
           <Route path="admin">
             <Route index element={<AdminPage />} />
-            <Route path="agents" element={<AgentsListPage />} />
-            <Route path="agents/:agentId" element={<AgentDetailPage />} />
-          </Route>
-          <Route path="agents">
-            <Route index element={<AgentsListPage />} />
-            <Route path="shoplens" element={<ShopLensPage />} />
+            <Route path="agents" element={<AdminGuard><AgentsListPage /></AdminGuard>} />
+            <Route path="agents/:agentId" element={<AdminGuard><AgentDetailPage /></AdminGuard>} />
+            <Route path="agents/shoplens" element={<AdminGuard><ShopLensPage /></AdminGuard>} />
           </Route>
         </Route>
 
