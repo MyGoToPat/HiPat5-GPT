@@ -35,13 +35,13 @@ export const EffortSection: React.FC = () => {
   ];
 
   const condensedContent = (
-    <div className="text-center">
+    <div className="text-center p-2">
       {/* Weekly Volume */}
-      <div className="mb-4">
-        <div className="text-2xl font-bold text-white mb-1">
-          {(weeklyVolume / 1000).toFixed(1)}<span className="text-lg text-gray-400">k</span>
+      <div className="mb-3 sm:mb-4">
+        <div className="text-xl sm:text-2xl font-bold text-white mb-1">
+          {(weeklyVolume / 1000).toFixed(1)}<span className="text-sm sm:text-lg text-gray-400">k</span>
         </div>
-        <p className="text-sm text-gray-400">lbs this week</p>
+        <p className="text-xs sm:text-sm text-gray-400">lbs this week</p>
         <div className="flex items-center justify-center gap-1 text-xs text-orange-400 mt-1">
           <TrendingUp size={12} />
           <span>+{volumeIncrease.toFixed(1)}% vs last week</span>
@@ -49,15 +49,15 @@ export const EffortSection: React.FC = () => {
       </div>
       
       {/* PRs and Stats */}
-      <div className="flex justify-between items-center text-xs">
+      <div className="flex justify-between items-center text-xs gap-2">
         <div className="text-center">
-          <div className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center mb-1">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-orange-500/20 rounded-full flex items-center justify-center mb-1">
             <Award size={12} className="text-orange-400" />
           </div>
           <span className="text-gray-400">{recentPRs} PRs</span>
         </div>
         <div className="text-center">
-          <div className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center mb-1">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-orange-500/20 rounded-full flex items-center justify-center mb-1">
             <TrendingUp size={12} className="text-orange-400" />
           </div>
           <span className="text-gray-400">RPE 7.5</span>

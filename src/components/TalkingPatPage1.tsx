@@ -277,6 +277,7 @@ export const TalkingPatPage1: React.FC<TalkingPatPage1Props> = ({ onNavigate }) 
             isListening={isListening && speechRecognition.isListening}
             isThinking={isThinking}
             isSpeaking={isSpeaking}
+            interactionType="voice"
             className="mb-6"
           />
           
@@ -394,7 +395,7 @@ export const TalkingPatPage1: React.FC<TalkingPatPage1Props> = ({ onNavigate }) 
           {/* Pat Avatar for Voice Interaction */}
           <button 
             onClick={toggleListening}
-            className={`hover:opacity-80 transition-all duration-300 relative group ${
+            className={`hover:opacity-80 transition-all duration-300 relative group min-h-[44px] min-w-[44px] ${
               isListening ? 'ring-2 ring-green-500 rounded-full' : ''
             }`}
           >
@@ -404,6 +405,7 @@ export const TalkingPatPage1: React.FC<TalkingPatPage1Props> = ({ onNavigate }) 
              isListening={isListening && speechRecognition.isListening}
               isThinking={isThinking}
               isSpeaking={isSpeaking}
+              interactionType="voice"
             />
             <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
               {isListening ? 'Stop Listening' : 'Start Voice Chat'}

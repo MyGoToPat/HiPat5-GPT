@@ -227,13 +227,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         <div className="absolute top-4 right-4 z-10">
           <button 
             onClick={() => onNavigate('chat')}
-            className="hover:scale-110 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-950 rounded-full group relative"
+            className="hover:scale-110 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-950 rounded-full group relative min-h-[44px] min-w-[44px]"
           >
-            <PatAvatar size={48} mood={patMood} />
+            <PatAvatar size={48} mood={patMood} interactionType="chat" />
             
             
             {/* Mood tooltip */}
-            <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 max-w-xs">
+            <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 max-w-xs sm:max-w-none">
               {moodMessage}
               <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
             </div>
@@ -242,7 +242,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         
         {/* Scrollable Content */}
         <div className="h-full overflow-y-auto overflow-x-hidden">
-          <div className="py-6 pb-16">
+          <div className="py-4 pb-20">
             {/* Daily Summary */}
             <DailySummary 
               totalCalories={dashboardData?.totalCalories || 0}
@@ -251,9 +251,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               currentProtein={dashboardData?.totalMacros?.protein || 0}
             />
             
-            <div className="max-w-screen-xl mx-auto px-3 sm:px-4 md:px-6">
-            {/* FREE Dashboard Grid - Responsive Layout */}
-            <div className="grid gap-6 mb-8 grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+            <div className="px-4 sm:px-6">
+            {/* Minimalist Dashboard Grid - Mobile-First Responsive Layout */}
+            <div className="grid gap-4 mb-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               <FrequencySection />
               <RestSection />
               <EnergySection 
@@ -272,6 +272,26 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 } : undefined}
               />
               <EffortSection />
+            </div>
+            
+            {/* Essential Actions - Mobile-Optimized */}
+            <div className="mt-6 bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 border border-gray-800">
+              <div className="flex items-center justify-center gap-3">
+                <button 
+                  onClick={() => onNavigate('chat')}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl text-white font-medium transition-all duration-200 min-h-[44px] flex-1 max-w-[200px] justify-center"
+                >
+                  <MessageSquare size={20} />
+                  <span className="text-sm">Chat with Pat</span>
+                </button>
+                <button 
+                  onClick={() => onNavigate('voice')}
+                  className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-xl text-white font-medium transition-all duration-200 min-h-[44px] flex-1 max-w-[200px] justify-center"
+                >
+                  <Mic size={20} />
+                  <span className="text-sm">Talk with Pat</span>
+                </button>
+              </div>
             </div>
             </div>
             

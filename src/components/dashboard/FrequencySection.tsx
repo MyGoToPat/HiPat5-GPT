@@ -19,16 +19,16 @@ export const FrequencySection: React.FC = () => {
   ];
 
   const condensedContent = (
-    <div className="text-center">
+    <div className="text-center p-2">
       {/* Progress Ring */}
-      <div className="relative w-16 h-16 mx-auto mb-3">
-        <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 64 64">
+      <div className="relative w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-2 sm:mb-3">
+        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 64 64">
           <circle
             cx="32"
             cy="32"
             r="28"
             stroke="currentColor"
-            strokeWidth="4"
+            strokeWidth="3"
             fill="none"
             className="text-gray-700"
           />
@@ -37,7 +37,7 @@ export const FrequencySection: React.FC = () => {
             cy="32"
             r="28"
             stroke="currentColor"
-            strokeWidth="4"
+            strokeWidth="3"
             fill="none"
             strokeDasharray={`${progress * 1.76} 176`}
             className="text-pat-purple-500 transition-all duration-500"
@@ -45,14 +45,15 @@ export const FrequencySection: React.FC = () => {
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-lg font-bold text-white">{workoutDays}</span>
+          <span className="text-base sm:text-lg font-bold text-white">{workoutDays}</span>
         </div>
       </div>
       
-      <p className="text-sm text-gray-400 mb-2">Days this week</p>
-      <div className="flex items-center justify-center gap-2 text-xs text-pat-purple-400">
+      <p className="text-xs sm:text-sm text-gray-400 mb-1 sm:mb-2">Days this week</p>
+      <div className="flex items-center justify-center gap-1 sm:gap-2 text-xs text-pat-purple-400">
         <Target size={12} />
-        <span>Goal: {weeklyGoal} days</span>
+        <span className="hidden sm:inline">Goal: {weeklyGoal} days</span>
+        <span className="sm:hidden">{weeklyGoal} goal</span>
       </div>
     </div>
   );

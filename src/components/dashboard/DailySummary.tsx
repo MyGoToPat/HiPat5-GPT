@@ -27,14 +27,14 @@ export const DailySummary: React.FC<DailySummaryProps> = ({
   const totalGoals = 2; // For now, just calories and protein
 
   return (
-    <div className="bg-pat-gradient rounded-2xl p-6 mb-8 shadow-pat-glow">
+    <div className="bg-pat-gradient rounded-2xl p-4 sm:p-6 mb-6 shadow-pat-glow">
       <div className="flex items-center gap-3 mb-4">
         <Calendar size={20} className="text-white" />
-        <h2 className="text-xl font-bold text-white">Today's Summary</h2>
+        <h2 className="text-lg sm:text-xl font-bold text-white">Today's Summary</h2>
       </div>
       
-      <div className="bg-black/20 rounded-xl p-4 backdrop-blur-sm">
-        <p className="text-white/90 text-sm leading-relaxed mb-3">
+      <div className="bg-black/20 rounded-xl p-3 sm:p-4 backdrop-blur-sm">
+        <p className="text-white/90 text-sm sm:text-base leading-relaxed mb-3">
           <span className="font-semibold">{today}</span> - 
           {totalCalories > 0 ? (
             <>
@@ -48,14 +48,14 @@ export const DailySummary: React.FC<DailySummaryProps> = ({
           )}
         </p>
         
-        <div className="flex items-center gap-2 text-green-300 text-sm">
+        <div className="flex items-center gap-2 text-green-300 text-xs sm:text-sm">
           <CheckCircle size={16} />
           <span>{goalsCompleted}/{totalGoals} daily goals completed</span>
         </div>
       </div>
       
       <div className="mt-4 text-center">
-        <p className="text-white/80 text-sm italic">
+        <p className="text-white/80 text-xs sm:text-sm italic">
           {totalCalories > 0 ? 
             "\"Great job logging your nutrition! Every entry helps me help you better.\" - Pat" :
             "\"Ready to start your day? Let's log some nutrition data!\" - Pat"

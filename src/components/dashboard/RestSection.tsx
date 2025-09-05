@@ -98,24 +98,24 @@ export const RestSection: React.FC = () => {
   ];
 
   const condensedContent = (
-    <div className="text-center">
+    <div className="text-center p-2">
       {/* Sleep Duration */}
-      <div className="mb-4">
-        <div className="text-3xl font-bold text-white mb-1">
-          {avgSleep}<span className="text-lg text-gray-400">h</span>
+      <div className="mb-3 sm:mb-4">
+        <div className="text-2xl sm:text-3xl font-bold text-white mb-1">
+          {avgSleep}<span className="text-sm sm:text-lg text-gray-400">h</span>
         </div>
-        <p className="text-sm text-gray-400">Average sleep</p>
+        <p className="text-xs sm:text-sm text-gray-400">Average sleep</p>
       </div>
       
       {/* Sleep Quality Bar */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+      <div className="mb-3 sm:mb-4">
+        <div className="flex items-center justify-between text-xs text-gray-400 mb-1 sm:mb-2">
           <span>Quality</span>
           <span>{sleepQuality}%</span>
         </div>
-        <div className="w-full bg-gray-700 rounded-full h-2">
+        <div className="w-full bg-gray-700 rounded-full h-1.5 sm:h-2">
           <div 
-            className="bg-pat-blue-500 h-2 rounded-full transition-all duration-500"
+            className="bg-pat-blue-500 h-full rounded-full transition-all duration-500"
             style={{ width: `${sleepQuality}%` }}
           />
         </div>

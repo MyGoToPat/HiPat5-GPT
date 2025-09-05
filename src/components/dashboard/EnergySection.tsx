@@ -32,13 +32,13 @@ export const EnergySection: React.FC<EnergySectionProps> = ({ energyData }) => {
   };
 
   const condensedContent = (
-    <div className="text-center">
+    <div className="text-center p-2">
       {/* Calories vs TDEE */}
-      <div className="mb-4">
-        <div className="text-2xl font-bold text-white mb-1">
+      <div className="mb-3 sm:mb-4">
+        <div className="text-xl sm:text-2xl font-bold text-white mb-1">
           {calories > 0 ? calories.toLocaleString() : '0'}
         </div>
-        <p className="text-sm text-gray-400">calories consumed</p>
+        <p className="text-xs sm:text-sm text-gray-400">calories consumed</p>
         {calories > 0 && (
           <div className="flex items-center justify-center gap-1 text-xs text-green-400 mt-1">
             <TrendingDown size={12} />
@@ -49,23 +49,23 @@ export const EnergySection: React.FC<EnergySectionProps> = ({ energyData }) => {
       
       {/* Quick macro summary */}
       {calories > 0 ? (
-        <div className="grid grid-cols-3 gap-2 text-xs">
+        <div className="grid grid-cols-3 gap-1 sm:gap-2 text-xs">
           <div className="text-center">
-            <div className="text-white font-medium">{protein.toFixed(1)}g</div>
+            <div className="text-white font-medium text-xs sm:text-sm">{protein.toFixed(0)}g</div>
             <div className="text-red-400">Protein</div>
           </div>
           <div className="text-center">
-            <div className="text-white font-medium">{carbs.toFixed(1)}g</div>
+            <div className="text-white font-medium text-xs sm:text-sm">{carbs.toFixed(0)}g</div>
             <div className="text-blue-400">Carbs</div>
           </div>
           <div className="text-center">
-            <div className="text-white font-medium">{fat.toFixed(1)}g</div>
+            <div className="text-white font-medium text-xs sm:text-sm">{fat.toFixed(0)}g</div>
             <div className="text-yellow-400">Fat</div>
           </div>
         </div>
       ) : (
-        <div className="text-center">
-          <p className="text-gray-400 text-sm">No food logged today</p>
+        <div className="text-center p-2">
+          <p className="text-gray-400 text-xs sm:text-sm">No food logged today</p>
           <p className="text-gray-500 text-xs">Start logging to see your macros</p>
         </div>
       )}

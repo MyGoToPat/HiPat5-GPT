@@ -9,6 +9,7 @@ interface PatAvatarProps {
   isThinking?: boolean;
   isSpeaking?: boolean;
   isAnalyzing?: boolean;
+  interactionType?: 'chat' | 'voice' | 'general';
 }
 
 export const PatAvatar: React.FC<PatAvatarProps> = ({ 
@@ -20,6 +21,7 @@ export const PatAvatar: React.FC<PatAvatarProps> = ({
   isThinking = false,
   isSpeaking = false,
   isAnalyzing = false
+  interactionType = 'general'
 }) => {
   const [eyeState, setEyeState] = useState<'default' | 'blink' | 'squint' | 'wide' | 'sleepy' | 'thinking'>('default');
   const [pulseIntensity, setPulseIntensity] = useState(1);
@@ -38,6 +40,28 @@ export const PatAvatar: React.FC<PatAvatarProps> = ({
 
   // Get mood-specific colors and animations
   const getMoodStyles = () => {
+    // Override with interaction type colors when specified
+    if (interactionType === 'chat') {
+      return {
+        gradient: 'from-blue-600 to-blue-400',
+        glow: 'rgba(59, 130, 246, 0.4)',
+        eyeShape: 'default',
+        pulseSpeed: 1,
+        brightness: 1
+      };
+    }
+    
+    if (interactionType === 'voice') {
+      return {
+        gradient: 'from-green-600 to-emerald-500',
+        glow: 'rgba(16, 185, 129, 0.4)',
+        eyeShape: 'default',
+        pulseSpeed: 1.2,
+        brightness: 1.05
+      };
+    }
+    
+    // Original mood-based styling for 'general' interaction type
     switch (effectiveMood) {
       case 'thinking':
         return {

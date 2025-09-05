@@ -23,15 +23,15 @@ export const CollapsibleTile: React.FC<CollapsibleTileProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className={`bg-gray-900 rounded-2xl shadow-pat-card border border-gray-800 hover:${hoverColor} transition-all duration-300 cursor-pointer group w-full min-h-[220px] overflow-hidden ${className}`}>
+    <div className={`bg-gray-900 rounded-2xl shadow-pat-card border border-gray-800 hover:${hoverColor} transition-all duration-300 cursor-pointer group w-full min-h-[180px] sm:min-h-[220px] overflow-hidden ${className}`}>
       {/* Header */}
       <div 
-        className="flex items-center justify-between p-6 pb-4"
+        className="flex items-center justify-between p-4 sm:p-6 pb-3 sm:pb-4"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
           <IconComponent size={20} className={`${iconColor} group-hover:brightness-110 transition-all`} />
-          <h3 className="text-lg font-semibold text-white truncate" title={title}>{title}</h3>
+          <h3 className="text-base sm:text-lg font-semibold text-white truncate" title={title}>{title}</h3>
         </div>
         
         <button className="p-1 hover:bg-gray-800 rounded-lg transition-colors">
@@ -44,7 +44,7 @@ export const CollapsibleTile: React.FC<CollapsibleTileProps> = ({
       </div>
       
       {/* Content */}
-      <div className="px-6 pb-6 w-full overflow-hidden break-words">
+      <div className="px-4 sm:px-6 pb-4 sm:pb-6 w-full overflow-hidden break-words">
         <div className={`transition-all duration-300 ease-in-out ${
           isExpanded ? 'opacity-100' : 'opacity-100'
         }`}>
@@ -57,8 +57,8 @@ export const CollapsibleTile: React.FC<CollapsibleTileProps> = ({
         isExpanded ? 'max-h-none' : 'max-h-0'
       }`}>
         {isExpanded && (
-          <div className="px-6 pb-6 border-t border-gray-800 pt-4">
-            <div className="text-xs text-gray-400 text-center">
+          <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-gray-800 pt-3 sm:pt-4">
+            <div className="text-xs text-gray-400 text-center hidden sm:block">
               Click header to collapse
             </div>
           </div>
