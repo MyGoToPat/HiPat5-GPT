@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import AchievementBadges from "./profile/AchievementBadges";
-import { CustomizableHeader } from "./profile/CustomizableHeader";
+import CustomizableHeader from "./profile/CustomizableHeader";
 import { getSupabase, getUserProfile, upsertUserProfile, type ProfileRow } from "../lib/supabase";
 
 // Simple progress placeholder (to match original dark UI tone)
