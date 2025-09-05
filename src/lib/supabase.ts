@@ -5,6 +5,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
  * including Profile read/write helpers that the original Profile page consumed.
  */
 
+export type AppRole = 'user' | 'admin' | 'trainer';
+
 export type ProfileRow = {
   id: string;
   display_name: string | null;
@@ -14,6 +16,7 @@ export type ProfileRow = {
   activity_level: string | null;
   sex: string | null;
   dob: string | null;
+  role?: AppRole | null;
   updated_at: string | null;
 };
 
@@ -77,4 +80,47 @@ export async function upsertUserProfile(payload: Partial<ProfileRow>): Promise<P
     return null;
   }
   return (data as ProfileRow) ?? null;
+}
+
+export async function requestRoleUpgrade(requestedRole: string): Promise<void> {
+  const { data: auth } = await supabase.auth.getUser();
+  const userId = auth?.user?.id;
+  if (!userId) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('upgrade_requests')
+    .insert({
+      user_id: userId,
+      requested_role: requestedRole,
+      status: 'pending'
+    });
+
+  if (error) {
+    console.error('requestRoleUpgrade error', error);
+    throw error;
+  }
+}
+
+export async function approveUpgradeRequest(requestId: string): Promise<void> {
+  const { error } = await supabase
+    .from('upgrade_requests')
+    .update({ status: 'approved', processed_at: new Date().toISOString() })
+    .eq('id', requestId);
+
+  if (error) {
+    console.error('approveUpgradeRequest error', error);
+    throw error;
+  }
+}
+
+export async function denyUpgradeRequest(requestId: string): Promise<void> {
+  const { error } = await supabase
+    .from('upgrade_requests')
+    .update({ status: 'denied', processed_at: new Date().toISOString() })
+    .eq('id', requestId);
+
+  if (error) {
+    console.error('denyUpgradeRequest error', error);
+    throw error;
+  }
 }
