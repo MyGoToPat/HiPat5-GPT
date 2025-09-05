@@ -659,7 +659,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
                     message.isUser
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-800 text-gray-100'
-                  className="hover:opacity-80 transition-all duration-300 relative group min-h-[44px] min-w-[44px]"
+                  }`}
                 >
                   <p className="text-sm">{message.text}</p>
                   <p className="text-xs opacity-70 mt-1">
@@ -718,10 +718,9 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
                         }}
                         className="text-xs text-gray-400 hover:text-white"
                       >
-                    interactionType="chat"
                         ✕
                       </button>
-                    Talk with Pat
+                    </div>
                   </div>
                 </div>
               )}
@@ -816,7 +815,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
             <div className="flex items-center gap-3">
               <button
                 onClick={isDictating ? stopDictation : startDictation}
-                className={`p-3 rounded-full transition-colors ${
+                className={\`p-3 rounded-full transition-colors ${
                   isDictating 
                     ? 'bg-red-600 hover:bg-red-700 text-white' 
                     : 'hover:bg-gray-700'
