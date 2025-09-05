@@ -1,126 +1,96 @@
+// (Sept-4 snapshot) src/lib/supabase.ts
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-
-/**
- * Centralized Supabase client + typed helpers used across the app,
- * including Profile read/write helpers that the original Profile page consumed.
- */
-
-export type AppRole = 'user' | 'admin' | 'trainer';
-
-export type ProfileRow = {
-  id: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  height_cm: number | null;
-  weight_kg: number | null;
-  activity_level: string | null;
-  sex: string | null;
-  dob: string | null;
-  role?: AppRole | null;
-  updated_at: string | null;
-};
-
-type SupabaseDatabase = {
-  public: {
-    Tables: {
-      profiles: {
-        Row: ProfileRow;
-        Insert: Partial<ProfileRow>;
-        Update: Partial<ProfileRow>;
-      };
-    };
-  };
-};
 
 const url = import.meta.env.VITE_SUPABASE_URL as string;
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-// Primary client export (matches original app usage)
-export const supabase: SupabaseClient<SupabaseDatabase> = createClient<SupabaseDatabase>(url, anon);
-export default supabase;
+export const supabase: SupabaseClient = createClient(url, anon);
 
-// Original helpers the Profile page used
-export function getSupabase(): SupabaseClient<SupabaseDatabase> {
+// Simple getter used across legacy components
+export function getSupabase(): SupabaseClient {
   return supabase;
 }
 
+// ---- Types ----
+export type AppRole = 'user' | 'trainer' | 'admin';
+
+export type ProfileRow = {
+  id: string;
+  email?: string | null;
+  display_name?: string | null;
+  avatar_url?: string | null;
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  activity_level?: string | null;
+  sex?: string | null;
+  dob?: string | null;
+  role?: AppRole | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+// ---- Profile helpers used by Profile UI ----
 export async function getUserProfile(): Promise<ProfileRow | null> {
-  const { data: auth } = await supabase.auth.getUser();
-  const userId = auth?.user?.id;
-  if (!userId) return null;
+  const auth = await supabase.auth.getUser();
+  const uid = auth.data.user?.id;
+  if (!uid) return null;
 
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', userId)
-    .maybeSingle();
+    .eq('id', uid)
+    .single();
 
   if (error) {
-    console.error('getUserProfile error', error);
+    console.error('[getUserProfile] error', error);
     return null;
   }
-  return (data as ProfileRow) ?? null;
+  return data as ProfileRow;
 }
 
-export async function upsertUserProfile(payload: Partial<ProfileRow>): Promise<ProfileRow | null> {
-  const { data: auth } = await supabase.auth.getUser();
-  const userId = auth?.user?.id;
-  if (!userId) return null;
+export async function upsertUserProfile(patch: Partial<ProfileRow>): Promise<{ ok: boolean }> {
+  const auth = await supabase.auth.getUser();
+  const uid = auth.data.user?.id;
+  if (!uid) return { ok: false };
 
-  const row: Partial<ProfileRow> = { id: userId, ...payload };
+  const payload = { id: uid, ...patch };
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .upsert(row as any)
-    .select('*')
-    .maybeSingle();
-
+  const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
   if (error) {
-    console.error('upsertUserProfile error', error);
-    return null;
+    console.error('[upsertUserProfile] error', error);
+    return { ok: false };
   }
-  return (data as ProfileRow) ?? null;
+  return { ok: true };
 }
 
-export async function requestRoleUpgrade(requestedRole: string): Promise<void> {
-  const { data: auth } = await supabase.auth.getUser();
-  const userId = auth?.user?.id;
-  if (!userId) throw new Error('Not authenticated');
+// ---- Role upgrade helpers (expected by original UI) ----
+export async function requestRoleUpgrade(requested: AppRole, note?: string) {
+  const auth = await supabase.auth.getUser();
+  const uid = auth.data.user?.id;
+  if (!uid) throw new Error('not signed in');
 
+  const { error } = await supabase.from('upgrade_requests').insert({
+    user_id: uid,
+    requested_role: requested,
+    note: note ?? null,
+  });
+  if (error) throw error;
+}
+
+export async function approveUpgradeRequest(requestId: string, grantRole: AppRole) {
+  const { error: txErr } = await supabase.rpc('approve_upgrade_request', {
+    p_request_id: requestId,
+    p_role: grantRole,
+  });
+  if (txErr) throw txErr;
+}
+
+export async function denyUpgradeRequest(requestId: string, reason?: string) {
   const { error } = await supabase
     .from('upgrade_requests')
-    .insert({
-      user_id: userId,
-      requested_role: requestedRole,
-      status: 'pending'
-    });
-
-  if (error) {
-    console.error('requestRoleUpgrade error', error);
-    throw error;
-  }
-}
-
-export async function approveUpgradeRequest(requestId: string): Promise<void> {
-  const { error } = await supabase
-    .from('upgrade_requests')
-    .update({ status: 'approved', processed_at: new Date().toISOString() })
+    .update({ denied_reason: reason ?? null, status: 'denied' })
     .eq('id', requestId);
-
-  if (error) {
-    console.error('approveUpgradeRequest error', error);
-    throw error;
-  }
+  if (error) throw error;
 }
 
-export async function denyUpgradeRequest(requestId: string): Promise<void> {
-  const { error } = await supabase
-    .from('upgrade_requests')
-    .update({ status: 'denied', processed_at: new Date().toISOString() })
-    .eq('id', requestId);
-
-  if (error) {
-    console.error('denyUpgradeRequest error', error);
-    throw error;
-  }
-}
+export default supabase;

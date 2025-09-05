@@ -1,28 +1,28 @@
+// (Sept-4 snapshot) src/components/profile/AchievementBadges.tsx
 import React from 'react';
 
-type Badge = {
-  id: string;
-  label: string;
-  icon?: React.ReactNode;
-};
+type Badge = { label: string; sub?: string };
 
-export default function AchievementBadges({ badges }: { badges: Badge[] }) {
-  if (!badges?.length) return null;
+const Item: React.FC<Badge> = ({ label, sub }) => (
+  <div className="inline-flex items-center gap-2 rounded-md bg-gray-800 px-3 py-1 text-xs text-gray-100">
+    <span className="inline-block h-2 w-2 rounded-full bg-yellow-500" />
+    <span>{label}</span>
+    {sub ? <span className="opacity-70">({sub})</span> : null}
+  </div>
+);
 
+const AchievementBadges: React.FC = () => {
+  const badges: Badge[] = [
+    { label: '7-day consistency' },
+    { label: 'Hydration habit' },
+  ];
   return (
-    <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
-      {badges.map((b) => (
-        <div
-          key={b.id}
-          className="flex items-center gap-2 rounded-lg border border-gray-700/60 bg-gray-800/60 px-3 py-2 text-sm text-gray-100"
-          aria-label={`Achievement ${b.label}`}
-        >
-          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-700/70">
-            {b.icon ?? '⭐'}
-          </span>
-          <span>{b.label}</span>
-        </div>
+    <div className="flex flex-wrap gap-2">
+      {badges.map((b, i) => (
+        <Item key={i} {...b} />
       ))}
     </div>
   );
-}
+};
+
+export default AchievementBadges;

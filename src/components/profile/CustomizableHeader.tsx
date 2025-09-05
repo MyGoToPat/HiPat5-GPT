@@ -1,21 +1,22 @@
+// (Sept-4 snapshot) src/components/profile/CustomizableHeader.tsx
 import React from 'react';
 
-export default function CustomizableHeader({
-  title,
-  subtitle,
-  actions,
-}: {
+type Props = {
   title: string;
   subtitle?: string;
-  actions?: React.ReactNode;
-}) {
+  right?: React.ReactNode;
+};
+
+const CustomizableHeader: React.FC<Props> = ({ title, subtitle, right }) => {
   return (
-    <div className="mb-4 flex items-center justify-between">
+    <div className="mb-3 flex items-center justify-between">
       <div>
-        <h1 className="text-lg font-semibold text-gray-100">{title}</h1>
-        {subtitle ? <p className="text-xs text-gray-400">{subtitle}</p> : null}
+        <div className="text-sm font-medium text-gray-400">{subtitle ?? 'Your Profile'}</div>
+        <h1 className="text-xl font-semibold text-gray-100">{title}</h1>
       </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      {right ? <div className="flex items-center gap-2">{right}</div> : null}
     </div>
   );
-}
+};
+
+export default CustomizableHeader;

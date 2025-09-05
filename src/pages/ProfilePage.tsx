@@ -1,17 +1,19 @@
+// (Sept-4 snapshot) src/pages/ProfilePage.tsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ProfilePage as ProfileComponent } from '../components/ProfilePage';
 
-const ProfilePage: React.FC = () => {
+export default function ProfilePage() {
   const navigate = useNavigate();
-
-  const onNavigate = (page: string) => {
-    if (page === 'chat') return navigate('/chat');
-    if (page === 'dashboard') return navigate('/dashboard');
-    if (page === 'tdee') return navigate('/tdee');
-  };
-
-  return <ProfileComponent onNavigate={onNavigate} />;
-};
-
-export default ProfilePage;
+  return (
+    <ProfileComponent
+      onNavigate={(page: string) => {
+        if (page === 'chat') return navigate('/chat');
+        if (page === 'dashboard') return navigate('/dashboard');
+        if (page === 'tdee') return navigate('/tdee');
+        if (page === 'trainer-dashboard') return navigate('/trainer-dashboard');
+        return navigate('/dashboard');
+      }}
+    />
+  );
+}
