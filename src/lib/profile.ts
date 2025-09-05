@@ -3,7 +3,7 @@ import supabase from "./supabase";
 export type ProfileRow = {
   id: string;
   display_name: string | null;
-  avatar_url: string | null;
+  avatar_url?: string | null;
   height_cm: number | null;
   weight_kg: number | null;
   activity_level: string | null;
@@ -24,14 +24,26 @@ export async function fetchMyProfile(): Promise<ProfileRow | null> {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select(
-      "id, display_name, avatar_url, height_cm, weight_kg, activity_level, sex, dob, updated_at"
-    )
+    .select("*") // schema-tolerant: avoid unknown-column errors
     .eq("id", user.id)
     .maybeSingle();
 
   if (error) throw error;
-  return (data as ProfileRow) ?? null;
+  if (!data) return null;
+  const r: any = data;
+  // Normalize with graceful fallbacks for older column names
+  const normalized: ProfileRow = {
+    id: r.id,
+    display_name: r.display_name ?? null,
+    avatar_url: r.avatar_url ?? null,
+    height_cm: (r.height_cm ?? r.height) ?? null,
+    weight_kg: (r.weight_kg ?? r.weight) ?? null,
+    activity_level: (r.activity_level ?? r.activity) ?? null,
+    sex: (r.sex ?? r.gender) ?? null,
+    dob: (r.dob ?? r.date_of_birth) ?? null,
+    updated_at: r.updated_at ?? null,
+  };
+  return normalized;
 }
 
 export async function upsertMyProfile(patch: Partial<ProfileRow>) {
