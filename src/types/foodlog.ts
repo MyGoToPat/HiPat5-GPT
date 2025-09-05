@@ -1,3 +1,4 @@
+// Food log types stub - UI removed, keeping minimal types for compilation
 export interface FoodItem {
   id: string;
   name: string;
