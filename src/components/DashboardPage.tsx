@@ -10,6 +10,7 @@ import { DailySummary } from './dashboard/DailySummary';
 import { AlertCenter } from './dashboard/AlertCenter';
 import { MetricAlert, CrossMetricInsight } from '../types/metrics';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
+import { QuickActions } from './profile/QuickActions';
 import { getSupabase } from '../lib/supabase';
 import type { FoodEntry } from '../types/food';
 
@@ -274,6 +275,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               />
               <EffortSection />
             </div>
+            
+            {/* Quick Actions - Moved from Profile */}
+            <QuickActions onNavigate={onNavigate} />
             
             {/* Essential Actions - Mobile-Optimized */}
             <div className="mt-6 bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 border border-gray-800">

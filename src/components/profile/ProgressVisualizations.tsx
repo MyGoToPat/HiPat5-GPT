@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Target, Calendar, Zap, Award, Activity } from 'lucide-react';
+import { TrendingUp, Target, Activity, Award, Calendar } from 'lucide-react';
 
 interface ProgressVisualizationsProps {
   className?: string;
@@ -25,6 +25,7 @@ interface WeightData {
 export const ProgressVisualizations: React.FC<ProgressVisualizationsProps> = ({ className = '' }) => {
   // Historical weight data over 6 months for long-term trends
   const weightData: WeightData[] = [
+    { date: '2023-07-01', weight: 198.5, bodyFat: 19.2 },
     { date: '2023-08-01', weight: 195.0, bodyFat: 18.5 },
     { date: '2023-09-01', weight: 192.8, bodyFat: 18.0 },
     { date: '2023-10-01', weight: 190.5, bodyFat: 17.2 },
@@ -37,39 +38,39 @@ export const ProgressVisualizations: React.FC<ProgressVisualizationsProps> = ({ 
   const progressMetrics: ProgressMetric[] = [
     {
       id: 'weight',
-      label: 'Weight (6mo)',
+      label: 'Weight (12mo)',
       value: 185.2,
       unit: 'lbs',
-      trend: -9.8, // 6-month change
+      trend: -13.3, // 12-month change
       icon: TrendingUp,
       color: 'text-green-500',
       target: 180
     },
     {
       id: 'body_fat',
-      label: 'Body Fat (6mo)',
+      label: 'Body Fat (12mo)',
       value: 15.8,
       unit: '%',
-      trend: -2.7, // 6-month change
+      trend: -3.4, // 12-month change
       icon: Target,
       color: 'text-blue-500',
       target: 15
     },
     {
       id: 'muscle_mass',
-      label: 'Muscle Gain (6mo)',
+      label: 'Muscle Gain (12mo)',
       value: 156.1,
       unit: 'lbs',
-      trend: 5.3, // 6-month change
+      trend: 8.7, // 12-month change
       icon: Activity,
       color: 'text-purple-500'
     },
     {
       id: 'total_workouts',
-      label: 'Total Workouts',
-      value: 156,
+      label: 'Annual Workouts',
+      value: 312,
       unit: 'sessions',
-      trend: 23, // Increase from last 6 months
+      trend: 47, // Increase from previous year
       icon: Award,
       color: 'text-orange-500'
     }
@@ -128,7 +129,7 @@ export const ProgressVisualizations: React.FC<ProgressVisualizationsProps> = ({ 
 
       {/* Weight Progress Chart */}
       <div className="bg-gray-800 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-gray-300 mb-4">Weight Trend (6-Month History)</h4>
+        <h4 className="text-sm font-medium text-gray-300 mb-4">Weight Trend (12-Month History)</h4>
         
         <div className="h-32 flex items-end justify-between gap-2">
           {weightData.map((data, index) => {

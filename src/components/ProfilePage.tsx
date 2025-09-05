@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppBar } from './AppBar';
 import { NavigationSidebar } from './NavigationSidebar';
 import { PatAvatar } from './PatAvatar';
-import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, Edit3, Save, X, Camera, Globe, Moon, Sun, Smartphone, Trophy, Target, Zap, TrendingUp, Award, Star, MessageSquare, Activity, Plus, ChevronRight, Brain, Lightbulb, CheckCircle, Clock, Siren as Fire, Volume2 } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, Edit3, Save, X, Camera, Globe, Moon, Sun, Smartphone, Trophy, Target, MessageSquare } from 'lucide-react';
 import { AchievementBadges } from './profile/AchievementBadges';
 import { ProgressVisualizations } from './profile/ProgressVisualizations';
 import { AIInsights } from './profile/AIInsights';
@@ -280,71 +280,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         });
 
         setUserProfile(editedProfile);
-        setIsEditing(false);
-        setSaveSuccess('Profile saved successfully!');
-        
-        // Clear success message after 3 seconds
-        setTimeout(() => setSaveSuccess(''), 3000);
-        
-      } catch (error) {
-        console.error('Error saving profile:', error);
-        setSaveError('Failed to save profile. Please try again.');
-      } finally {
-        setIsSaving(false);
-      }
-    };
-
-    saveProfile();
-  };
-
-  const handleCancelEdit = () => {
-    setEditedProfile(userProfile);
-    setIsEditing(false);
-    setSaveError('');
-    setSaveSuccess('');
-  };
-
-  const handleSavePreferences = () => {
-    setPreferences(editedPreferences);
-  };
-
-  const tabs = [
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'preferences', label: 'Preferences', icon: Settings },
-    { id: 'account', label: 'Account', icon: Shield },
-    { id: 'usage', label: 'Usage', icon: BarChart3 }
-  ];
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white">Loading profile...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!userProfile) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-white">Unable to load profile. Please try refreshing the page.</p>
-        </div>
-      </div>
-    );
-  }
-
-  const renderProfileTab = () => (
-    <>
-      <div className="space-y-6">
-      {/* Customizable Header */}
-      <CustomizableHeader 
-        profile={userProfile}
-        onUpdate={(updates) => setUserProfile({ ...userProfile, ...updates })}
-        achievements={achievements.filter(a => a.earned).length}
-        totalWorkouts={156}
         currentStreak={12}
       />
 
@@ -389,174 +324,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
             disabled={isSaving}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
           >
-            {isEditing ? <X size={16} /> : <Edit3 size={16} />}
-            {isEditing ? 'Cancel' : 'Edit'}
-          </button>
-        </div>
-
-        {/* Save Success Message */}
-        {saveSuccess && (
-          <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-green-600 text-sm">{saveSuccess}</p>
-          </div>
-        )}
-
-        {/* Save Error Message */}
-        {saveError && (
-          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600 text-sm">{saveError}</p>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <User size={16} className="inline mr-2" />
-              Full Name
             </label>
             {isEditing ? (
               <input
-                type="text"
-                value={editedProfile?.name || ''}
-                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, name: e.target.value } : null)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={isSaving}
-              />
-            ) : (
-              <p className="px-4 py-3 bg-gray-800 rounded-lg text-white">{userProfile?.name}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Mail size={16} className="inline mr-2" />
-              Email Address
-            </label>
-            {isEditing ? (
-              <input
-                type="email"
-                value={editedProfile?.email || ''}
-                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, email: e.target.value } : null)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={isSaving}
-              />
-            ) : (
-              <p className="px-4 py-3 bg-gray-800 rounded-lg text-white">{userProfile?.email}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Phone size={16} className="inline mr-2" />
-              Phone Number
-            </label>
-            {isEditing ? (
-              <input
-                type="tel"
-                value={editedProfile?.phone || ''}
-                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, phone: e.target.value } : null)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={isSaving}
-              />
-            ) : (
-              <p className="px-4 py-3 bg-gray-800 rounded-lg text-white">{userProfile?.phone || 'Not provided'}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <MapPin size={16} className="inline mr-2" />
-              Location
-            </label>
-            {isEditing ? (
-              <input
-                type="text"
-                value={editedProfile?.location || ''}
-                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, location: e.target.value } : null)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={isSaving}
-              />
-            ) : (
-              <p className="px-4 py-3 bg-gray-800 rounded-lg text-white">{userProfile?.location || 'Not provided'}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Calendar size={16} className="inline mr-2" />
-              Date of Birth
-            </label>
-            {isEditing ? (
-              <input
-                type="date"
-                value={editedProfile?.dateOfBirth || ''}
-                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, dateOfBirth: e.target.value } : null)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={isSaving}
-              />
-            ) : (
-              <p className="px-4 py-3 bg-gray-800 rounded-lg text-white">{userProfile?.dateOfBirth || 'Not provided'}</p>
-            )}
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Bio
-            </label>
-            {isEditing ? (
-              <textarea
-                value={editedProfile?.bio || ''}
-                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, bio: e.target.value } : null)}
-                rows={3}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Tell us about yourself..."
-                disabled={isSaving}
-              />
-            ) : (
-              <p className="px-4 py-3 bg-gray-800 rounded-lg text-white min-h-[80px]">{userProfile?.bio || 'No bio provided'}</p>
-            )}
-          </div>
-        </div>
-
-        {isEditing && (
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={handleSaveProfile}
-              disabled={isSaving}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg transition-colors"
-            >
-              {isSaving ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save size={16} />
-                  Save Changes
-                </>
-              )}
-            </button>
-            <button
-              onClick={handleCancelEdit}
-              disabled={isSaving}
-              className="px-6 py-3 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
 
 
       {/* Progress Overview */}
-      <ProgressVisualizations />
-
-      {/* AI Insights */}
-      <AIInsights />
-
-
       {/* Contact Support */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
         <div className="flex items-center gap-2 mb-4">
@@ -824,43 +597,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
       {/* Quick Actions */}
       <QuickActions onNavigate={onNavigate} />
 
-      {/* Contact Support */}
-      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-        <div className="flex items-center gap-2 mb-4">
-          <MessageSquare size={20} className="text-blue-400" />
-          <h3 className="text-lg font-semibold text-white">Contact Support</h3>
-        </div>
-        <div className="space-y-4">
-          <div className="bg-blue-600/20 p-4 rounded-lg border border-blue-500/30">
-            <h4 className="font-medium text-blue-300 mb-2">Need Help?</h4>
-            <p className="text-blue-200 text-sm mb-3">
-              I'm here to help you get the most out of your health journey. You can reach out to our support team or chat with me directly.
-            </p>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => onNavigate('chat')}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                Chat with Pat
-              </button>
-              <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm font-medium transition-colors">
-                Contact Support
-              </button>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="text-center p-3 bg-gray-800 rounded-lg">
-              <div className="text-sm font-medium text-white">Average Response</div>
-              <div className="text-xs text-gray-400">&lt; 2 hours</div>
-            </div>
-            <div className="text-center p-3 bg-gray-800 rounded-lg">
-              <div className="text-sm font-medium text-white">Satisfaction</div>
-              <div className="text-xs text-gray-400">98.5%</div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 
