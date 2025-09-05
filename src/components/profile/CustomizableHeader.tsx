@@ -5,12 +5,12 @@ import { PatMoodCalculator, UserMetrics } from '../../utils/patMoodCalculator';
 import { MetricAlert } from '../../types/metrics';
 
 interface CustomizableHeaderProps {
-  profile: {
+  userProfile: {
     name: string;
     bio: string;
     headerBackground?: string;
     headerColor?: string;
-  };
+  } | null;
   onUpdate: (updates: any) => void;
   achievements: number;
   totalWorkouts: number;
@@ -18,13 +18,31 @@ interface CustomizableHeaderProps {
 }
 
 export const CustomizableHeader: React.FC<CustomizableHeaderProps> = ({
-  profile,
+  userProfile,
   onUpdate,
   achievements,
   totalWorkouts,
   currentStreak
 }) => {
   const [isCustomizing, setIsCustomizing] = useState(false);
+
+  // Handle loading state
+  if (!userProfile) {
+    return (
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 relative overflow-hidden animate-pulse">
+        <div className="h-32 bg-white/10 rounded-lg mb-6"></div>
+        <div className="grid grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="text-center">
+              <div className="w-12 h-12 bg-white/20 rounded-full mx-auto mb-2"></div>
+              <div className="h-4 bg-white/20 rounded mb-1"></div>
+              <div className="h-3 bg-white/20 rounded w-16 mx-auto"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   // Mock user metrics for mood calculation
   const userMetrics: UserMetrics = {
@@ -59,7 +77,7 @@ export const CustomizableHeader: React.FC<CustomizableHeaderProps> = ({
   return (
     <div className="relative">
       {/* Header Background */}
-      <div className={`${profile.headerBackground || 'bg-gradient-to-r from-blue-600 to-purple-600'} rounded-2xl p-6 relative overflow-hidden`}>
+      <div className={`${userProfile.headerBackground || 'bg-gradient-to-r from-blue-600 to-purple-600'} rounded-2xl p-6 relative overflow-hidden`}>
         {/* Customize Button */}
         <button
           onClick={() => setIsCustomizing(!isCustomizing)}
@@ -78,8 +96,8 @@ export const CustomizableHeader: React.FC<CustomizableHeaderProps> = ({
           </div>
           
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-white mb-2">{profile.name}</h1>
-            <p className="text-white/80 text-sm leading-relaxed">{profile.bio}</p>
+            <h1 className="text-2xl font-bold text-white mb-2">{userProfile.name}</h1>
+            <p className="text-white/80 text-sm leading-relaxed">{userProfile.bio}</p>
           </div>
         </div>
 

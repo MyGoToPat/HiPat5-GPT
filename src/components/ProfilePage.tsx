@@ -349,6 +349,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
       {/* Customizable Header */}
       <CustomizableHeader 
         userProfile={userProfile}
+        onUpdate={(updates) => {
+          if (userProfile) {
+            const updatedProfile = { ...userProfile, ...updates };
+            setUserProfile(updatedProfile);
+            setEditedProfile(updatedProfile);
+          }
+        }}
+        achievements={achievements.filter(a => a.earned).length}
+        totalWorkouts={47}
         currentStreak={12}
       />
 
