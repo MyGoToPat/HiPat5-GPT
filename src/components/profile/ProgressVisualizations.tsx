@@ -14,6 +14,7 @@ interface ProgressMetric {
   icon: React.ComponentType<{ size: number; className?: string }>;
   color: string;
   target?: number;
+  timeframe: string;
 }
 
 interface WeightData {
@@ -27,50 +28,56 @@ export const ProgressVisualizations: React.FC<ProgressVisualizationsProps> = ({ 
   const progressMetrics: ProgressMetric[] = [
     {
       id: 'weight',
-      label: 'Weight',
+      label: 'Weight Trend',
       value: 185.2,
       unit: 'lbs',
-      trend: -2.3,
+      trend: -5.1,
       icon: TrendingUp,
       color: 'text-green-500',
-      target: 180
+      target: 180,
+      timeframe: '3 months'
     },
     {
       id: 'body_fat',
-      label: 'Body Fat',
+      label: 'Body Fat Trend', 
       value: 15.8,
       unit: '%',
-      trend: -1.2,
+      trend: -2.8,
       icon: Target,
       color: 'text-blue-500',
-      target: 15
+      target: 15,
+      timeframe: '3 months'
     },
     {
       id: 'muscle_mass',
-      label: 'Muscle Mass',
+      label: 'Muscle Gain',
       value: 156.1,
       unit: 'lbs',
-      trend: 2.1,
+      trend: 4.8,
       icon: Activity,
-      color: 'text-purple-500'
+      color: 'text-purple-500',
+      timeframe: '6 months'
     },
     {
       id: 'workout_streak',
-      label: 'Workout Streak',
-      value: 12,
+      label: 'Best Streak',
+      value: 28,
       unit: 'days',
-      trend: 5,
+      trend: 15,
       icon: Award,
-      color: 'text-orange-500'
+      color: 'text-orange-500',
+      timeframe: 'all-time'
     }
   ];
 
   // Mock weight data for chart
   const weightData: WeightData[] = [
-    { date: '2024-01-01', weight: 190.5, bodyFat: 17.2 },
-    { date: '2024-01-08', weight: 189.1, bodyFat: 16.9 },
-    { date: '2024-01-15', weight: 187.8, bodyFat: 16.5 },
-    { date: '2024-01-22', weight: 186.4, bodyFat: 16.1 },
+    { date: '2023-11-01', weight: 195.2, bodyFat: 18.5 },
+    { date: '2023-11-15', weight: 193.8, bodyFat: 18.1 },
+    { date: '2023-12-01', weight: 192.1, bodyFat: 17.7 },
+    { date: '2023-12-15', weight: 190.4, bodyFat: 17.2 },
+    { date: '2024-01-01', weight: 188.9, bodyFat: 16.8 },
+    { date: '2024-01-15', weight: 187.2, bodyFat: 16.3 },
     { date: '2024-01-29', weight: 185.2, bodyFat: 15.8 }
   ];
 
@@ -87,24 +94,24 @@ export const ProgressVisualizations: React.FC<ProgressVisualizationsProps> = ({ 
   };
 
   return (
-    <div className={`bg-gray-900 rounded-2xl p-6 border border-gray-800 ${className}`}>
+    <div className={`bg-gray-900 rounded-2xl p-4 sm:p-6 border border-gray-800 ${className}`}>
       <div className="flex items-center gap-2 mb-6">
         <TrendingUp size={20} className="text-blue-400" />
-        <h3 className="text-lg font-semibold text-white">Progress Overview</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-white">Historical Progress</h3>
       </div>
 
       {/* Progress Metrics Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
         {progressMetrics.map((metric) => {
           const IconComponent = metric.icon;
           return (
-            <div key={metric.id} className="bg-gray-800 rounded-lg p-4 text-center">
+            <div key={metric.id} className="bg-gray-800 rounded-lg p-3 sm:p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <IconComponent size={16} className={metric.color} />
-                <span className="text-sm font-medium text-gray-300">{metric.label}</span>
+                <span className="text-xs sm:text-sm font-medium text-gray-300">{metric.label}</span>
               </div>
               
-              <div className="text-xl font-bold text-white mb-1">
+              <div className="text-lg sm:text-xl font-bold text-white mb-1">
                 {metric.value}{metric.unit}
               </div>
               
@@ -114,11 +121,15 @@ export const ProgressVisualizations: React.FC<ProgressVisualizationsProps> = ({ 
                 </div>
               )}
               
-              <div className="flex items-center justify-center gap-1 text-xs">
+              <div className="flex items-center justify-center gap-1 text-xs mb-1">
                 {getTrendIcon(metric.trend)}
                 <span className={getTrendColor(metric.trend)}>
                   {metric.trend > 0 ? '+' : ''}{metric.trend}{metric.unit}
                 </span>
+              </div>
+              
+              <span className="text-xs text-gray-400 mt-2">
+                {new Date(data.date).toLocaleDateString('en-US', { month: 'short' })}
               </div>
             </div>
           );
@@ -127,7 +138,7 @@ export const ProgressVisualizations: React.FC<ProgressVisualizationsProps> = ({ 
 
       {/* Weight Progress Chart */}
       <div className="bg-gray-800 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-gray-300 mb-4">Weight Trend (Last 30 Days)</h4>
+        <h4 className="text-xs sm:text-sm font-medium text-gray-300 mb-4">Weight Trend (Last 3 Months)</h4>
         
         <div className="h-32 flex items-end justify-between gap-2">
           {weightData.map((data, index) => {
