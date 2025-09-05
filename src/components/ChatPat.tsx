@@ -815,7 +815,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
             <div className="flex items-center gap-3">
               <button
                 onClick={isDictating ? stopDictation : startDictation}
-                className={\`p-3 rounded-full transition-colors ${
+                className={`p-3 rounded-full transition-colors ${
                   isDictating 
                     ? 'bg-red-600 hover:bg-red-700 text-white' 
                     : 'hover:bg-gray-700'
