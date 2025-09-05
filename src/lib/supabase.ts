@@ -1,36 +1,80 @@
-// -- AUTO-GENERATED: canonical Supabase client w/ legacy surface --
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const url =
-  import.meta.env.VITE_SUPABASE_URL ||
-  (typeof process !== 'undefined' ? process.env.SUPABASE_URL : undefined) ||
-  'https://jdtogitfqptdrxkczdbw.supabase.co';
+/**
+ * Centralized Supabase client + typed helpers used across the app,
+ * including Profile read/write helpers that the original Profile page consumed.
+ */
 
-const anon =
-  import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  (typeof process !== 'undefined' ? process.env.SUPABASE_ANON_KEY : undefined) ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkdG9naXRmcXB0ZHJ4a2N6ZGJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5NTU0NTQsImV4cCI6MjA3MDUzMTQ1NH0.V7KN9mE1YlPYQZmWz-UO2vUqpTnoX6ZvyDoytYlucF8';
+export type ProfileRow = {
+  id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  activity_level: string | null;
+  sex: string | null;
+  dob: string | null;
+  updated_at: string | null;
+};
 
-export const supabase = createClient(url, anon);
+type SupabaseDatabase = {
+  public: {
+    Tables: {
+      profiles: {
+        Row: ProfileRow;
+        Insert: Partial<ProfileRow>;
+        Update: Partial<ProfileRow>;
+      };
+    };
+  };
+};
+
+const url = import.meta.env.VITE_SUPABASE_URL as string;
+const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+// Primary client export (matches original app usage)
+export const supabase: SupabaseClient<SupabaseDatabase> = createClient<SupabaseDatabase>(url, anon);
 export default supabase;
 
-// ---- Back-compat helpers expected by existing code ----
-export const getSupabase = () => supabase;
+// Original helpers the Profile page used
+export function getSupabase(): SupabaseClient<SupabaseDatabase> {
+  return supabase;
+}
 
-export async function getUserProfile(user_id: string) {
-  if (!user_id) throw new Error('getUserProfile: missing user_id');
+export async function getUserProfile(): Promise<ProfileRow | null> {
+  const { data: auth } = await supabase.auth.getUser();
+  const userId = auth?.user?.id;
+  if (!userId) return null;
+
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', user_id)
-    .single();
-  if (error) throw error;
-  return data;
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('getUserProfile error', error);
+    return null;
+  }
+  return (data as ProfileRow) ?? null;
 }
 
-// ---- BEGIN AUTO-STUBS (do not edit below; regenerated) ----
-export const upsertUserProfile = (..._args: any[]): any => { console.warn('[supabase legacy stub] upsertUserProfile called'); return undefined as any; };
-export const requestRoleUpgrade = (..._args: any[]): any => { console.warn('[supabase legacy stub] requestRoleUpgrade called'); return undefined as any; };
-export const approveUpgradeRequest = (..._args: any[]): any => { console.warn('[supabase legacy stub] approveUpgradeRequest called'); return undefined as any; };
-export const denyUpgradeRequest = (..._args: any[]): any => { console.warn('[supabase legacy stub] denyUpgradeRequest called'); return undefined as any; };
-// ---- END AUTO-STUBS ----
+export async function upsertUserProfile(payload: Partial<ProfileRow>): Promise<ProfileRow | null> {
+  const { data: auth } = await supabase.auth.getUser();
+  const userId = auth?.user?.id;
+  if (!userId) return null;
+
+  const row: Partial<ProfileRow> = { id: userId, ...payload };
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert(row as any)
+    .select('*')
+    .maybeSingle();
+
+  if (error) {
+    console.error('upsertUserProfile error', error);
+    return null;
+  }
+  return (data as ProfileRow) ?? null;
+}
