@@ -1,5 +1,5 @@
 import React from 'react';
-import { Brain, Lightbulb, TrendingUp, Target, AlertTriangle, CheckCircle, Zap, Moon } from 'lucide-react';
+import { Brain, Lightbulb, TrendingUp, Target, CheckCircle, Moon } from 'lucide-react';
 
 interface AIInsightsProps {
   className?: string;
@@ -7,7 +7,7 @@ interface AIInsightsProps {
 
 interface Insight {
   id: string;
-  type: 'recommendation' | 'achievement' | 'warning' | 'tip';
+  type: 'pattern' | 'achievement' | 'recommendation' | 'tip';
   title: string;
   description: string;
   actionable: boolean;
@@ -18,7 +18,7 @@ interface Insight {
 }
 
 export const AIInsights: React.FC<AIInsightsProps> = ({ className = '' }) => {
-  // Long-term AI insights focused on patterns and historical analysis
+  // Long-term AI insights focused on patterns and historical analysis over months/years
   const insights: Insight[] = [
     {
       id: '1',
@@ -180,7 +180,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ className = '' }) => {
           <span className="font-medium text-purple-300 text-sm">Pat says:</span>
         </div>
         <p className="text-purple-200 text-sm italic">
-          "Your long-term trends are impressive! The consistency you've built over the past year is the foundation for lasting success. Keep focusing on sustainable habits!"
+          "Your long-term trends are impressive! The consistency you've built over the past year is the foundation for lasting success. Keep focusing on sustainable habits rather than day-to-day fluctuations!"
         </p>
       </div>
     </div>
