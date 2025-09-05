@@ -7,7 +7,6 @@ import { AchievementBadges } from './profile/AchievementBadges';
 import { ProgressVisualizations } from './profile/ProgressVisualizations';
 import { AIInsights } from './profile/AIInsights';
 import { CustomizableHeader } from './profile/CustomizableHeader';
-import { QuickActions } from './profile/QuickActions';
 import { getSupabase, getUserProfile, upsertUserProfile } from '../lib/supabase';
 import RequestRoleUpgrade from './settings/RequestRoleUpgrade';
 
@@ -349,7 +348,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         currentStreak={12}
       />
 
-      {/* Quick Actions */}
       {/* Achievement Badges */}
       <AchievementBadges achievements={achievements} />
 
@@ -550,83 +548,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         )}
       </div>
     </div>
-      {/* Current Goal */}
-      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-        <div className="flex items-center gap-2 mb-4">
-          <Target size={20} className="text-green-400" />
-          <h3 className="text-lg font-semibold text-white">Current Goal</h3>
-        </div>
-        <div className="bg-gradient-to-r from-green-600/20 to-blue-600/20 border border-green-500/30 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-semibold text-white">Lose 10 lbs by March 2024</h4>
-            <span className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded-full">
-              Active
-            </span>
-          </div>
-          <p className="text-gray-300 text-sm mb-3">
-            Target weight: 175 lbs • Current: 185.2 lbs • Progress: 68%
-          </p>
-          <div className="w-full bg-gray-700 rounded-full h-2 mb-3">
-            <div className="bg-green-500 h-2 rounded-full transition-all duration-500" style={{ width: '68%' }}></div>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-green-300">
-            <TrendingUp size={14} />
-            <span>On track to reach goal 2 weeks early</span>
-          </div>
-        </div>
-      </div>
 
-      {/* Monthly Consistency Score */}
-      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-        <div className="flex items-center gap-2 mb-4">
-          <Award size={20} className="text-purple-400" />
-          <h3 className="text-lg font-semibold text-white">Monthly Consistency Score</h3>
-        </div>
-        <div className="text-center">
-          <div className="relative w-24 h-24 mx-auto mb-4">
-            <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 96 96">
-              <circle
-                cx="48"
-                cy="48"
-                r="40"
-                stroke="currentColor"
-                strokeWidth="6"
-                fill="none"
-                className="text-gray-700"
-              />
-              <circle
-                cx="48"
-                cy="48"
-                r="40"
-                stroke="currentColor"
-                strokeWidth="6"
-                fill="none"
-                strokeDasharray={`${88 * 2.51} 251`}
-                className="text-purple-500 transition-all duration-500"
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-2xl font-bold text-white">88%</span>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-white font-bold">92%</div>
-              <div className="text-gray-400 text-xs">Workouts</div>
-            </div>
-            <div>
-              <div className="text-white font-bold">85%</div>
-              <div className="text-gray-400 text-xs">Nutrition</div>
-            </div>
-            <div>
-              <div className="text-white font-bold">87%</div>
-              <div className="text-gray-400 text-xs">Sleep</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Progress Overview */}
       <ProgressVisualizations />
@@ -634,8 +556,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
       {/* AI Insights */}
       <AIInsights />
 
-      {/* Quick Actions */}
-      <QuickActions onNavigate={onNavigate} />
 
       {/* Contact Support */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">

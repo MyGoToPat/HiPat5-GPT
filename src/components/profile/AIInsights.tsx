@@ -18,51 +18,51 @@ interface Insight {
 }
 
 export const AIInsights: React.FC<AIInsightsProps> = ({ className = '' }) => {
-  // Mock AI insights data
+  // Long-term AI insights focused on patterns and historical analysis
   const insights: Insight[] = [
     {
       id: '1',
-      type: 'recommendation',
-      title: 'Optimize Your Recovery',
-      description: 'Based on your recent workouts, I recommend adding 15 minutes of stretching after your sessions. Your muscle tension indicators suggest this could improve your next-day performance by 12%.',
+      type: 'pattern',
+      title: 'Long-term Recovery Pattern',
+      description: 'Over the past 6 months, your recovery metrics show a 25% improvement. Your sleep quality strongly correlates with next-day performance, especially on strength training days.',
       actionable: true,
-      priority: 'high',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      priority: 'medium',
+      timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
       icon: Lightbulb,
       color: 'text-yellow-400'
     },
     {
       id: '2',
       type: 'achievement',
-      title: 'Protein Intake Improvement',
-      description: 'Great job! Your protein consistency has improved 40% this month. You\'re now hitting your target 85% of the time, up from 60%.',
+      title: 'Consistency Milestone Achieved',
+      description: 'Congratulations! You\'ve maintained an 80%+ consistency rate for 3 consecutive months. This represents a significant behavioral shift in your health journey.',
       actionable: false,
-      priority: 'medium',
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
+      priority: 'high',
+      timestamp: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
       icon: CheckCircle,
       color: 'text-green-400'
     },
     {
       id: '3',
-      type: 'tip',
-      title: 'Sleep Optimization Window',
-      description: 'I\'ve noticed you perform best when you sleep between 10:30 PM - 6:30 AM. Consider adjusting your bedtime by 30 minutes earlier for optimal recovery.',
+      type: 'recommendation',
+      title: 'Seasonal Training Adjustment',
+      description: 'Historical data shows your performance peaks in fall/winter months. Consider planning major goals and challenges during September-February for optimal results.',
       actionable: true,
       priority: 'medium',
-      timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000),
+      timestamp: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
       icon: Moon,
       color: 'text-blue-400'
     },
     {
       id: '4',
-      type: 'warning',
-      title: 'Potential Overreaching',
-      description: 'Your training volume has increased 25% this week while sleep quality decreased. Consider a deload or extra rest day to prevent burnout.',
+      type: 'tip',
+      title: 'Long-term Nutrition Evolution',
+      description: 'Your macro adherence has steadily improved from 65% to 85% over the past year. This gradual improvement approach is sustainable and should continue long-term.',
       actionable: true,
-      priority: 'high',
-      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
-      icon: AlertTriangle,
-      color: 'text-red-400'
+      priority: 'low',
+      timestamp: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+      icon: Target,
+      color: 'text-purple-400'
     }
   ];
 
@@ -180,7 +180,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ className = '' }) => {
           <span className="font-medium text-purple-300 text-sm">Pat says:</span>
         </div>
         <p className="text-purple-200 text-sm italic">
-          "You're making excellent progress! Focus on your sleep schedule this week, and you'll see even better results. Keep up the great work!"
+          "Your long-term trends are impressive! The consistency you've built over the past year is the foundation for lasting success. Keep focusing on sustainable habits!"
         </p>
       </div>
     </div>

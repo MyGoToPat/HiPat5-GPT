@@ -23,55 +23,56 @@ interface WeightData {
 }
 
 export const ProgressVisualizations: React.FC<ProgressVisualizationsProps> = ({ className = '' }) => {
+  // Historical weight data over 6 months for long-term trends
+  const weightData: WeightData[] = [
+    { date: '2023-08-01', weight: 195.0, bodyFat: 18.5 },
+    { date: '2023-09-01', weight: 192.8, bodyFat: 18.0 },
+    { date: '2023-10-01', weight: 190.5, bodyFat: 17.2 },
+    { date: '2023-11-01', weight: 188.9, bodyFat: 16.8 },
+    { date: '2023-12-01', weight: 187.2, bodyFat: 16.4 },
+    { date: '2024-01-01', weight: 185.2, bodyFat: 15.8 }
+  ];
+
   // Mock progress metrics
   const progressMetrics: ProgressMetric[] = [
     {
       id: 'weight',
-      label: 'Weight',
+      label: 'Weight (6mo)',
       value: 185.2,
       unit: 'lbs',
-      trend: -2.3,
+      trend: -9.8, // 6-month change
       icon: TrendingUp,
       color: 'text-green-500',
       target: 180
     },
     {
       id: 'body_fat',
-      label: 'Body Fat',
+      label: 'Body Fat (6mo)',
       value: 15.8,
       unit: '%',
-      trend: -1.2,
+      trend: -2.7, // 6-month change
       icon: Target,
       color: 'text-blue-500',
       target: 15
     },
     {
       id: 'muscle_mass',
-      label: 'Muscle Mass',
+      label: 'Muscle Gain (6mo)',
       value: 156.1,
       unit: 'lbs',
-      trend: 2.1,
+      trend: 5.3, // 6-month change
       icon: Activity,
       color: 'text-purple-500'
     },
     {
-      id: 'workout_streak',
-      label: 'Workout Streak',
-      value: 12,
-      unit: 'days',
-      trend: 5,
+      id: 'total_workouts',
+      label: 'Total Workouts',
+      value: 156,
+      unit: 'sessions',
+      trend: 23, // Increase from last 6 months
       icon: Award,
       color: 'text-orange-500'
     }
-  ];
-
-  // Mock weight data for chart
-  const weightData: WeightData[] = [
-    { date: '2024-01-01', weight: 190.5, bodyFat: 17.2 },
-    { date: '2024-01-08', weight: 189.1, bodyFat: 16.9 },
-    { date: '2024-01-15', weight: 187.8, bodyFat: 16.5 },
-    { date: '2024-01-22', weight: 186.4, bodyFat: 16.1 },
-    { date: '2024-01-29', weight: 185.2, bodyFat: 15.8 }
   ];
 
   const getTrendIcon = (trend: number) => {
@@ -127,7 +128,7 @@ export const ProgressVisualizations: React.FC<ProgressVisualizationsProps> = ({ 
 
       {/* Weight Progress Chart */}
       <div className="bg-gray-800 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-gray-300 mb-4">Weight Trend (Last 30 Days)</h4>
+        <h4 className="text-sm font-medium text-gray-300 mb-4">Weight Trend (6-Month History)</h4>
         
         <div className="h-32 flex items-end justify-between gap-2">
           {weightData.map((data, index) => {
@@ -152,7 +153,7 @@ export const ProgressVisualizations: React.FC<ProgressVisualizationsProps> = ({ 
                   </div>
                 </div>
                 <span className="text-xs text-gray-400 mt-2 transform -rotate-45 origin-left">
-                  {new Date(data.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {new Date(data.date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
                 </span>
               </div>
             );
