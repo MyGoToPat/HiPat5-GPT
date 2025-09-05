@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppBar } from './AppBar';
 import { NavigationSidebar } from './NavigationSidebar';
 import { PatAvatar } from './PatAvatar';
-import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, Edit3, Save, X, Camera, Globe, Moon, Sun, Smartphone, Trophy, Target, MessageSquare } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, Edit3, Save, X, Camera, Globe, Moon, Sun, Smartphone, Trophy, Target, MessageSquare, Award, TrendingUp, Activity, Clock, CheckCircle, Volume2, Fire } from 'lucide-react';
 import { AchievementBadges } from './profile/AchievementBadges';
 import { ProgressVisualizations } from './profile/ProgressVisualizations';
 import { AIInsights } from './profile/AIInsights';
@@ -77,6 +77,49 @@ interface AIInsight {
   priority: 'high' | 'medium' | 'low';
   timestamp: Date;
 }
+
+const tabs = [
+  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'preferences', label: 'Preferences', icon: Settings },
+  { id: 'account', label: 'Account', icon: Shield },
+  { id: 'usage', label: 'Usage', icon: BarChart3 }
+];
+
+const QuickActions = ({ onNavigate }: { onNavigate: (page: string) => void }) => (
+  <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+    <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+    <div className="grid grid-cols-2 gap-3">
+      <button 
+        onClick={() => onNavigate('workout')}
+        className="p-4 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 rounded-lg text-left transition-colors"
+      >
+        <div className="text-orange-300 font-medium text-sm">Start Workout</div>
+        <div className="text-orange-200 text-xs">Begin your training session</div>
+      </button>
+      <button 
+        onClick={() => onNavigate('nutrition')}
+        className="p-4 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded-lg text-left transition-colors"
+      >
+        <div className="text-green-300 font-medium text-sm">Log Meal</div>
+        <div className="text-green-200 text-xs">Track your nutrition</div>
+      </button>
+      <button 
+        onClick={() => onNavigate('chat')}
+        className="p-4 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg text-left transition-colors"
+      >
+        <div className="text-blue-300 font-medium text-sm">Chat with Pat</div>
+        <div className="text-blue-200 text-xs">Get personalized advice</div>
+      </button>
+      <button 
+        onClick={() => onNavigate('progress')}
+        className="p-4 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg text-left transition-colors"
+      >
+        <div className="text-purple-300 font-medium text-sm">View Progress</div>
+        <div className="text-purple-200 text-xs">Check your stats</div>
+      </button>
+    </div>
+  </div>
+);
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   const [showNavigation, setShowNavigation] = useState(false);
@@ -280,6 +323,32 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         });
 
         setUserProfile(editedProfile);
+        setIsEditing(false);
+        setSaveSuccess('Profile updated successfully!');
+        
+        setTimeout(() => setSaveSuccess(''), 3000);
+      } catch (error) {
+        console.error('Error saving profile:', error);
+        setSaveError('Failed to save profile. Please try again.');
+        setTimeout(() => setSaveError(''), 5000);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    saveProfile();
+  };
+
+  const handleSavePreferences = () => {
+    setPreferences(editedPreferences);
+    // Here you would typically save to backend
+  };
+
+  const renderProfileTab = () => (
+    <>
+      {/* Customizable Header */}
+      <CustomizableHeader 
+        userProfile={userProfile}
         currentStreak={12}
       />
 
@@ -324,12 +393,174 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
             disabled={isSaving}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
           >
+            {isEditing ? (
+              <>
+                <X size={16} />
+                Cancel
+              </>
+            ) : (
+              <>
+                <Edit3 size={16} />
+                Edit
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Save/Error Messages */}
+        {saveSuccess && (
+          <div className="mb-4 p-3 bg-green-600/20 border border-green-500/30 rounded-lg text-green-300 text-sm">
+            {saveSuccess}
+          </div>
+        )}
+        
+        {saveError && (
+          <div className="mb-4 p-3 bg-red-600/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
+            {saveError}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              <User size={16} className="inline mr-2" />
+              Full Name
             </label>
             {isEditing ? (
               <input
+                type="text"
+                value={editedProfile?.name || ''}
+                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, name: e.target.value } : null)}
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                placeholder="Enter your full name"
+              />
+            ) : (
+              <div className="px-4 py-3 bg-gray-800 rounded-lg text-white">
+                {userProfile?.name || 'Not set'}
+              </div>
+            )}
+          </div>
 
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              <Mail size={16} className="inline mr-2" />
+              Email Address
+            </label>
+            {isEditing ? (
+              <input
+                type="email"
+                value={editedProfile?.email || ''}
+                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, email: e.target.value } : null)}
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                placeholder="Enter your email"
+              />
+            ) : (
+              <div className="px-4 py-3 bg-gray-800 rounded-lg text-white">
+                {userProfile?.email || 'Not set'}
+              </div>
+            )}
+          </div>
 
-      {/* Progress Overview */}
+          {/* Phone */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              <Phone size={16} className="inline mr-2" />
+              Phone Number
+            </label>
+            {isEditing ? (
+              <input
+                type="tel"
+                value={editedProfile?.phone || ''}
+                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, phone: e.target.value } : null)}
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                placeholder="Enter your phone number"
+              />
+            ) : (
+              <div className="px-4 py-3 bg-gray-800 rounded-lg text-white">
+                {userProfile?.phone || 'Not set'}
+              </div>
+            )}
+          </div>
+
+          {/* Location */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              <MapPin size={16} className="inline mr-2" />
+              Location
+            </label>
+            {isEditing ? (
+              <input
+                type="text"
+                value={editedProfile?.location || ''}
+                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, location: e.target.value } : null)}
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                placeholder="Enter your location"
+              />
+            ) : (
+              <div className="px-4 py-3 bg-gray-800 rounded-lg text-white">
+                {userProfile?.location || 'Not set'}
+              </div>
+            )}
+          </div>
+
+          {/* Date of Birth */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              <Calendar size={16} className="inline mr-2" />
+              Date of Birth
+            </label>
+            {isEditing ? (
+              <input
+                type="date"
+                value={editedProfile?.dateOfBirth || ''}
+                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, dateOfBirth: e.target.value } : null)}
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+              />
+            ) : (
+              <div className="px-4 py-3 bg-gray-800 rounded-lg text-white">
+                {userProfile?.dateOfBirth || 'Not set'}
+              </div>
+            )}
+          </div>
+
+          {/* Bio */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Bio
+            </label>
+            {isEditing ? (
+              <textarea
+                value={editedProfile?.bio || ''}
+                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, bio: e.target.value } : null)}
+                rows={3}
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500 resize-none"
+                placeholder="Tell us about yourself..."
+              />
+            ) : (
+              <div className="px-4 py-3 bg-gray-800 rounded-lg text-white min-h-[80px]">
+                {userProfile?.bio || 'No bio added yet'}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Save Button */}
+        {isEditing && (
+          <div className="mt-6 flex gap-3">
+            <button
+              onClick={handleSaveProfile}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+            >
+              <Save size={16} />
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Contact Support */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
         <div className="flex items-center gap-2 mb-4">
@@ -592,7 +823,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
       <ProgressVisualizations />
 
       {/* AI Insights */}
-      <AIInsights />
+      <AIInsights insights={aiInsights} />
 
       {/* Quick Actions */}
       <QuickActions onNavigate={onNavigate} />
