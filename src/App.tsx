@@ -1,13 +1,18 @@
+// src/App.tsx — normalized route tree (fixes unterminated JSX + ensures admin-only agents)
+
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
-// Import page components
+// Auth/public pages
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import Health from './pages/Health';
+
+// App pages
 import DashboardPage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
 import VoicePage from './pages/VoicePage';
@@ -16,19 +21,20 @@ import CameraPage from './pages/CameraPage';
 import TDEEOnboardingWizard from './pages/TDEEOnboardingWizard';
 import TrainerDashboardPage from './pages/TrainerDashboardPage';
 import AdminPage from './pages/AdminPage';
-import Health from './pages/Health';
+
+// Admin/agents
 import AdminGuard from './components/guards/AdminGuard';
 import AgentsListPage from './pages/admin/AgentsListPage';
 import AgentDetailPage from './pages/admin/AgentDetailPage';
 import ShopLensPage from './pages/agents/ShopLensPage';
+
 import AppLayout from './layouts/AppLayout';
 
 function App() {
-  // Create onNavigate wrapper for components that still use string-based navigation
+  // Wrapper kept for components that still accept string-based onNavigate
   const createOnNavigateWrapper = () => {
-    return (page: string) => {
-      // This will be handled by React Router navigation in the components themselves
-      console.log('Navigation requested:', page);
+    return (_page: string) => {
+      // Intentionally no-op here; real navigation handled by React Router in each page
     };
   };
 
@@ -42,7 +48,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={createOnNavigateWrapper()} />} />
         <Route path="/health" element={<Health />} />
 
-        {/* PROTECTED ROUTES */}
+        {/* PROTECTED APP LAYOUT */}
         <Route
           path="/"
           element={
@@ -57,18 +63,26 @@ function App() {
           <Route path="chat" element={<ChatPage />} />
           <Route path="camera" element={<CameraPage />} />
           <Route path="voice" element={<VoicePage />} />
-          <Route 
-            path="tdee" 
-            element={
-              <TDEEOnboardingWizard onComplete={() => window.location.href = '/dashboard'} />
-            } 
+          <Route
+            path="tdee"
+            element={<TDEEOnboardingWizard onComplete={() => (window.location.href = '/dashboard')} />}
           />
           <Route path="trainer-dashboard" element={<TrainerDashboardPage userProfile={null} />} />
+
+          {/* ADMIN-ONLY NESTED ROUTES */}
           <Route path="admin">
             <Route index element={<AdminPage />} />
             <Route path="agents" element={<AdminGuard><AgentsListPage /></AdminGuard>} />
             <Route path="agents/:agentId" element={<AdminGuard><AgentDetailPage /></AdminGuard>} />
             <Route path="agents/shoplens" element={<AdminGuard><ShopLensPage /></AdminGuard>} />
           </Route>
-  )
+        </Route>
+
+        {/* FALLBACK */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </ErrorBoundary>
+  );
 }
+
+export default App;
