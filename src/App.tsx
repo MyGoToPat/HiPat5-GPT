@@ -71,3 +71,5 @@ function App() {
             <Route path="agents/:agentId" element={<AdminGuard><AgentDetailPage /></AdminGuard>} />
             <Route path="agents/shoplens" element={<AdminGuard><ShopLensPage /></AdminGuard>} />
           </Route>
+  )
+}
