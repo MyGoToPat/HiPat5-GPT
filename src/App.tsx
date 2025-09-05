@@ -18,6 +18,7 @@ import TrainerDashboardPage from './pages/TrainerDashboardPage';
 import AdminPage from './pages/AdminPage';
 import Health from './pages/Health';
 import AdminGuard from './components/guards/AdminGuard';
+import AdminGuard from './components/guards/AdminGuard';
 import AgentsListPage from './pages/admin/AgentsListPage';
 import AgentDetailPage from './pages/admin/AgentDetailPage';
 import ShopLensPage from './pages/agents/ShopLensPage';
@@ -70,13 +71,3 @@ function App() {
             <Route path="agents/:agentId" element={<AdminGuard><AgentDetailPage /></AdminGuard>} />
             <Route path="agents/shoplens" element={<AdminGuard><ShopLensPage /></AdminGuard>} />
           </Route>
-        </Route>
-
-        {/* FALLBACK */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </ErrorBoundary>
-  );
-}
-
-export default App;

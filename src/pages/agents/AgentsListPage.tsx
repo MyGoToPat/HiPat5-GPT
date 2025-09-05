@@ -12,7 +12,7 @@ export default function AgentsListPage() {
       id: 'shoplens',
       name: 'ShopLens Nutrition',
       description: 'Analyze supplement labels (deterministic stub).',
-      href: '/agents/shoplens',
+      href: '/admin/agents/shoplens',
       icon: '🔍',
       available: true
     });
