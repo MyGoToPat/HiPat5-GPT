@@ -23,57 +23,46 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ className = '' }) => {
     {
       id: '1',
       type: 'recommendation',
-      title: 'Long-term Recovery Strategy',
-      description: 'Over the past 3 months, I\'ve noticed your recovery patterns. Adding consistent stretching and mobility work could improve your overall training capacity by 18%.',
+      title: 'Optimize Your Recovery',
+      description: 'Based on your recent workouts, I recommend adding 15 minutes of stretching after your sessions. Your muscle tension indicators suggest this could improve your next-day performance by 12%.',
       actionable: true,
       priority: 'high',
-      timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
       icon: Lightbulb,
       color: 'text-yellow-400'
     },
     {
       id: '2',
       type: 'achievement',
-      title: '3-Month Nutrition Milestone',
-      description: 'Incredible progress! Your nutrition consistency has improved 65% over the past quarter. You\'re now hitting your targets 88% of the time.',
+      title: 'Protein Intake Improvement',
+      description: 'Great job! Your protein consistency has improved 40% this month. You\'re now hitting your target 85% of the time, up from 60%.',
       actionable: false,
       priority: 'medium',
-      timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
       icon: CheckCircle,
       color: 'text-green-400'
     },
     {
       id: '3',
       type: 'tip',
-      title: 'Quarterly Sleep Pattern Analysis',
-      description: 'After tracking your data for 90+ days, your optimal sleep window is 10:30 PM - 6:30 AM. This pattern correlates with your best performance periods.',
+      title: 'Sleep Optimization Window',
+      description: 'I\'ve noticed you perform best when you sleep between 10:30 PM - 6:30 AM. Consider adjusting your bedtime by 30 minutes earlier for optimal recovery.',
       actionable: true,
       priority: 'medium',
-      timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000),
       icon: Moon,
       color: 'text-blue-400'
     },
     {
       id: '4',
       type: 'warning',
-      title: 'Training Volume Trend Alert',
-      description: 'Your training volume has consistently increased 35% over 2 months. Consider implementing planned deload weeks to optimize long-term progress.',
+      title: 'Potential Overreaching',
+      description: 'Your training volume has increased 25% this week while sleep quality decreased. Consider a deload or extra rest day to prevent burnout.',
       actionable: true,
       priority: 'high',
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
       icon: AlertTriangle,
       color: 'text-red-400'
-    },
-    {
-      id: '5',
-      type: 'pattern',
-      title: 'Seasonal Performance Pattern',
-      description: 'Your data shows 23% better adherence during winter months. Consider leveraging this natural rhythm for goal setting.',
-      actionable: true,
-      priority: 'low',
-      timestamp: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-      icon: Brain,
-      color: 'text-purple-400'
     }
   ];
 
@@ -132,12 +121,12 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ className = '' }) => {
   };
 
   return (
-    <div className={`bg-gray-900 rounded-2xl p-4 sm:p-6 border border-gray-800 ${className}`}>
+    <div className={`bg-gray-900 rounded-2xl p-6 border border-gray-800 ${className}`}>
       <div className="flex items-center gap-2 mb-6">
         <Brain size={20} className="text-purple-400" />
-        <h3 className="text-base sm:text-lg font-semibold text-white">Long-Term AI Insights</h3>
+        <h3 className="text-lg font-semibold text-white">AI Insights</h3>
         <span className="px-2 py-1 bg-purple-600/20 text-purple-300 text-xs font-medium rounded-full">
-          {insights.filter(i => i.actionable).length} trends
+          {insights.filter(i => i.actionable).length} actionable
         </span>
       </div>
 
@@ -147,7 +136,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ className = '' }) => {
           return (
             <div
               key={insight.id}
-              className={`p-3 sm:p-4 rounded-lg border ${getInsightBorderColor(insight.type)} ${getInsightBackground(insight.type)} hover:scale-[1.01] transition-transform cursor-pointer`}
+              className={`p-4 rounded-lg border ${getInsightBorderColor(insight.type)} ${getInsightBackground(insight.type)} hover:scale-[1.01] transition-transform cursor-pointer`}
             >
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 mt-0.5">
@@ -156,24 +145,24 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ className = '' }) => {
                 
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <h4 className="font-medium text-white text-xs sm:text-sm">{insight.title}</h4>
+                    <h4 className="font-medium text-white text-sm">{insight.title}</h4>
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityBadge(insight.priority)}`}>
                       {insight.priority}
                     </span>
                   </div>
                   
-                  <p className="text-gray-300 text-xs sm:text-sm leading-relaxed mb-3">
+                  <p className="text-gray-300 text-sm leading-relaxed mb-3">
                     {insight.description}
                   </p>
                   
                   <div className="flex items-center justify-between">
                     <div className="text-xs text-gray-400">
-                      {formatTimeAgo(insight.timestamp)} • {insight.type} trend
+                      {formatTimeAgo(insight.timestamp)} • {insight.type}
                     </div>
                     
                     {insight.actionable && (
-                      <button className="px-2 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors">
-                        Explore
+                      <button className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors">
+                        Take Action
                       </button>
                     )}
                   </div>
@@ -185,13 +174,13 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ className = '' }) => {
       </div>
 
       {/* Pat's Summary */}
-      <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30 rounded-lg">
+      <div className="mt-6 p-4 bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30 rounded-lg">
         <div className="flex items-center gap-2 mb-2">
           <Brain size={16} className="text-purple-400" />
-          <span className="font-medium text-purple-300 text-xs sm:text-sm">Pat's Long-term Analysis:</span>
+          <span className="font-medium text-purple-300 text-sm">Pat says:</span>
         </div>
-        <p className="text-purple-200 text-xs sm:text-sm italic">
-          "Looking at your 3-month journey, you've built incredible momentum! Your consistency patterns show you're becoming a true health champion. I'm excited to see where the next quarter takes you!"
+        <p className="text-purple-200 text-sm italic">
+          "You're making excellent progress! Focus on your sleep schedule this week, and you'll see even better results. Keep up the great work!"
         </p>
       </div>
     </div>
