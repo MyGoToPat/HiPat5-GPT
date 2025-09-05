@@ -7,7 +7,7 @@ import { AchievementBadges } from './profile/AchievementBadges';
 import { ProgressVisualizations } from './profile/ProgressVisualizations';
 import { AIInsights } from './profile/AIInsights';
 import { CustomizableHeader } from './profile/CustomizableHeader';
-import { QuickActions } from './QuickActions';
+import { QuickActions } from './profile/QuickActions';
 import { getSupabase, getUserProfile, upsertUserProfile } from '../lib/supabase';
 import RequestRoleUpgrade from './settings/RequestRoleUpgrade';
 
