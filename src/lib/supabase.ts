@@ -22,8 +22,8 @@ export async function getUserProfile(user_id: string) {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', user_id)
-    .single();
+    .eq('user_id', user_id)
+    .maybeSingle();
   if (error) throw error;
   return data;
 }

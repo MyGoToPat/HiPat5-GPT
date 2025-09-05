@@ -121,6 +121,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         }
 
         const profile = await getUserProfile(user.data.user.id);
+        
         if (profile) {
           setDbProfile(profile);
           
@@ -138,6 +139,21 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           
           setUserProfile(uiProfile);
           setEditedProfile(uiProfile);
+        } else {
+          // No profile found, create default profile for new user
+          const defaultProfile: UserProfile = {
+            name: user.data.user.email?.split('@')[0] || 'User',
+            email: user.data.user.email || '',
+            phone: '',
+            location: '',
+            dateOfBirth: '',
+            bio: '',
+            headerBackground: 'bg-gradient-to-r from-blue-600 to-purple-600',
+            headerColor: 'white'
+          };
+          
+          setUserProfile(defaultProfile);
+          setEditedProfile(defaultProfile);
         }
       } catch (error) {
         console.error('Error loading user profile:', error);
