@@ -12,7 +12,7 @@ async function getSupabase(): Promise<any | null> {
   if (w?.supabase) return w.supabase;
   try {
     // components/guards -> lib = ../../lib
-    const mod: any = await import(/* @vite-ignore */ '../../lib/supabaseClient');
+    const mod: any = await import(/* @vite-ignore */ '../../lib/supabase');
     return mod?.supabase ?? mod?.default ?? null;
   } catch {
     return null;
