@@ -1,5 +1,7 @@
 import React from 'react';
-import { ExternalLink, Settings, CheckCircle, X } from 'lucide-react';
+import { ExternalLink, Settings, CheckCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { getSupabase } from '../../lib/supabase';
 
 type AgentRow = {
@@ -36,19 +38,24 @@ export default function AgentsListPage() {
 
   async function saveRow(row: AgentRow) {
     const match = row.id != null ? { id: row.id } : { slug: row.slug };
-    await sb
-      .from('agents')
-      .update({
-        enabled: !!row.enabled,
-        order: Number.isFinite(Number(row.order)) ? Number(row.order) : 0,
-      })
-      .match(match);
+    try {
+      await sb
+        .from('agents')
+        .update({
+          enabled: !!row.enabled,
+          order: Number.isFinite(Number(row.order)) ? Number(row.order) : 0,
+        })
+        .match(match);
 
-    setRows(curr =>
-      (curr ?? []).map(r =>
-        (r.id === row.id || r.slug === row.slug) ? { ...r, _dirty: false } : r
-      )
-    );
+      setRows(curr =>
+        (curr ?? []).map(r =>
+          (r.id === row.id || r.slug === row.slug) ? { ...r, _dirty: false } : r
+        )
+      );
+      toast.success(`Saved "${row.name}"`);
+    } catch (e: any) {
+      toast.error(`Save failed${e?.message ? `: ${e.message}` : ''}`);
+    }
   }
 
   if (!rows) {
@@ -105,7 +112,7 @@ export default function AgentsListPage() {
           
           <div className="overflow-x-auto">
             <table className="min-w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="sticky top-0 z-10 bg-neutral-900/95 backdrop-blur text-left border-b border-neutral-800">
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Agent</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
@@ -116,8 +123,8 @@ export default function AgentsListPage() {
               <tbody className="divide-y divide-gray-200">
                 {rows.map((row, index) => (
                   <tr 
-                    key={row.id ?? row.slug} 
-                    className={`hover:bg-gray-50 transition-colors ${
+                    key={row.id ?? row.slug}
+                    className={`border-t border-neutral-800 odd:bg-neutral-900/30 even:bg-neutral-900/10 hover:bg-gray-50 transition-colors ${
                       row._dirty ? 'bg-yellow-50' : ''
                     }`}
                   >
@@ -170,25 +177,25 @@ export default function AgentsListPage() {
                     </td>
                     
                     <td className="px-6 py-4">
-                      <button
-                        disabled={!row._dirty}
-                        onClick={() => saveRow(row)}
-                        className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                          row._dirty 
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' 
-                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        }`}
-                        aria-label={`Save ${row.slug}`}
-                      >
-                        {row._dirty ? (
-                          <>
-                            <CheckCircle size={16} />
-                            Save Changes
-                          </>
-                        ) : (
-                          'No Changes'
-                        )}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to={`/admin/agents/${row.slug}`}
+                          className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200"
+                          aria-label={`Test ${row.name}`}
+                        >
+                          Test
+                        </Link>
+                        <button
+                          disabled={!row._dirty}
+                          onClick={() => saveRow(row)}
+                          className={`px-3 py-1 rounded ${
+                            row._dirty ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-neutral-800 text-neutral-400'
+                          }`}
+                          aria-label={`Save ${row.name}`}
+                        >
+                          Save
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
