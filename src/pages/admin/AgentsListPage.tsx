@@ -19,15 +19,21 @@ export default function AgentsListPage() {
   const [rows, setRows] = React.useState<AgentRow[] | null>(null);
 
   React.useEffect(() => {
-    (async () => {
+  // choose a safe match key (NEVER pass slug to the UUID column!)
+  const key = row.id ? { id: row.id } : { slug: row.slug };
+
+  // merge swarm into config without altering other keys
+  const newCfg = { ...(row.config ?? {}), swarm: row.swarm ?? row?.config?.swarm ?? null };
+
       const { data } = await sb
         .from('agents')
         .select('id, slug, name, enabled, order')
         .order('order', { ascending: true });
       setRows((data as AgentRow[]) ?? []);
     })();
+        config: newCfg,
   }, []);
-
+      .match(key);
   function setRow(key: string | number, patch: Partial<AgentRow>) {
     setRows(curr =>
       (curr ?? []).map(r =>
@@ -43,7 +49,7 @@ export default function AgentsListPage() {
         .from('agents')
         .update({
           enabled: !!row.enabled,
-          order: Number.isFinite(Number(row.order)) ? Number(row.order) : 0,
+      (r.id === key || r.slug === key) ? { ...r, ...patch, _dirty: true } : r
         })
         .match(match);
 
