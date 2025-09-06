@@ -15,11 +15,11 @@ export default function AgentsListPage() {
   const [rows, setRows] = React.useState<AgentRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [saving, setSaving] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     (async () => {
       try {
-        // read-only listing; personality only; left join v1 version if present
         const { data, error } = await supabase
           .from("agents")
           .select("id, slug, name, category, order, enabled, agent_versions!agent_versions_agent_id_fkey(version)")
@@ -35,59 +35,100 @@ export default function AgentsListPage() {
           category: r.category,
           order: r.order,
           enabled: r.enabled,
-          v1: Array.isArray(r.agent_versions) && r.agent_versions.length > 0
-            ? r.agent_versions.find((v: any)=>v.version===1)?.version ?? null
-            : null,
+          v1: Array.isArray(r.agent_versions) ? (r.agent_versions[0]?.version ?? null) : null,
         }));
+
         setRows(mapped);
-      } catch (e:any) {
-        setError(e?.message ?? "Failed to load agents");
-      } finally {
+        setLoading(false);
+      } catch (e: any) {
+        setError(e?.message || "Failed to load agents");
         setLoading(false);
       }
     })();
   }, []);
+
+  const setRow = (id: string, patch: Partial<AgentRow>) => {
+    setRows(r => r.map(row => (row.id === id ? { ...row, ...patch } : row)));
+  };
+
+  const saveRow = async (row: AgentRow) => {
+    setSaving(row.id);
+    try {
+      const { error } = await supabase
+        .from("agents")
+        .update({ enabled: row.enabled, order: row.order })
+        .eq("id", row.id);
+      if (error) throw error;
+    } catch (e: any) {
+      alert(`Save failed: ${e?.message || e}`);
+    } finally {
+      setSaving(null);
+    }
+  };
 
   if (loading) return <div className="p-4">Loading agents…</div>;
   if (error) return <div className="p-4 text-red-600">Error: {error}</div>;
 
   return (
     <div className="p-4">
-      <h1 className="text-xl font-semibold mb-3">Personality Agents (read-only)</h1>
+      <h1 className="text-xl font-semibold mb-3">Personality Agents</h1>
       <div className="text-sm text-gray-500 mb-2">
-        DB-driven; 12 rows expected when seeded. Toggle/order will be wired later.
+        Toggle <code>enabled</code>, adjust <code>order</code>, and click Save per row.
       </div>
       <div className="overflow-auto border rounded">
-        <table className="min-w-full text-sm">
+        <table className="min-w-[720px] w-full text-sm">
           <thead className="bg-gray-50">
-            <tr>
-              <th className="px-3 py-2 text-left">#</th>
-              <th className="px-3 py-2 text-left">Slug</th>
-              <th className="px-3 py-2 text-left">Name</th>
-              <th className="px-3 py-2 text-left">Order</th>
-              <th className="px-3 py-2 text-left">Enabled</th>
-              <th className="px-3 py-2 text-left">v1</th>
-              <th className="px-3 py-2 text-left">ID</th>
+            <tr className="text-left">
+              <th className="px-3 py-2">Slug</th>
+              <th className="px-3 py-2">Name</th>
+              <th className="px-3 py-2 w-[120px]">Enabled</th>
+              <th className="px-3 py-2 w-[120px]">Order</th>
+              <th className="px-3 py-2 w-[120px]">v1</th>
+              <th className="px-3 py-2 w-[120px]">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
-              <tr key={r.id} className="border-t">
-                <td className="px-3 py-2">{i+1}</td>
-                <td className="px-3 py-2 font-mono">{r.slug}</td>
-                <td className="px-3 py-2">{r.name ?? "—"}</td>
-                <td className="px-3 py-2">{r.order ?? "—"}</td>
-                <td className="px-3 py-2">{String(r.enabled)}</td>
-                <td className="px-3 py-2">{r.v1 ?? "—"}</td>
-                <td className="px-3 py-2 font-mono text-xs">{r.id}</td>
+            {rows.map(row => (
+              <tr key={row.id} className="border-t">
+                <td className="px-3 py-2">{row.slug}</td>
+                <td className="px-3 py-2">{row.name}</td>
+                <td className="px-3 py-2">
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={!!row.enabled}
+                      onChange={(e) => setRow(row.id, { enabled: e.target.checked })}
+                    />
+                    <span>{row.enabled ? "On" : "Off"}</span>
+                  </label>
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    type="number"
+                    className="w-24 border rounded px-2 py-1"
+                    value={row.order ?? 0}
+                    onChange={(e) => setRow(row.id, { order: Number(e.target.value) })}
+                  />
+                </td>
+                <td className="px-3 py-2">{row.v1 ?? "-"}</td>
+                <td className="px-3 py-2">
+                  <button
+                    onClick={() => saveRow(row)}
+                    disabled={saving === row.id}
+                    className="px-3 py-1 rounded bg-blue-600 text-white disabled:opacity-60"
+                    aria-label={`Save ${row.slug}`}
+                  >
+                    {saving === row.id ? "Saving…" : "Save"}
+                  </button>
+                </td>
               </tr>
             ))}
-            {rows.length === 0 && (
-              <tr><td className="px-3 py-4" colSpan={7}>No agents found.</td></tr>
-            )}
           </tbody>
         </table>
       </div>
+
+      {/* Keep ShopLens tile/link behavior elsewhere; ensure href targets /admin/agents/shoplens */}
     </div>
   );
 }

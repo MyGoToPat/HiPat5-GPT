@@ -1,116 +1,64 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { getSupabase } from '../../lib/supabase';
 
 type Props = { children: React.ReactNode };
 
-// Treat 'admin' as the privileged role (case-insensitive). No hard-coded emails.
-const ADMIN_ROLE = 'admin';
 const IS_DEV = (import.meta?.env?.MODE !== 'production');
 
-// Try to get a Supabase client from window or the common local client file.
-async function getSupabase(): Promise<any | null> {
-  const w = window as any;
-  if (w?.supabase) return w.supabase;
-  try {
-    // components/guards -> lib = ../../lib
-    const mod: any = await import(/* @vite-ignore */ '../../lib/supabase');
-    return mod?.supabase ?? mod?.default ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function isAdminFromUser(user: any): boolean {
-  if (!user) return false;
-  const roles = new Set<string>();
-
-  // Common places apps store roles in Supabase user object:
-  // app_metadata.roles (array), user_metadata.roles (array),
-  // app_metadata.role (string), user_metadata.role (string)
+function collectRoles(user: any): string[] {
+  const out: string[] = [];
   const add = (v: any) => {
     if (!v) return;
-    if (Array.isArray(v)) v.forEach(add);
-    else roles.add(String(v).toLowerCase());
+    if (Array.isArray(v)) out.push(...v.map(String));
+    else out.push(String(v));
   };
-
   add(user?.app_metadata?.roles);
   add(user?.user_metadata?.roles);
   add(user?.app_metadata?.role);
   add(user?.user_metadata?.role);
-
-  return roles.has(ADMIN_ROLE);
+  return out.map(r => r.toLowerCase());
 }
 
-const AdminGuard: React.FC<Props> = ({ children }) => {
-  const [ok, setOk] = useState(false);
-  const [loading, setLoading] = useState(true);
+export default function AdminGuard({ children }: Props) {
+  const [ok, setOk] = React.useState<boolean | null>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     (async () => {
-      const sb = await getSupabase();
-
-      let user: any = null;
       try {
-        if (sb?.auth?.getUser) {
-          const { data } = await sb.auth.getUser(); // <-- proof line #2
-          user = data?.user ?? null;
-        } else if (sb?.auth?.getSession) {
-          const { data } = await sb.auth.getSession();
-          user = data?.session?.user ?? null;
+        // DEV-only local override for quick testing
+        if (IS_DEV && (localStorage.getItem('hipat_role') || '').toLowerCase() === 'admin') {
+          setOk(true);
+          return;
         }
+
+        const sb = getSupabase();
+        const { data: { user } } = await sb.auth.getUser(); // Supabase session
+        const roles = collectRoles(user);
+        const email = (user?.email || '').toLowerCase();
+
+        // Optional env allowlist (comma-separated) e.g. VITE_ADMIN_EMAILS="info@hipat.app,admin@company.com"
+        const envAllow = String(import.meta?.env?.VITE_ADMIN_EMAILS || '')
+          .toLowerCase()
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+
+        const isAdmin = roles.includes('admin') || envAllow.includes(email);
+        setOk(!!isAdmin);
       } catch {
-        // ignore and fall through to dev-only fallback
+        setOk(false);
       }
-
-      if (isAdminFromUser(user)) {
-        setOk(true);
-      } else {
-        // Dev-only fallback: allow local override without touching Supabase/DB
-        const role = (localStorage.getItem('hipat_role') || '').toLowerCase();
-        setOk(IS_DEV && role === ADMIN_ROLE);
-      }
-
-      setLoading(false);
     })();
   }, []);
 
-  if (loading) return null;
-
+  if (ok === null) return null; // keep it blank while checking
   if (!ok) {
     return (
-      <div style={{ padding: 24, textAlign: 'center', color: '#111' }}>
-        <div style={{
-          display: 'inline-block',
-          padding: 16,
-          borderRadius: 8,
-          background: '#fff',
-          border: '1px solid #e5e7eb',
-          minWidth: 280
-        }}>
-          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>404 — Not Found</h1>
-          <p style={{ marginTop: 8, opacity: 0.8 }}>You don't have permission to view this page.</p>
-
-          {IS_DEV && (
-            <button
-              onClick={() => { localStorage.setItem('hipat_role', 'admin'); location.reload(); }}
-              style={{
-                marginTop: 16,
-                padding: '8px 12px',
-                borderRadius: 8,
-                border: '1px solid #111',
-                background: '#111',
-                color: '#fff',
-                cursor: 'pointer'
-              }}
-            >
-              Grant temporary admin (dev only)
-            </button>
-          )}
-        </div>
+      <div style={{ padding: 24, color: '#111', textAlign: 'center' }}>
+        <h1 className="text-xl font-semibold">404 - Not Found</h1>
+        <p className="text-sm opacity-80">You do not have permission to view this page.</p>
       </div>
     );
   }
-
   return <>{children}</>;
-};
-
-export default AdminGuard;
+}
