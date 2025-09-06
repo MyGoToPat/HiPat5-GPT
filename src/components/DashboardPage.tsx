@@ -276,45 +276,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               <EffortSection />
             </div>
             
-            {/* Essential Actions - Moved from Profile */}
-            <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 mb-6">
-              <div className="flex items-center gap-2 mb-6">
-                <Plus size={20} className="text-blue-400" />
-                <h3 className="text-lg font-semibold text-white">Essential Actions</h3>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <button 
-                  onClick={() => onNavigate('workout')}
-                  className="p-4 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 rounded-lg text-left transition-colors"
-                >
-                  <div className="text-orange-300 font-medium text-sm">Start Workout</div>
-                  <div className="text-orange-200 text-xs">Begin your training session</div>
-                </button>
-                <button 
-                  onClick={() => onNavigate('nutrition')}
-                  className="p-4 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded-lg text-left transition-colors"
-                >
-                  <div className="text-green-300 font-medium text-sm">Log Meal</div>
-                  <div className="text-green-200 text-xs">Track your nutrition</div>
-                </button>
-                <button 
-                  onClick={() => onNavigate('chat')}
-                  className="p-4 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg text-left transition-colors"
-                >
-                  <div className="text-blue-300 font-medium text-sm">Chat with Pat</div>
-                  <div className="text-blue-200 text-xs">Get personalized advice</div>
-                </button>
-                <button 
-                  onClick={() => onNavigate('progress')}
-                  className="p-4 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg text-left transition-colors"
-                >
-                  <div className="text-purple-300 font-medium text-sm">View Progress</div>
-                  <div className="text-purple-200 text-xs">Check your stats</div>
-                </button>
-              </div>
-            </div>
-            
             {/* Quick Actions - Moved from Profile */}
             <QuickActions onNavigate={onNavigate} />
             
