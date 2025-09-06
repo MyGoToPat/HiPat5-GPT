@@ -8,7 +8,6 @@ type AgentRow = {
   name: string;
   enabled: boolean;
   order: number;
-  v1?: number | null;
   _dirty?: boolean;
 };
 
@@ -21,7 +20,7 @@ export default function AgentsListPage() {
     (async () => {
       const { data } = await sb
         .from('agents')
-        .select('id, slug, name, enabled, order, v1')
+        .select('id, slug, name, enabled, order')
         .order('order', { ascending: true });
       setRows((data as AgentRow[]) ?? []);
     })();
@@ -66,7 +65,6 @@ export default function AgentsListPage() {
               <th className="px-3 py-2">Name</th>
               <th className="px-3 py-2">Enabled</th>
               <th className="px-3 py-2">Order</th>
-              <th className="px-3 py-2">v1</th>
               <th className="px-3 py-2">Actions</th>
             </tr>
           </thead>
@@ -90,7 +88,6 @@ export default function AgentsListPage() {
                     className="w-20 bg-neutral-900 border border-neutral-700 rounded px-2 py-1"
                   />
                 </td>
-                <td className="px-3 py-2">{row.v1 ?? '-'}</td>
                 <td className="px-3 py-2">
                   <button
                     disabled={!row._dirty}
