@@ -4,6 +4,12 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../../lib/supabase';
 
+const SWARM_TABS = [
+  { id: 'tell-me-what-you-ate',       label: 'Tell Me What You Ate' },
+  { id: 'make-me-better',             label: 'Make Me Better' },
+  { id: 'tell-me-about-your-workout', label: 'Tell Me About Your Workout' },
+] as const;
+
 type AgentRow = {
   id?: string | number;
   slug: string;
@@ -115,6 +121,9 @@ export default function AgentsListPage() {
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Agent</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-400 uppercase tracking-wider">
+                    Swarm
+                  </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Order</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Actions</th>
                 </tr>
@@ -157,6 +166,19 @@ export default function AgentsListPage() {
                           {row.enabled ? 'Enabled' : 'Disabled'}
                         </span>
                       </label>
+                    </td>
+                    
+                    <td className="px-6 py-4">
+                      <select
+                        value={row.swarm ?? row?.config?.swarm ?? ''}
+                        onChange={(e) => setRow(row.id ?? row.slug, { swarm: e.target.value, _dirty: true })}
+                        className="bg-neutral-900 border border-neutral-800 rounded px-2 py-1 text-sm"
+                      >
+                        <option value="">—</option>
+                        {SWARM_TABS.map(t => (
+                          <option key={t.id} value={t.id}>{t.label}</option>
+                        ))}
+                      </select>
                     </td>
                     
                     <td className="px-6 py-4">
