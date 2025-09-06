@@ -279,25 +279,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             {/* Quick Actions - Moved from Profile */}
             <QuickActions onNavigate={onNavigate} />
             
-            {/* Essential Actions - Mobile-Optimized */}
-            <div className="mt-6 bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 border border-gray-800">
-              <div className="flex items-center justify-center gap-3">
-                <button 
-                  onClick={() => onNavigate('chat')}
-                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl text-white font-medium transition-all duration-200 min-h-[44px] flex-1 max-w-[200px] justify-center"
-                >
-                  <MessageSquare size={20} />
-                  <span className="text-sm">Chat with Pat</span>
-                </button>
-                <button 
-                  onClick={() => onNavigate('voice')}
-                  className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-xl text-white font-medium transition-all duration-200 min-h-[44px] flex-1 max-w-[200px] justify-center"
-                >
-                  <Mic size={20} />
-                  <span className="text-sm">Talk with Pat</span>
-                </button>
-              </div>
-            </div>
             </div>
             
           </div>
