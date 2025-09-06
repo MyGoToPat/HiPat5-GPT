@@ -185,6 +185,13 @@ export default function AgentsListPage() {
                         >
                           Test
                         </Link>
+                        <Link
+                          to={`/admin/agents/${row.slug}`}
+                          className="px-3 py-1 rounded bg-green-600 hover:bg-green-700 text-white"
+                          aria-label={`Edit ${row.name}`}
+                        >
+                          Edit
+                        </Link>
                         <button
                           disabled={!row._dirty}
                           onClick={() => saveRow(row)}
