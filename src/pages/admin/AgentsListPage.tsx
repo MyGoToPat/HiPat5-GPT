@@ -1,6 +1,6 @@
 import React from 'react';
 import AdminHeader from '../../components/admin/AdminHeader';
-import { ExternalLink, Settings, CheckCircle, ChevronUp, ChevronDown } from 'lucide-react';
+import { ExternalLink, Settings, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../../lib/supabase';
@@ -17,12 +17,10 @@ type AgentRow = {
   name: string;
   enabled: boolean;
   order: number;
-  _dirty?: boolean;
   _open?: boolean;
+  _dirty?: boolean;
   swarm?: string;
-  versionConfig?: {
-    swarm?: string;
-  };
+  versionConfig?: { swarm?: string };
 };
 
 const sb = getSupabase();
@@ -46,7 +44,7 @@ export default function AgentsListPage() {
   function setRow(key: string | number, patch: Partial<AgentRow>) {
     setRows(curr =>
       (curr ?? []).map(r =>
-        (r.id === key || r.slug === key) ? { ...r, ...patch, _dirty: true } : r
+        (r.id === key || r.slug === key) ? { ...r, ...patch } : r
       )
     );
   }
@@ -206,7 +204,7 @@ export default function AgentsListPage() {
             <table className="min-w-full">
               <thead className="sticky top-0 z-10 bg-neutral-900/95 backdrop-blur text-left border-b border-neutral-800">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Expand</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expand</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Agent</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-neutral-400 uppercase tracking-wider">
