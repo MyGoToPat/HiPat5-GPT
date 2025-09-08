@@ -1,6 +1,6 @@
 import React from 'react';
 import AdminHeader from '../../components/admin/AdminHeader';
-import { ExternalLink, Settings, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { ExternalLink, Settings, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../../lib/supabase';
@@ -17,19 +17,18 @@ type AgentRow = {
   name: string;
   enabled: boolean;
   order: number;
-  _open?: boolean;
   _dirty?: boolean;
   swarm?: string;
-  versionConfig?: { swarm?: string };
+  config?: any;
 };
 
 const sb = getSupabase();
 
 export default function AgentsListPage() {
   const [rows, setRows] = React.useState<AgentRow[] | null>(null);
+  const [roleFilter, setRoleFilter] = React.useState<string | null>(null);
   const [betaEnabled, setBetaEnabled] = React.useState(false);
   const [paidEnabled, setPaidEnabled] = React.useState(false);
-  const [roleFilter, setRoleFilter] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     (async () => {
@@ -44,15 +43,7 @@ export default function AgentsListPage() {
   function setRow(key: string | number, patch: Partial<AgentRow>) {
     setRows(curr =>
       (curr ?? []).map(r =>
-        (r.id === key || r.slug === key) ? { ...r, ...patch } : r
-      )
-    );
-  }
-
-  function setRowKey(key: string | number, patch: Partial<AgentRow>) {
-    setRows(curr =>
-      (curr ?? []).map(r =>
-        (r.id === key || r.slug === key) ? { ...r, ...patch } : r
+        (r.id === key || r.slug === key) ? { ...r, ...patch, _dirty: true } : r
       )
     );
   }
@@ -204,7 +195,7 @@ export default function AgentsListPage() {
             <table className="min-w-full">
               <thead className="sticky top-0 z-10 bg-neutral-900/95 backdrop-blur text-left border-b border-neutral-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expand</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Expand</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Agent</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-neutral-400 uppercase tracking-wider">
@@ -216,130 +207,102 @@ export default function AgentsListPage() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {rows.map((row, index) => (
-                  <React.Fragment key={row.id ?? row.slug}>
-                    <tr 
-                      className={`hover:bg-gray-50 transition-colors ${
-                        row._dirty ? 'bg-yellow-50' : ''
-                      }`}
-                    >
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => setRowKey(row.id ?? row.slug, { _open: !row._open })}
-                          className="p-1 hover:bg-gray-100 rounded transition-colors"
-                        >
-                          {row._open ? (
-                            <ChevronUp size={16} className="text-gray-400" />
-                          ) : (
-                            <ChevronDown size={16} className="text-gray-400" />
-                          )}
-                        </button>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="font-medium text-gray-900">{row.name}</div>
-                          <div className="font-mono text-sm text-gray-500">{row.slug}</div>
-                        </div>
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <label className="inline-flex items-center gap-3 cursor-pointer">
-                          <div className="relative">
-                            <input
-                              type="checkbox"
-                              checked={!!row.enabled}
-                              onChange={e => setRow(row.id ?? row.slug, { enabled: e.target.checked })}
-                              className="sr-only"
-                            />
-                            <div className={`w-11 h-6 rounded-full transition-colors ${
-                              row.enabled ? 'bg-green-500' : 'bg-gray-300'
-                            }`}>
-                              <div className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                                row.enabled ? 'translate-x-5 mt-0.5' : 'translate-x-0.5 mt-0.5'
-                              }`} />
-                            </div>
-                          </div>
-                          <span className={`text-sm font-medium ${
-                            row.enabled ? 'text-green-700' : 'text-gray-500'
+                  <tr 
+                    key={row.id ?? row.slug}
+                    className={`border-t border-neutral-800 odd:bg-neutral-900/30 even:bg-neutral-900/10 hover:bg-gray-50 transition-colors ${
+                      row._dirty ? 'bg-yellow-50' : ''
+                    }`}
+                  >
+                    <td className="px-6 py-4">
+                      <div>
+                        <div className="font-medium text-gray-900">{row.name}</div>
+                        <div className="font-mono text-sm text-gray-500">{row.slug}</div>
+                      </div>
+                    </td>
+                    
+                    <td className="px-6 py-4">
+                      <label className="inline-flex items-center gap-3 cursor-pointer">
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            checked={!!row.enabled}
+                            onChange={e => setRow(row.id ?? row.slug, { enabled: e.target.checked })}
+                            className="sr-only"
+                          />
+                          <div className={`w-11 h-6 rounded-full transition-colors ${
+                            row.enabled ? 'bg-green-500' : 'bg-gray-300'
                           }`}>
-                            {row.enabled ? 'Enabled' : 'Disabled'}
-                          </span>
-                        </label>
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-600">
-                          {row.versionConfig?.swarm ? SWARM_TABS.find(t => t.id === row.versionConfig?.swarm)?.label : '—'}
+                            <div className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${
+                              row.enabled ? 'translate-x-5 mt-0.5' : 'translate-x-0.5 mt-0.5'
+                            }`} />
+                          </div>
+                        </div>
+                        <span className={`text-sm font-medium ${
+                          row.enabled ? 'text-green-700' : 'text-gray-500'
+                        }`}>
+                          {row.enabled ? 'Enabled' : 'Disabled'}
                         </span>
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-600">
-                          {row.order ?? 0}
+                      </label>
+                    </td>
+                    
+                    <td className="px-6 py-4">
+                      <select
+                        value={row.swarm ?? row?.config?.swarm ?? ''}
+                        onChange={(e) => setRow(row.id ?? row.slug, { swarm: e.target.value, _dirty: true })}
+                        className="bg-neutral-900 border border-neutral-800 rounded px-2 py-1 text-sm"
+                      >
+                        <option value="">—</option>
+                        {SWARM_TABS.map(t => (
+                          <option key={t.id} value={t.id}>{t.label}</option>
+                        ))}
+                      </select>
+                    </td>
+                    
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={row.order ?? 0}
+                          onChange={e => setRow(row.id ?? row.slug, { order: Number(e.target.value) })}
+                          className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          min="0"
+                          max="999"
+                        />
+                        <span className="text-sm text-gray-500">
+                          #{index + 1}
                         </span>
-                      </td>
-                      
-                      <td className="px-6 py-4">
+                      </div>
+                    </td>
+                    
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
                         <Link
                           to={`/admin/agents/${row.id}`}
-                          className="text-blue-600 hover:text-blue-900 text-sm"
+                          className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200"
+                          aria-label={`Test ${row.name}`}
+                        >
+                          Test
+                        </Link>
+                        <Link
+                          to={`/admin/agents/${row.id}`}
+                          className="px-3 py-1 rounded bg-green-600 hover:bg-green-700 text-white"
+                          aria-label={`Edit ${row.name}`}
                         >
                           Edit
                         </Link>
-                      </td>
-                    </tr>
-                    
-                    {row._open && (
-                      <tr className="bg-gray-50">
-                        <td colSpan={6} className="px-6 py-4">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Swarm Assignment</label>
-                              <select
-                                value={row.versionConfig?.swarm ?? ''}
-                                onChange={(e) => setRow(row.id ?? row.slug, { swarm: e.target.value, _dirty: true })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              >
-                                <option value="">None</option>
-                                {SWARM_TABS.map(t => (
-                                  <option key={t.id} value={t.id}>{t.label}</option>
-                                ))}
-                              </select>
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Execution Order</label>
-                              <input
-                                type="number"
-                                value={row.order ?? 0}
-                                onChange={e => setRow(row.id ?? row.slug, { order: Number(e.target.value), _dirty: true })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                min="0"
-                                max="999"
-                              />
-                            </div>
-                            
-                            <div className="flex items-end gap-2">
-                              <Link
-                                to={`/admin/agents/${row.id}`}
-                                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
-                              >
-                                Edit Agent
-                              </Link>
-                              <button
-                                disabled={!row._dirty}
-                                onClick={() => saveRow(row)}
-                                className={`px-3 py-2 rounded text-sm transition-colors ${
-                                  row._dirty ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                }`}
-                              >
-                                Save
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
+                        <button
+                          disabled={!row._dirty}
+                          onClick={() => saveRow(row)}
+                          className={`px-3 py-1 rounded ${
+                            row._dirty ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-neutral-800 text-neutral-400'
+                          }`}
+                          aria-label={`Save ${row.name}`}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
