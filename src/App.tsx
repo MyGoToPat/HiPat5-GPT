@@ -26,7 +26,6 @@ import AdminPage from './pages/AdminPage';
 import AdminGuard from './components/guards/AdminGuard';
 import AgentsListPage from './pages/admin/AgentsListPage';
 import AgentDetailPage from './pages/admin/AgentDetailPage';
-import AgentSandboxPage from './pages/admin/AgentSandboxPage';
 import ShopLensPage from './pages/agents/ShopLensPage';
 
 import AppLayout from './layouts/AppLayout';
@@ -76,7 +75,6 @@ function App() {
             <Route path="agents" element={<AdminGuard><AgentsListPage /></AdminGuard>} />
             <Route path="agents/:agentId" element={<AdminGuard><AgentDetailPage /></AdminGuard>} />
             <Route path="agents/shoplens" element={<AdminGuard><ShopLensPage /></AdminGuard>} />
-            <Route path="sandbox" element={<AdminGuard><AgentSandboxPage /></AdminGuard>} />
           </Route>
         </Route>
 

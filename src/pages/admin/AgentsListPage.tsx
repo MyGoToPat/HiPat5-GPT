@@ -1,6 +1,6 @@
 import React from 'react';
 import AdminHeader from '../../components/admin/AdminHeader';
-import { ExternalLink, Settings, CheckCircle } from 'lucide-react';
+import { ExternalLink, Settings, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../../lib/supabase';
@@ -17,6 +17,7 @@ type AgentRow = {
   name: string;
   enabled: boolean;
   order: number;
+  _open?: boolean;
   _dirty?: boolean;
 };
 
@@ -24,6 +25,8 @@ const sb = getSupabase();
 
 export default function AgentsListPage() {
   const [rows, setRows] = React.useState<AgentRow[] | null>(null);
+  const [betaEnabled, setBetaEnabled] = React.useState(false);
+  const [paidEnabled, setPaidEnabled] = React.useState(false);
 
   React.useEffect(() => {
     (async () => {
@@ -38,7 +41,15 @@ export default function AgentsListPage() {
   function setRow(key: string | number, patch: Partial<AgentRow>) {
     setRows(curr =>
       (curr ?? []).map(r =>
-        (r.id === key || r.slug === key) ? { ...r, ...patch, _dirty: true } : r
+        (r.id === key || r.slug === key) ? { ...r, ...patch } : r
+      )
+    );
+  }
+
+  function setRowKey(key: string | number, patch: Partial<AgentRow>) {
+    setRows(curr =>
+      (curr ?? []).map(r =>
+        (r.id === key || r.slug === key) ? { ...r, ...patch } : r
       )
     );
   }
@@ -118,17 +129,50 @@ export default function AgentsListPage() {
           title="Personality Agents" 
           subtitle="Configure AI personality modules for Pat"
           right={
-            <Link
-              to="/admin/sandbox"
-              className="px-4 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-100"
-              aria-label="Open Agent & Swarm Sandbox"
-            >
-              Sandbox
-            </Link>
           }
         />
         
         <div className="mb-8">
+
+      {/* Role Header Controls */}
+      {roleFilter && (
+        <div className="mb-6 bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">
+                {SWARM_TABS.find(t => t.id === roleFilter)?.label || roleFilter} Configuration
+              </h3>
+              <p className="text-xs text-gray-600">Test and configure rollout settings for this role</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <Link
+                to={`/chat?agent=${roleFilter}`}
+                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
+              >
+                Test Role
+              </Link>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={betaEnabled}
+                  onChange={(e) => setBetaEnabled(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-gray-700">Enable for Beta</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={paidEnabled}
+                  onChange={(e) => setPaidEnabled(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-gray-700">Enable for Paid</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
           
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
@@ -156,6 +200,7 @@ export default function AgentsListPage() {
             <table className="min-w-full">
               <thead className="sticky top-0 z-10 bg-neutral-900/95 backdrop-blur text-left border-b border-neutral-800">
                 <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expand</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Expand</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Agent</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
@@ -168,102 +213,130 @@ export default function AgentsListPage() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {rows.map((row, index) => (
-                  <tr 
-                    key={row.id ?? row.slug}
-                    className={`border-t border-neutral-800 odd:bg-neutral-900/30 even:bg-neutral-900/10 hover:bg-gray-50 transition-colors ${
-                      row._dirty ? 'bg-yellow-50' : ''
-                    }`}
-                  >
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="font-medium text-gray-900">{row.name}</div>
-                        <div className="font-mono text-sm text-gray-500">{row.slug}</div>
-                      </div>
-                    </td>
-                    
-                    <td className="px-6 py-4">
-                      <label className="inline-flex items-center gap-3 cursor-pointer">
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            checked={!!row.enabled}
-                            onChange={e => setRow(row.id ?? row.slug, { enabled: e.target.checked })}
-                            className="sr-only"
-                          />
-                          <div className={`w-11 h-6 rounded-full transition-colors ${
-                            row.enabled ? 'bg-green-500' : 'bg-gray-300'
-                          }`}>
-                            <div className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                              row.enabled ? 'translate-x-5 mt-0.5' : 'translate-x-0.5 mt-0.5'
-                            }`} />
-                          </div>
-                        </div>
-                        <span className={`text-sm font-medium ${
-                          row.enabled ? 'text-green-700' : 'text-gray-500'
-                        }`}>
-                          {row.enabled ? 'Enabled' : 'Disabled'}
-                        </span>
-                      </label>
-                    </td>
-                    
-                    <td className="px-6 py-4">
-                      <select
-                        value={row.swarm ?? row?.config?.swarm ?? ''}
-                        onChange={(e) => setRow(row.id ?? row.slug, { swarm: e.target.value, _dirty: true })}
-                        className="bg-neutral-900 border border-neutral-800 rounded px-2 py-1 text-sm"
-                      >
-                        <option value="">—</option>
-                        {SWARM_TABS.map(t => (
-                          <option key={t.id} value={t.id}>{t.label}</option>
-                        ))}
-                      </select>
-                    </td>
-                    
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          value={row.order ?? 0}
-                          onChange={e => setRow(row.id ?? row.slug, { order: Number(e.target.value) })}
-                          className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          min="0"
-                          max="999"
-                        />
-                        <span className="text-sm text-gray-500">
-                          #{index + 1}
-                        </span>
-                      </div>
-                    </td>
-                    
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          to={`/admin/agents/${row.id}`}
-                          className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200"
-                          aria-label={`Test ${row.name}`}
+                  <React.Fragment key={row.id ?? row.slug}>
+                    <tr 
+                      className={`hover:bg-gray-50 transition-colors ${
+                        row._dirty ? 'bg-yellow-50' : ''
+                      }`}
+                    >
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => setRowKey(row.id ?? row.slug, { _open: !row._open })}
+                          className="p-1 hover:bg-gray-100 rounded transition-colors"
                         >
-                          Test
-                        </Link>
+                          {row._open ? (
+                            <ChevronUp size={16} className="text-gray-400" />
+                          ) : (
+                            <ChevronDown size={16} className="text-gray-400" />
+                          )}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <div className="font-medium text-gray-900">{row.name}</div>
+                          <div className="font-mono text-sm text-gray-500">{row.slug}</div>
+                        </div>
+                      </td>
+                      
+                      <td className="px-6 py-4">
+                        <label className="inline-flex items-center gap-3 cursor-pointer">
+                          <div className="relative">
+                            <input
+                              type="checkbox"
+                              checked={!!row.enabled}
+                              onChange={e => setRow(row.id ?? row.slug, { enabled: e.target.checked })}
+                              className="sr-only"
+                            />
+                            <div className={`w-11 h-6 rounded-full transition-colors ${
+                              row.enabled ? 'bg-green-500' : 'bg-gray-300'
+                            }`}>
+                              <div className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${
+                                row.enabled ? 'translate-x-5 mt-0.5' : 'translate-x-0.5 mt-0.5'
+                              }`} />
+                            </div>
+                          </div>
+                          <span className={`text-sm font-medium ${
+                            row.enabled ? 'text-green-700' : 'text-gray-500'
+                          }`}>
+                            {row.enabled ? 'Enabled' : 'Disabled'}
+                          </span>
+                        </label>
+                      </td>
+                      
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-gray-600">
+                          {row.versionConfig?.swarm ? SWARM_TABS.find(t => t.id === row.versionConfig?.swarm)?.label : '—'}
+                        </span>
+                      </td>
+                      
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-gray-600">
+                          {row.order ?? 0}
+                        </span>
+                      </td>
+                      
+                      <td className="px-6 py-4">
                         <Link
                           to={`/admin/agents/${row.id}`}
-                          className="px-3 py-1 rounded bg-green-600 hover:bg-green-700 text-white"
-                          aria-label={`Edit ${row.name}`}
+                          className="text-blue-600 hover:text-blue-900 text-sm"
                         >
                           Edit
                         </Link>
-                        <button
-                          disabled={!row._dirty}
-                          onClick={() => saveRow(row)}
-                          className={`px-3 py-1 rounded ${
-                            row._dirty ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-neutral-800 text-neutral-400'
-                          }`}
-                          aria-label={`Save ${row.name}`}
-                        >
-                          Save
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+                    </tr>
+                    
+                    {row._open && (
+                      <tr className="bg-gray-50">
+                        <td colSpan={6} className="px-6 py-4">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Swarm Assignment</label>
+                              <select
+                                value={row.versionConfig?.swarm ?? ''}
+                                onChange={(e) => setRow(row.id ?? row.slug, { swarm: e.target.value, _dirty: true })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="">None</option>
+                                {SWARM_TABS.map(t => (
+                                  <option key={t.id} value={t.id}>{t.label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Execution Order</label>
+                              <input
+                                type="number"
+                                value={row.order ?? 0}
+                                onChange={e => setRow(row.id ?? row.slug, { order: Number(e.target.value), _dirty: true })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                min="0"
+                                max="999"
+                              />
+                            </div>
+                            
+                            <div className="flex items-end gap-2">
+                              <Link
+                                to={`/admin/agents/${row.id}`}
+                                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
+                              >
+                                Edit Agent
+                              </Link>
+                              <button
+                                disabled={!row._dirty}
+                                onClick={() => saveRow(row)}
+                                className={`px-3 py-2 rounded text-sm transition-colors ${
+                                  row._dirty ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                }`}
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
@@ -284,24 +357,3 @@ export default function AgentsListPage() {
         </div>
 
         {/* Help Section */}
-        <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Configuration Guide</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h4 className="font-medium text-gray-900 mb-2">Enabled Status</h4>
-              <p className="text-gray-600 text-sm">
-                Control whether this personality module is active. Disabled agents will not process user interactions.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-medium text-gray-900 mb-2">Execution Order</h4>
-              <p className="text-gray-600 text-sm">
-                Lower numbers execute first. Use this to prioritize certain personality traits or processing steps.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
