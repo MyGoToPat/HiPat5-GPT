@@ -1,6 +1,7 @@
 import React from 'react';
 import AdminHeader from '../../components/admin/AdminHeader';
 import { ROLE_ORCHESTRATORS } from '../../lib/role-orchestrators';
+import { SWARM_TABS } from '../../lib/swarm-tabs';
 import { ExternalLink, Settings, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
