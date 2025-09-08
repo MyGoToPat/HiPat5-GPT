@@ -14,6 +14,7 @@ type AgentRow = {
   name: string;
   enabled: boolean;
   order: number;
+  current_version_id?: string;
   _open?: boolean;
   _dirty?: boolean;
   swarm?: string;
@@ -38,9 +39,27 @@ export default function AgentsListPage() {
     (async () => {
       const { data } = await sb
         .from('agents')
-        .select('id, slug, name, enabled, order')
+        .select('id, slug, name, enabled, order, current_version_id')
         .order('order', { ascending: true });
-      setRows((data as AgentRow[]) ?? []);
+      
+      const rows = (data as AgentRow[]) ?? [];
+      
+      // Collect unique version IDs
+      const ids = Array.from(new Set(rows.map(r => r.current_version_id).filter(Boolean)));
+      
+      if (ids.length > 0) {
+        // Bulk fetch versions
+        const { data: vers } = await sb
+          .from('agent_versions')
+          .select('id, config, config_json')
+          .in('id', ids);
+        
+        // Map & attach
+        const map = new Map((vers || []).map(v => [v.id, (v.config ?? v.config_json ?? {})]));
+        setRows(rows.map(r => ({ ...r, versionConfig: map.get(r.current_version_id) || {} })));
+      } else {
+        setRows(rows);
+      }
     })();
   }, []);
 
