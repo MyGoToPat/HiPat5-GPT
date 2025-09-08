@@ -60,57 +60,6 @@ export default function AgentsListPage() {
     );
   }
 
-  const filteredRows = rows?.filter(r => !roleFilter || (r.versionConfig?.swarm ?? '') === roleFilter) ?? [];
-  const orchestratorSlug = roleFilter ? ROLE_ORCHESTRATORS[roleFilter] : undefined;
-
-  const saveRoleAccess = async (betaEnabled: boolean, paidEnabled: boolean) => {
-    if (!orchestratorSlug) {
-      toast.error('No orchestrator agent found for this role');
-      return;
-    }
-
-    try {
-      // Find orchestrator agent by slug
-      const { data: agent, error: agentError } = await sb
-        .from('agents')
-        .select('current_version_id')
-        .eq('slug', orchestratorSlug)
-        .single();
-
-      if (agentError || !agent?.current_version_id) {
-        toast.error('Orchestrator agent not found');
-        return;
-      }
-
-      // Fetch current version config
-      const { data: version, error: versionError } = await sb
-        .from('agent_versions')
-        .select('id, config, config_json')
-        .eq('id', agent.current_version_id)
-        .single();
-
-      if (versionError || !version) {
-        toast.error('Version config not found');
-        return;
-      }
-
-      const cfg = version.config ?? version.config_json ?? {};
-      const next = { ...cfg, role: { ...(cfg.role||{}), access: { ...(cfg.role?.access||{}), betaEnabled, paidEnabled } } };
-
-      await sb
-        .from('agent_versions')
-        .update({ config: next })
-        .eq('id', version.id);
-
-      toast.success('Role access settings saved!');
-    } catch (error: any) {
-      console.error('Failed to save role access:', error);
-      toast.error('Failed to save settings');
-    }
-  };
-
-  async function load() {
-
   async function saveRow(row: AgentRow) {
     const match = row.id != null ? { id: row.id } : { slug: row.slug };
     try {
@@ -204,8 +153,12 @@ export default function AgentsListPage() {
             </div>
             <div className="flex items-center gap-4">
               <Link
-                to={`/chat?agent=${roleFilter}`}
-                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
+                to={`/chat?agent=${orchestratorSlug}`}
+                className={`px-3 py-2 rounded text-sm transition-colors ${
+                  orchestratorSlug 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
               >
                 Test Role
               </Link>
@@ -213,7 +166,10 @@ export default function AgentsListPage() {
                 <input
                   type="checkbox"
                   checked={betaEnabled}
-                  onChange={(e) => setBetaEnabled(e.target.checked)}
+                  onChange={(e) => {
+                    setBetaEnabled(e.target.checked);
+                    saveRoleAccess(e.target.checked, paidEnabled);
+                  }}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <span className="text-gray-700">Enable for Beta</span>
@@ -222,7 +178,10 @@ export default function AgentsListPage() {
                 <input
                   type="checkbox"
                   checked={paidEnabled}
-                  onChange={(e) => setPaidEnabled(e.target.checked)}
+                  onChange={(e) => {
+                    setPaidEnabled(e.target.checked);
+                    saveRoleAccess(betaEnabled, e.target.checked);
+                  }}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <span className="text-gray-700">Enable for Paid</span>
