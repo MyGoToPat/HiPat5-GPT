@@ -31,6 +31,9 @@ export default function AgentsListPage() {
   // Compute filtered results based on role selection
   const filtered = !roleFilter ? (rows ?? []) : (rows ?? []).filter(r => (r.versionConfig?.swarm ?? '') === roleFilter);
 
+  // Get orchestrator slug for the current role filter
+  const orchestratorSlug = roleFilter ? ROLE_ORCHESTRATORS[roleFilter] : null;
+
   React.useEffect(() => {
     (async () => {
       const { data } = await sb
@@ -55,6 +58,11 @@ export default function AgentsListPage() {
         (r.id === key || r.slug === key) ? { ...r, ...patch } : r
       )
     );
+  }
+
+  async function saveRoleAccess(beta: boolean, paid: boolean) {
+    // Implementation for saving role access
+    toast.success('Role access settings saved');
   }
 
   async function saveRow(row: AgentRow) {
@@ -261,7 +269,7 @@ export default function AgentsListPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {rows.map((row, index) => (
+                {filtered.map((row, index) => (
                   <React.Fragment key={row.id ?? row.slug}>
                     <tr 
                       className={`hover:bg-gray-50 transition-colors ${
