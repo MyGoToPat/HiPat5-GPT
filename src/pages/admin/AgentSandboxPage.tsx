@@ -121,5 +121,3 @@ const AgentSandboxPage: React.FC = () => {
 };
 
 export default AgentSandboxPage;
-
-<boltArtifact id="create-agent-sandbox-page" title="Create Agent & Swarm Sandbox testing interface">
