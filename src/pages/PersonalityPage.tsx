@@ -2,8 +2,81 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { SWARM_TABS } from '../lib/swarm-tabs';
 import { PatAvatar } from '../components/PatAvatar';
+import { getSupabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
+
+const sb = getSupabase();
 
 const PersonalityPage: React.FC = () => {
+  const [mainRolePrompt, setMainRolePrompt] = React.useState('');
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  // Load current main role prompt
+  React.useEffect(() => {
+    (async () => {
+      try {
+        // Find personality agent
+        const { data: agent } = await sb
+          .from('agents')
+          .select('current_version_id')
+          .eq('slug', 'personality')
+          .single();
+
+        if (agent?.current_version_id) {
+          const { data: version } = await sb
+            .from('agent_versions')
+            .select('id, config, config_json')
+            .eq('id', agent.current_version_id)
+            .single();
+
+          if (version) {
+            const cfg = version.config ?? version.config_json ?? {};
+            setMainRolePrompt(cfg.role?.prompt ?? '');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load personality prompt:', error);
+      }
+    })();
+  }, []);
+
+  const handleSavePrompt = async () => {
+    setIsSaving(true);
+    try {
+      // Find personality agent
+      const { data: agent } = await sb
+        .from('agents')
+        .select('current_version_id')
+        .eq('slug', 'personality')
+        .single();
+
+      if (agent?.current_version_id) {
+        const { data: version } = await sb
+          .from('agent_versions')
+          .select('id, config, config_json')
+          .eq('id', agent.current_version_id)
+          .single();
+
+        if (version) {
+          const cfg = version.config ?? version.config_json ?? {};
+          const next = { ...cfg, role: { ...(cfg.role || {}), prompt: mainRolePrompt } };
+
+          await sb
+            .from('agent_versions')
+            .update({ config: next })
+            .eq('id', version.id);
+
+          toast.success('Main role prompt saved!');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save prompt:', error);
+      toast.error('Failed to save prompt');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="p-4 space-y-6">
       <header className="space-y-2">
@@ -38,6 +111,31 @@ const PersonalityPage: React.FC = () => {
               <div className="text-neutral-500 text-[11px] mt-2">Assigned agents: —</div>
             </Link>
           ))}
+        </div>
+      </section>
+
+      {/* Main Role Prompt Editor */}
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold text-neutral-300">Main Role Prompt</h2>
+        <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4">
+          <div className="space-y-3">
+            <textarea
+              value={mainRolePrompt}
+              onChange={(e) => setMainRolePrompt(e.target.value)}
+              placeholder="Enter the main personality prompt for Pat..."
+              className="w-full bg-neutral-900 border border-neutral-800 rounded p-3 text-sm text-neutral-200 resize-none"
+              rows={6}
+            />
+            <div className="flex justify-end">
+              <button
+                onClick={handleSavePrompt}
+                disabled={isSaving}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded text-sm transition-colors"
+              >
+                {isSaving ? 'Saving...' : 'Save Prompt'}
+              </button>
+            </div>
+          </div>
         </div>
       </section>
     </div>
