@@ -1,6 +1,6 @@
 import React from 'react';
 import AdminHeader from '../../components/admin/AdminHeader';
-import { ExternalLink, Settings, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { ExternalLink, Settings, CheckCircle, ChevronUp, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../../lib/supabase';
@@ -17,10 +17,12 @@ type AgentRow = {
   name: string;
   enabled: boolean;
   order: number;
-  _open?: boolean;
   _dirty?: boolean;
+  _open?: boolean;
   swarm?: string;
-  versionConfig?: { swarm?: string };
+  versionConfig?: {
+    swarm?: string;
+  };
 };
 
 const sb = getSupabase();
@@ -44,7 +46,7 @@ export default function AgentsListPage() {
   function setRow(key: string | number, patch: Partial<AgentRow>) {
     setRows(curr =>
       (curr ?? []).map(r =>
-        (r.id === key || r.slug === key) ? { ...r, ...patch } : r
+        (r.id === key || r.slug === key) ? { ...r, ...patch, _dirty: true } : r
       )
     );
   }
