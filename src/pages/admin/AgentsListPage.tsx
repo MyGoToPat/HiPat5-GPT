@@ -1,5 +1,6 @@
 import React from 'react';
 import AdminHeader from '../../components/admin/AdminHeader';
+import { ROLE_ORCHESTRATORS } from '../../lib/role-orchestrators';
 import { ExternalLink, Settings, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -29,6 +30,8 @@ export default function AgentsListPage() {
   const [rows, setRows] = React.useState<AgentRow[] | null>(null);
   const [betaEnabled, setBetaEnabled] = React.useState(false);
   const [paidEnabled, setPaidEnabled] = React.useState(false);
+  const [betaEnabled, setBetaEnabled] = React.useState(false);
+  const [paidEnabled, setPaidEnabled] = React.useState(false);
   const [roleFilter, setRoleFilter] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -56,6 +59,57 @@ export default function AgentsListPage() {
       )
     );
   }
+
+  const filteredRows = rows?.filter(r => !roleFilter || (r.versionConfig?.swarm ?? '') === roleFilter) ?? [];
+  const orchestratorSlug = roleFilter ? ROLE_ORCHESTRATORS[roleFilter] : undefined;
+
+  const saveRoleAccess = async (betaEnabled: boolean, paidEnabled: boolean) => {
+    if (!orchestratorSlug) {
+      toast.error('No orchestrator agent found for this role');
+      return;
+    }
+
+    try {
+      // Find orchestrator agent by slug
+      const { data: agent, error: agentError } = await sb
+        .from('agents')
+        .select('current_version_id')
+        .eq('slug', orchestratorSlug)
+        .single();
+
+      if (agentError || !agent?.current_version_id) {
+        toast.error('Orchestrator agent not found');
+        return;
+      }
+
+      // Fetch current version config
+      const { data: version, error: versionError } = await sb
+        .from('agent_versions')
+        .select('id, config, config_json')
+        .eq('id', agent.current_version_id)
+        .single();
+
+      if (versionError || !version) {
+        toast.error('Version config not found');
+        return;
+      }
+
+      const cfg = version.config ?? version.config_json ?? {};
+      const next = { ...cfg, role: { ...(cfg.role||{}), access: { ...(cfg.role?.access||{}), betaEnabled, paidEnabled } } };
+
+      await sb
+        .from('agent_versions')
+        .update({ config: next })
+        .eq('id', version.id);
+
+      toast.success('Role access settings saved!');
+    } catch (error: any) {
+      console.error('Failed to save role access:', error);
+      toast.error('Failed to save settings');
+    }
+  };
+
+  async function load() {
 
   async function saveRow(row: AgentRow) {
     const match = row.id != null ? { id: row.id } : { slug: row.slug };
