@@ -12,7 +12,6 @@ type Agent = {
   name: string;
   enabled: boolean;
   order: number | null;
-  config: any | null;
 };
 
 const AgentSandboxPage: React.FC = () => {
@@ -26,7 +25,7 @@ const AgentSandboxPage: React.FC = () => {
       setLoading(true);
       const { data, error } = await sb
         .from('agents')
-        .select('id, slug, name, enabled, order, config');
+        .select('id, slug, name, enabled, order');
       if (!error && Array.isArray(data)) setAgents(data as Agent[]);
       setLoading(false);
     })();
@@ -34,7 +33,7 @@ const AgentSandboxPage: React.FC = () => {
 
   const roleAgents = React.useMemo(() => {
     if (!role) return agents;
-    return (agents ?? []).filter(a => (a?.config?.swarm ?? '') === role);
+    return (agents ?? []);
   }, [agents, role]);
 
   const selected = React.useMemo(
@@ -113,7 +112,7 @@ const AgentSandboxPage: React.FC = () => {
       <section className="space-y-2">
         <label className="text-sm text-neutral-400">Config (read-only JSON)</label>
         <pre className="w-full h-[340px] overflow-auto bg-neutral-950 border border-neutral-800 rounded p-3 text-xs">
-{JSON.stringify(selected?.config ?? {}, null, 2)}
+{JSON.stringify({ note: 'Config data requires agent_versions join - not implemented yet' }, null, 2)}
         </pre>
       </section>
 
