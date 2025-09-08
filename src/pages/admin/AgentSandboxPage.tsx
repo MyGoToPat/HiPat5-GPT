@@ -19,6 +19,7 @@ const AgentSandboxPage: React.FC = () => {
   const [agents, setAgents] = React.useState<Agent[]>([]);
   const [role, setRole] = React.useState<string>('');
   const [agentSlug, setAgentSlug] = React.useState<string>('');
+  const [selectedConfig, setSelectedConfig] = React.useState<any>({});
 
   React.useEffect(() => {
     (async () => {
@@ -40,6 +41,29 @@ const AgentSandboxPage: React.FC = () => {
     () => roleAgents.find(a => a.slug === agentSlug) ?? null,
     [roleAgents, agentSlug]
   );
+
+  // Fetch version config when selected agent changes
+  React.useEffect(() => {
+    if (!selected?.current_version_id) {
+      setSelectedConfig({});
+      return;
+    }
+
+    (async () => {
+      const { data, error } = await sb
+        .from('agent_versions')
+        .select('id, config, config_json')
+        .eq('id', selected.current_version_id)
+        .single();
+      
+      if (!error && data) {
+        const cfg = data.config ?? data.config_json ?? {};
+        setSelectedConfig(cfg);
+      } else {
+        setSelectedConfig({});
+      }
+    })();
+  }, [selected]);
 
   return (
     <div className="p-6 space-y-6 text-neutral-200">
