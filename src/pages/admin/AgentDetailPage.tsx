@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import AdminHeader from '../../components/admin/AdminHeader';
 import { useParams, Link } from 'react-router-dom';
 import { useAgentsStore } from '../../store/agents';
 import { Plus, CheckCircle, Trash2, Settings, ArrowLeft } from 'lucide-react';
@@ -60,14 +61,17 @@ export default function AgentDetailPage() {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-4">
-          <Link to="/admin/agents" className="text-blue-600 hover:text-blue-900 flex items-center gap-1">
-            <ArrowLeft size={16} /> Back to Agents
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Agent: {agent.name}</h1>
-        </div>
-      </div>
+      <AdminHeader
+        title={agent ? `Agent: ${agent.name}` : 'Agent'}
+        subtitle={agent ? `slug: ${agent.id}` : ''}
+        right={
+          <div className="flex items-center gap-2">
+            <Link to={`/chat?agent=${agent?.id ?? ''}`} className="px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200">
+              Test in Chat
+            </Link>
+          </div>
+        }
+      />
 
       <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Agent Details</h2>

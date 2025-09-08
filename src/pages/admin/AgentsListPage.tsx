@@ -1,4 +1,5 @@
 import React from 'react';
+import AdminHeader from '../../components/admin/AdminHeader';
 import { ExternalLink, Settings, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -81,24 +82,21 @@ export default function AgentsListPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto p-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Settings size={20} className="text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Personality Agents</h1>
-              <p className="text-gray-600 mt-1">Configure AI personality modules for Pat</p>
-            </div>
+        <AdminHeader 
+          title="Personality Agents" 
+          subtitle="Configure AI personality modules for Pat"
+          right={
             <Link
               to="/admin/sandbox"
-              className="ml-auto px-4 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-100"
+              className="px-4 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-100"
               aria-label="Open Agent & Swarm Sandbox"
             >
               Sandbox
             </Link>
-          </div>
+          }
+        />
+        
+        <div className="mb-8">
           
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
