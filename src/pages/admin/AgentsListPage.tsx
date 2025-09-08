@@ -1,5 +1,6 @@
 import React from 'react';
 import AdminHeader from '../../components/admin/AdminHeader';
+import RoleTabs from '../../components/admin/RoleTabs';
 import { ROLE_ORCHESTRATORS } from '../../lib/role-orchestrators';
 import { SWARM_TABS } from '../../lib/swarm-tabs';
 import { ExternalLink, Settings, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
@@ -27,6 +28,7 @@ export default function AgentsListPage() {
   const [paidEnabled, setPaidEnabled] = React.useState(false);
   const [roleFilter, setRoleFilter] = React.useState<string | null>(null);
 
+  // Compute filtered results based on role selection
   const filtered = !roleFilter ? (rows ?? []) : (rows ?? []).filter(r => (r.versionConfig?.swarm ?? '') === roleFilter);
 
   React.useEffect(() => {
@@ -202,8 +204,44 @@ export default function AgentsListPage() {
           </div>
         </div>
 
+        {/* Role Tabs */}
+        <RoleTabs value={roleFilter} onChange={setRoleFilter} />
+
         {/* Agents Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {roleFilter && roleFilter !== 'pats-personality' && filtered.length === 0 ? (
+          /* Empty State for Non-Personality Roles */
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+            <div className="max-w-md mx-auto">
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                {SWARM_TABS.find(tab => tab.id === roleFilter)?.label}
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {SWARM_TABS.find(tab => tab.id === roleFilter)?.blurb}
+              </p>
+              <div className="flex items-center justify-center gap-4">
+                <Link
+                  to={ROLE_ORCHESTRATORS[roleFilter] ? `/chat?agent=${ROLE_ORCHESTRATORS[roleFilter]}` : '#'}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    ROLE_ORCHESTRATORS[roleFilter]
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  Test Role
+                </Link>
+                <Link
+                  to="/admin/agents"
+                  onClick={() => toast.info('Create agent functionality coming soon')}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm transition-colors"
+                >
+                  Add new swarm agent
+                </Link>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Agents Table */
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
             <h2 className="text-lg font-semibold text-gray-900">Agent Configuration</h2>
           </div>
