@@ -404,6 +404,7 @@ export default function AgentsListPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Help Section */}
       </div>
