@@ -372,6 +372,15 @@ export default function AgentsListPage() {
                               />
                             </div>
                             
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">LLM Provider</label>
+                              <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm text-gray-600">
+                                {row.versionConfig?.provider || 'openai'}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-end gap-2 mt-4">
                             <div className="flex items-end gap-2">
                               <Link
                                 to={`/admin/agents/${row.id}`}

@@ -5,6 +5,7 @@ import { useAgentsStore } from '../../store/agents';
 import { Plus, CheckCircle, Trash2, Settings, ArrowLeft } from 'lucide-react';
 import { AgentVersionCreateModal } from '../../components/agents/AgentVersionCreateModal';
 import toast from 'react-hot-toast';
+import { getSupabase } from '../../lib/supabase';
 
 export default function AgentDetailPage() {
   const { agentId } = useParams<{ agentId: string }>();
@@ -22,12 +23,51 @@ export default function AgentDetailPage() {
   const agent = agentId ? getAgentById(agentId) : undefined;
   const versions = agentId ? getAgentVersions(agentId) : [];
   const [showCreateVersionModal, setShowCreateVersionModal] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<string>('openai');
+  const [savingProvider, setSavingProvider] = useState(false);
 
   useEffect(() => {
     if (agentId) {
       fetchAgentVersions(agentId);
     }
   }, [agentId, fetchAgentVersions]);
+
+  const currentVersion = useAgentsStore.getState().getCurrentAgentVersion(agent?.id || '');
+  
+  // Update selectedProvider when current version changes
+  useEffect(() => {
+    if (currentVersion) {
+      const provider = currentVersion.config?.provider || 'openai';
+      setSelectedProvider(provider);
+    }
+  }, [currentVersion]);
+
+  const handleSaveProvider = async () => {
+    if (!agentId || !currentVersion) return;
+    
+    setSavingProvider(true);
+    try {
+      const supabase = getSupabase();
+      const cfg = currentVersion.config || {};
+      const next = { ...cfg, provider: selectedProvider || 'openai' };
+      
+      const { error } = await supabase
+        .from('agent_versions')
+        .update({ config: next })
+        .eq('id', currentVersion.id);
+      
+      if (error) throw error;
+      
+      toast.success(`Provider updated to ${selectedProvider}`);
+      // Refresh versions to show updated config
+      await fetchAgentVersions(agentId);
+    } catch (error) {
+      console.error('Error updating provider:', error);
+      toast.error('Failed to update provider');
+    } finally {
+      setSavingProvider(false);
+    }
+  };
 
   const handleCreateVersion = async (config: Record<string, any>) => {
     if (!agentId) return;
@@ -57,7 +97,13 @@ export default function AgentDetailPage() {
   if (error) return <div className="p-6 text-center text-red-500">Error: {error}</div>;
   if (!agent) return <div className="p-6 text-center">Agent not found.</div>;
 
-  const currentVersion = useAgentsStore.getState().getCurrentAgentVersion(agent.id);
+  const availableProviders = [
+    { value: 'openai', label: 'OpenAI' },
+    { value: 'anthropic', label: 'Anthropic' },
+    { value: 'gemini', label: 'Google Gemini' },
+    { value: 'deepseek', label: 'DeepSeek' },
+    { value: 'perplexity', label: 'Perplexity' }
+  ];
 
   return (
     <div className="p-6">
@@ -95,6 +141,42 @@ export default function AgentDetailPage() {
             )}
           </p>
         </div>
+      </div>
+
+      {/* LLM Provider Configuration */}
+      <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">LLM Provider Configuration</h2>
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <label htmlFor="provider-select" className="block text-sm font-medium text-gray-700 mb-2">
+              LLM Provider
+            </label>
+            <select
+              id="provider-select"
+              value={selectedProvider}
+              onChange={(e) => setSelectedProvider(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {availableProviders.map((provider) => (
+                <option key={provider.value} value={provider.value}>
+                  {provider.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-shrink-0">
+            <button
+              onClick={handleSaveProvider}
+              disabled={savingProvider || !currentVersion}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+            >
+              {savingProvider ? 'Saving...' : 'Save Provider'}
+            </button>
+          </div>
+        </div>
+        <p className="text-sm text-gray-600 mt-2">
+          Current provider: <span className="font-medium">{currentVersion?.config?.provider || 'openai'}</span>
+        </p>
       </div>
 
       <div className="flex justify-between items-center mb-4">
