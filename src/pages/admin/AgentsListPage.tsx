@@ -361,7 +361,7 @@ export default function AgentsListPage() {
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
             <div className="flex items-center justify-between text-sm text-gray-600">
               <span>
-                {rows.length} total agents • {rows.filter(r => r.enabled).length} enabled • {rows.filter(r => r._dirty).length} unsaved changes
+                {filtered.length} {roleFilter ? 'filtered' : 'total'} agents • {filtered.filter(r => r.enabled).length} enabled • {filtered.filter(r => r._dirty).length} unsaved changes
               </span>
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 bg-yellow-100 border border-yellow-300 rounded"></div>
