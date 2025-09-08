@@ -123,15 +123,6 @@ const AgentSandboxPage: React.FC = () => {
 export default AgentSandboxPage;
 ```
 
-Proof to paste (no logs)
-1) The SWARM_TABS import line from AgentSandboxPage.tsx:  import { SWARM_TABS } from '../../lib/swarm-tabs';
-2) The Supabase read line:  .from('agents').select('id, slug, name, enabled, order, config');
-3) The client-side role filter line:  return (agents ?? []).filter(a => (a?.config?.swarm ?? '') === role);
-4) The Chat deep-link line:  to={agentSlug ? `/chat?agent=${agentSlug}` : '/chat'}
-5) The read-only JSON preview line:  {JSON.stringify(selected?.config ?? {}, null, 2)}
-
-Then WAIT.
-
 ## Plan
 1. Create \`src/pages/admin/AgentSandboxPage.tsx` with the exact content specified
 2. This will be a read-only testing interface that allows admins to:
