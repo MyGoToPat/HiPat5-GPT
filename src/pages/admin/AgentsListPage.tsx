@@ -91,6 +91,13 @@ export default function AgentsListPage() {
               <h1 className="text-3xl font-bold text-gray-900">Personality Agents</h1>
               <p className="text-gray-600 mt-1">Configure AI personality modules for Pat</p>
             </div>
+            <Link
+              to="/admin/sandbox"
+              className="ml-auto px-4 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-100"
+              aria-label="Open Agent & Swarm Sandbox"
+            >
+              Sandbox
+            </Link>
           </div>
           
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
