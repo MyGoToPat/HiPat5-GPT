@@ -44,7 +44,7 @@ export default function AgentsListPage() {
   function setRow(key: string | number, patch: Partial<AgentRow>) {
     setRows(curr =>
       (curr ?? []).map(r =>
-        (r.id === key || r.slug === key) ? { ...r, ...patch, _dirty: true } : r
+        (r.id === key || r.slug === key) ? { ...r, ...patch } : r
       )
     );
   }
