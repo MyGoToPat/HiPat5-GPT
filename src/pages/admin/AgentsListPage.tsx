@@ -7,12 +7,6 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../../lib/supabase';
 
-const SWARM_TABS = [
-  { id: 'tell-me-what-you-ate',       label: 'Tell Me What You Ate' },
-  { id: 'make-me-better',             label: 'Make Me Better' },
-  { id: 'tell-me-about-your-workout', label: 'Tell Me About Your Workout' },
-] as const;
-
 type AgentRow = {
   id?: string | number;
   slug: string;
