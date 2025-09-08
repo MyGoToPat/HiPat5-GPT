@@ -46,12 +46,44 @@ export default function AgentsListPage() {
   async function saveRow(row: AgentRow) {
     const match = row.id != null ? { id: row.id } : { slug: row.slug };
     try {
+      // Save enabled/order to agents table
       await sb
         .from('agents')
         .update({
           enabled: !!row.enabled,
+          order: row.order
         })
         .match(match);
+
+      // Save swarm to agent_versions if defined
+      if (row.swarm !== undefined) {
+        // Fetch agent to get current_version_id
+        const { data: agent, error: agentError } = await sb
+          .from('agents')
+          .select('current_version_id')
+          .match(match)
+          .single();
+
+        if (!agentError && agent?.current_version_id) {
+          // Fetch current version config
+          const { data: version, error: versionError } = await sb
+            .from('agent_versions')
+            .select('id, config, config_json')
+            .eq('id', agent.current_version_id)
+            .single();
+
+          if (!versionError && version) {
+            const base = version.config ?? version.config_json ?? {};
+            const merged = { ...base, swarm: row.swarm ?? null };
+
+            // Update agent_versions with merged config
+            await sb
+              .from('agent_versions')
+              .update({ config: merged })
+              .eq('id', version.id);
+          }
+        }
+      }
 
       setRows(curr =>
         (curr ?? []).map(r =>
