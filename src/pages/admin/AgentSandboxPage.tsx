@@ -112,7 +112,7 @@ const AgentSandboxPage: React.FC = () => {
       <section className="space-y-2">
         <label className="text-sm text-neutral-400">Config (read-only JSON)</label>
         <pre className="w-full h-[340px] overflow-auto bg-neutral-950 border border-neutral-800 rounded p-3 text-xs">
-{JSON.stringify(selectedConfig, null, 2)}
+{JSON.stringify({ note: 'Config data requires agent_versions join - not implemented yet' }, null, 2)}
         </pre>
       </section>
 
