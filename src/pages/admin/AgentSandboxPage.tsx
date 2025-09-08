@@ -121,3 +121,34 @@ const AgentSandboxPage: React.FC = () => {
 };
 
 export default AgentSandboxPage;
+```
+
+Proof to paste (no logs)
+1) The SWARM_TABS import line from AgentSandboxPage.tsx:  import { SWARM_TABS } from '../../lib/swarm-tabs';
+2) The Supabase read line:  .from('agents').select('id, slug, name, enabled, order, config');
+3) The client-side role filter line:  return (agents ?? []).filter(a => (a?.config?.swarm ?? '') === role);
+4) The Chat deep-link line:  to={agentSlug ? `/chat?agent=${agentSlug}` : '/chat'}
+5) The read-only JSON preview line:  {JSON.stringify(selected?.config ?? {}, null, 2)}
+
+Then WAIT.
+
+## Plan
+1. Create \`src/pages/admin/AgentSandboxPage.tsx` with the exact content specified
+2. This will be a read-only testing interface that allows admins to:
+   - Select a role from SWARM_TABS to filter agents
+   - Choose a specific agent from those assigned to the selected role
+   - View the agent's complete configuration as formatted JSON
+   - Navigate to test the agent in chat or edit the agent
+
+## Expected Visual Outcome
+A clean admin testing interface with:
+- Header explaining the read-only sandbox purpose
+- Three-column responsive grid: Role selector, Agent selector, Action buttons
+- Role dropdown showing "All roles" plus the 3 SWARM_TABS options
+- Agent dropdown that dynamically filters based on \`config.swarm` matching selected role
+- Large JSON preview area (340px height) with syntax highlighting showing selected agent's config
+- Blue "Test in Chat" button and gray "Edit Agent" button
+- Proper loading and empty states
+- Dark theme with good contrast and accessibility
+
+<boltArtifact id="create-agent-sandbox-page" title="Create Agent & Swarm Sandbox testing interface">
