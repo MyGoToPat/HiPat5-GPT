@@ -30,8 +30,6 @@ export default function AgentsListPage() {
   const [rows, setRows] = React.useState<AgentRow[] | null>(null);
   const [betaEnabled, setBetaEnabled] = React.useState(false);
   const [paidEnabled, setPaidEnabled] = React.useState(false);
-  const [betaEnabled, setBetaEnabled] = React.useState(false);
-  const [paidEnabled, setPaidEnabled] = React.useState(false);
   const [roleFilter, setRoleFilter] = React.useState<string | null>(null);
 
   React.useEffect(() => {
