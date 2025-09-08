@@ -27,6 +27,8 @@ export default function AgentsListPage() {
   const [paidEnabled, setPaidEnabled] = React.useState(false);
   const [roleFilter, setRoleFilter] = React.useState<string | null>(null);
 
+  const filtered = !roleFilter ? (rows ?? []) : (rows ?? []).filter(r => (r.versionConfig?.swarm ?? '') === roleFilter);
+
   React.useEffect(() => {
     (async () => {
       const { data } = await sb
