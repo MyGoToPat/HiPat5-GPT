@@ -1,0 +1,50 @@
+name: Deploy to Firebase Hosting
+on:
+  push:
+    branches: [ "main" ]
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci || npm install
+
+      - name: Build
+        run: npm run build
+
+      # We’ll set FIREBASE_PROJECT_ID as a repo secret in a later step.
+      # This writes .firebaserc on-the-fly so we don’t need it committed.
+      - name: Write .firebaserc from secret
+        run: |
+          printf '{ "projects": { "default": "%s" } }\n' "${{ secrets.FIREBASE_PROJECT_ID }}" > .firebaserc
+
+      - name: Install Firebase CLI
+        run: npm i -g firebase-tools@13
+
+      # Safe-skip if secrets aren’t added yet (prevents red X runs)
+      - name: Deploy to Firebase Hosting
+        if: ${{ secrets.FIREBASE_TOKEN != '' && secrets.FIREBASE_PROJECT_ID != '' }}
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          firebase deploy --only hosting --project ${{ secrets.FIREBASE_PROJECT_ID }}
+
+      - name: Skip deploy (secrets missing)
+        if: ${{ !(secrets.FIREBASE_TOKEN != '' && secrets.FIREBASE_PROJECT_ID != '') }}
+        run: echo "Skipping deploy: set FIREBASE_TOKEN and FIREBASE_PROJECT_ID repo secrets."
