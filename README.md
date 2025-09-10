@@ -30,3 +30,8 @@ Frontend now calls `openai-chat` and `openai-food-macros` via `supabase.function
 - Run locally: `npm run ci:verify:soft` (reports only - doesn't fail)
 - Pattern checks ensure no TopBar/Tabs/inline SVGs remain
 - Note: In WebContainer, `git` is unavailable; use local terminal for commits/pushes
+
+## Deploys via GitHub → Firebase Hosting
+Required GitHub Secrets: FIREBASE_PROJECT_ID, FIREBASE_TOKEN
+Add hipat.app as a custom domain in Firebase Hosting and verify DNS.
+SPA rewrite serves /index.html for any path (e.g., /login).
