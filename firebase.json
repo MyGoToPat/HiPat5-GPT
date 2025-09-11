@@ -3,6 +3,9 @@
     "public": "dist",
     "ignore": ["**/.*", "**/node_modules/**"],
     "cleanUrls": true,
+    "redirects": [
+      { "source": "/", "destination": "/login", "type": 301 }
+    ],
     "rewrites": [
       { "source": "**", "destination": "/index.html" }
     ],
