@@ -36,3 +36,21 @@ Frontend now calls `openai-chat` and `openai-food-macros` via `supabase.function
 Required GitHub Secrets: FIREBASE_PROJECT_ID, FIREBASE_TOKEN
 Add hipat.app as a custom domain in Firebase Hosting and verify DNS.
 SPA rewrite serves /index.html for any path (e.g., /login).
+
+## BOLT Single-Step Deployment
+
+Use the deployment script for one-click deploys from BOLT:
+
+```bash
+./scripts/deploy-to-firebase.sh
+```
+
+**Prerequisites (configure once in BOLT):**
+- Secret: `FIREBASE_TOKEN` (from `firebase login:ci`)
+- Env: `FIREBASE_PROJECT=hipatapp`
+- Env: `FIREBASE_SITE=hipatapp` 
+- Env: `BUILD_CMD="npm run build"`
+- Env: `BUILD_DIR="dist"`
+- Env: `HEALTHCHECK_URLS="https://hipat.app https://www.hipat.app"`
+
+The script safely patches `firebase.json` without overwriting existing rewrites/headers/redirects.
