@@ -8,5 +8,6 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Profile',          to: '/profile',           roles: ['user','admin','trainer'] },
   { label: 'Client Management', to: '/trainer-dashboard', roles: ['admin','trainer'] },
   { label: 'Admin Agents',     to: '/admin/agents',      roles: ['admin'] },
+  { label: 'User Management',  to: '/admin/users',       roles: ['admin'] },
   { label: 'TDEE Calculator',  to: '/tdee',              roles: ['user','admin','trainer'] },
 ] as const;

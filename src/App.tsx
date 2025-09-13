@@ -23,6 +23,7 @@ import TrainerDashboardPage from './pages/TrainerDashboardPage';
 import AdminPage from './pages/AdminPage';
 
 // Admin/agents
+import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminGuard from './components/guards/AdminGuard';
 import AgentsListPage from './pages/admin/AgentsListPage';
 import AgentDetailPage from './pages/admin/AgentDetailPage';
@@ -76,6 +77,7 @@ function App() {
             <Route index element={<AdminPage />} />
             <Route path="agents" element={<AdminGuard><AgentsListPage /></AdminGuard>} />
             <Route path="agents/shoplens" element={<AdminGuard><ShopLensPage /></AdminGuard>} />
+            <Route path="users" element={<AdminGuard><AdminUsersPage /></AdminGuard>} />
           </Route>
         </Route>
 
