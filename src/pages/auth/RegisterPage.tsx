@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, User, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { PatAvatar } from '../../components/PatAvatar';
 import { getSupabase } from '../../lib/supabase';
 
@@ -8,6 +9,7 @@ interface RegisterPageProps {
 }
 
 export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -88,6 +90,8 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
 
       if (data.user) {
         setSuccess('Registration successful! Please check your email for a confirmation link.');
+        // Redirect to beta holding page
+        navigate('/welcome-beta', { replace: true });
         // Clear form
         setName('');
         setEmail('');

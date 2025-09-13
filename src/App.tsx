@@ -27,6 +27,7 @@ import AdminGuard from './components/guards/AdminGuard';
 import AgentsListPage from './pages/admin/AgentsListPage';
 import AgentDetailPage from './pages/admin/AgentDetailPage';
 import ShopLensPage from './pages/agents/ShopLensPage';
+import WelcomeBetaPage from './pages/WelcomeBetaPage';
 
 import AppLayout from './layouts/AppLayout';
 
@@ -47,6 +48,7 @@ function App() {
         <Route path="/register" element={<RegisterPage onNavigate={createOnNavigateWrapper()} />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={createOnNavigateWrapper()} />} />
         <Route path="/health" element={<Health />} />
+        <Route path="/welcome-beta" element={<WelcomeBetaPage />} />
 
         {/* PROTECTED APP LAYOUT */}
         <Route
