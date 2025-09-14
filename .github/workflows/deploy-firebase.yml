@@ -1,7 +1,8 @@
 name: Deploy to Firebase Hosting
+
 on:
-  push:
-    branches: [ "main" ]
+  workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -10,25 +11,19 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
-
       - name: Authenticate to Google Cloud (OIDC)
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           export_default_credentials: true
-
       - run: npm ci || npm install
       - run: npm run build
-
       - name: Install Firebase CLI
         run: npm i -g firebase-tools@13
-
       - name: Deploy to Firebase Hosting
         run: firebase deploy --only hosting --project ${{ secrets.FIREBASE_PROJECT_ID }}
-
