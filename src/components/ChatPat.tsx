@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AppBar } from './AppBar';
 import { PatAvatar } from './PatAvatar';
-import { NavigationSidebar } from './NavigationSidebar';
 import { VoiceWaveform } from './VoiceWaveform';
 import { Plus, Mic, Folder, Camera, Image, ArrowUp, Check, X } from 'lucide-react';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
@@ -25,12 +23,11 @@ import {
 } from '../lib/history';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
-interface ChatPatProps {
-  onNavigate: (page: string, state?: { autoStartMode?: 'takePhoto' | 'videoStream' }) => void;
-}
 
-export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
+export const ChatPat: React.FC = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
   // Thread management
@@ -52,7 +49,6 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
   const [isDictating, setIsDictating] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [showNavigation, setShowNavigation] = useState(false);
   const [activeAgentSession, setActiveAgentSession] = useState<AgentSession | null>(null);
   const [silentMode, setSilentMode] = useState(false);
 
@@ -390,7 +386,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
             
             // Auto-open camera with appropriate mode
             const autoStartMode = triggeredAgent.id.includes('meal') || triggeredAgent.id.includes('eating') ? 'takePhoto' : 'videoStream';
-            onNavigate('camera', { autoStartMode });
+             navigate('/camera', { state: { autoStartMode } });
           }, 2000);
         }
       } else {
@@ -615,21 +611,6 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
 
   return (
     <div className="h-screen bg-pat-gradient text-white flex flex-col">
-      <NavigationSidebar 
-        isOpen={showNavigation} 
-        onClose={() => setShowNavigation(false)} 
-        onNavigate={onNavigate}
-        onNewChat={handleNewChat}
-        onLoadChat={handleLoadChat}
-        chatHistories={chatState.chatHistories}
-        userProfile={null}
-      />
-      
-      <AppBar 
-        title="PAT" 
-        onMenu={() => setShowNavigation(true)}
-      />
-      
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto px-4 py-6">
           {messages.length === 1 && !isTyping && (
@@ -755,7 +736,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
                             
                             // Auto-open camera with appropriate mode
                             const autoStartMode = agent.id.includes('meal') || agent.id.includes('eating') ? 'takePhoto' : 'videoStream';
-                            onNavigate('camera', { autoStartMode });
+                             navigate('/camera', { state: { autoStartMode } });
                           }
                         }
                       }}
@@ -843,7 +824,7 @@ export const ChatPat: React.FC<ChatPatProps> = ({ onNavigate }) => {
                   </button>
                 ) : (
                   <button
-                    onClick={() => onNavigate('voice')}
+                     onClick={() => navigate('/voice')}
                     className="hover:opacity-80 transition-all duration-300 relative group"
                   >
                     <PatAvatar 

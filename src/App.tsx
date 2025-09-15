@@ -5,6 +5,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import RootLayout from './layouts/RootLayout';
 
 // Auth/public pages
 import { LoginPage } from './pages/auth/LoginPage';
@@ -30,15 +31,8 @@ import AgentDetailPage from './pages/admin/AgentDetailPage';
 import ShopLensPage from './pages/agents/ShopLensPage';
 import WelcomeBetaPage from './pages/WelcomeBetaPage';
 
-import AppLayout from './layouts/AppLayout';
 
 function App() {
-  // Wrapper kept for components that still accept string-based onNavigate
-  const createOnNavigateWrapper = () => {
-    return (_page: string) => {
-      // Intentionally no-op here; real navigation handled by React Router in each page
-    };
-  };
 
   return (
     <ErrorBoundary>
@@ -46,8 +40,8 @@ function App() {
       <Routes>
         {/* PUBLIC ROUTES */}
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage onNavigate={createOnNavigateWrapper()} />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={createOnNavigateWrapper()} />} />
+        <Route path="/register" element={<RegisterPage onNavigate={() => {}} />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={() => {}} />} />
         <Route path="/health" element={<Health />} />
         <Route path="/welcome-beta" element={<WelcomeBetaPage />} />
 
@@ -56,7 +50,7 @@ function App() {
           path="/"
           element={
             <ProtectedRoute>
-              <AppLayout />
+              <RootLayout />
             </ProtectedRoute>
           }
         >
@@ -68,15 +62,16 @@ function App() {
           <Route path="voice" element={<VoicePage />} />
           <Route
             path="tdee"
-            element={<TDEEOnboardingWizard onComplete={() => (window.location.href = '/dashboard')} />}
+            element={<TDEEOnboardingWizard onComplete={() => window.location.href = '/dashboard'} />}
           />
-          <Route path="trainer-dashboard" element={<TrainerDashboardPage userProfile={null} />} />
+          <Route path="trainer-dashboard" element={<TrainerDashboardPage />} />
 
           {/* ADMIN-ONLY NESTED ROUTES */}
           <Route path="admin">
             <Route index element={<AdminPage />} />
             <Route path="agents" element={<AdminGuard><AgentsListPage /></AdminGuard>} />
             <Route path="agents/shoplens" element={<AdminGuard><ShopLensPage /></AdminGuard>} />
+            <Route path="agents/:agentId" element={<AdminGuard><AgentDetailPage /></AdminGuard>} />
             <Route path="users" element={<AdminGuard><AdminUsersPage /></AdminGuard>} />
           </Route>
         </Route>

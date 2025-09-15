@@ -1,26 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PatAvatar } from './PatAvatar';
 import { VoiceWaveform } from './VoiceWaveform';
-import { AppBar } from './AppBar';
-import { NavigationSidebar } from './NavigationSidebar';
 import { Video, Mic, Volume2, VolumeX, MessageSquare, Keyboard, Speaker } from 'lucide-react';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
 import { MetricAlert } from '../types/metrics';
 import { ConversationAgentManager } from '../utils/conversationAgents';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { useNavigate } from 'react-router-dom';
 
-interface TalkingPatPage1Props {
-  onNavigate: (page: string, state?: { autoStartMode?: 'takePhoto' | 'videoStream' }) => void;
-}
 
-export const TalkingPatPage1: React.FC<TalkingPatPage1Props> = ({ onNavigate }) => {
+export const TalkingPatPage1: React.FC = () => {
+  const navigate = useNavigate();
   const [isListening, setIsListening] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [silentMode, setSilentMode] = useState(false);
   const [caption, setCaption] = useState("Hi, I'm Pat. I can help with meals, workouts, and planning!");
-  const [showNavigation, setShowNavigation] = useState(false);
   const [showConversationBubbles, setShowConversationBubbles] = useState(true);
   const [speechPauseTimer, setSpeechPauseTimer] = useState<NodeJS.Timeout | null>(null);
   const [lastSpeechTime, setLastSpeechTime] = useState<number>(0);
@@ -137,7 +133,7 @@ export const TalkingPatPage1: React.FC<TalkingPatPage1Props> = ({ onNavigate }) 
         if (triggeredAgent.requiresCamera) {
           response = `Great! I'll help you with ${triggeredAgent.title}. Let me open the camera for you.`;
           setTimeout(() => {
-            onNavigate('camera');
+             navigate('/camera');
           }, 2000);
         } else {
           response = ConversationAgentManager.generateMealTrackingResponse(transcript);
@@ -175,7 +171,7 @@ export const TalkingPatPage1: React.FC<TalkingPatPage1Props> = ({ onNavigate }) 
         setTimeout(() => {
           // Determine auto-start mode based on agent
           const autoStartMode = agentTitle.includes('eating') ? 'takePhoto' : 'videoStream';
-          onNavigate('camera', { autoStartMode });
+           navigate('/camera', { state: { autoStartMode } });
         }, 2000);
         return;
       }
@@ -254,19 +250,6 @@ export const TalkingPatPage1: React.FC<TalkingPatPage1Props> = ({ onNavigate }) 
 
   return (
     <div className="h-screen bg-pat-gradient flex flex-col w-full overflow-x-hidden">
-      <NavigationSidebar 
-        isOpen={showNavigation} 
-        onClose={() => setShowNavigation(false)} 
-        onNavigate={onNavigate}
-        onNewChat={() => onNavigate('chat')}
-        userProfile={null}
-      />
-      
-      <AppBar 
-        title="PAT" 
-        onMenu={() => setShowNavigation(true)}
-      />
-      
       <div className="flex-1 flex flex-col px-6 text-white overflow-hidden">
 
         {/* Pat Avatar - Positioned Higher */}
@@ -361,7 +344,7 @@ export const TalkingPatPage1: React.FC<TalkingPatPage1Props> = ({ onNavigate }) 
       <div className="p-6 flex-shrink-0">
         <div className="flex items-center justify-center gap-4 p-4 bg-gray-50 rounded-3xl">
           <button 
-            onClick={() => onNavigate('camera')}
+            onClick={() => navigate('/camera')}
             className="p-3 hover:bg-white/20 rounded-full transition-colors"
           >
             <Video size={26} className="text-gray-600" />
@@ -414,7 +397,7 @@ export const TalkingPatPage1: React.FC<TalkingPatPage1Props> = ({ onNavigate }) 
           
           {/* Keyboard Icon for Text Chat */}
           <button 
-            onClick={() => onNavigate('chat')}
+            onClick={() => navigate('/chat')}
             className="p-3 hover:bg-white/20 rounded-full transition-colors relative group"
           >
             <Keyboard size={26} className="text-gray-600" />

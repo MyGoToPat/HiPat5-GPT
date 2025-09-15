@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { AppBar } from './AppBar';
-import { NavigationSidebar } from './NavigationSidebar';
 import { PatAvatar } from './PatAvatar';
 import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, Edit3, Save, X, Camera, Globe, Moon, Sun, Smartphone, Trophy, Target, MessageSquare, Award, TrendingUp, Activity, Clock, CheckCircle, Volume2, Flame } from 'lucide-react';
 import { AchievementBadges } from './profile/AchievementBadges';
@@ -9,10 +7,8 @@ import { AIInsights } from './profile/AIInsights';
 import { CustomizableHeader } from './profile/CustomizableHeader';
 import { getSupabase, getUserProfile, upsertUserProfile } from '../lib/supabase';
 import RequestRoleUpgrade from './settings/RequestRoleUpgrade';
+import { useNavigate } from 'react-router-dom';
 
-interface ProfilePageProps {
-  onNavigate: (page: string) => void;
-}
 
 interface UserProfile {
   name: string;
@@ -85,33 +81,35 @@ const tabs = [
   { id: 'usage', label: 'Usage', icon: BarChart3 }
 ];
 
-const QuickActions = ({ onNavigate }: { onNavigate: (page: string) => void }) => (
+const QuickActions = () => {
+  const navigate = useNavigate();
+  return (
   <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
     <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
     <div className="grid grid-cols-2 gap-3">
       <button 
-        onClick={() => onNavigate('workout')}
+        onClick={() => navigate('/voice')}
         className="p-4 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 rounded-lg text-left transition-colors"
       >
         <div className="text-orange-300 font-medium text-sm">Start Workout</div>
         <div className="text-orange-200 text-xs">Begin your training session</div>
       </button>
       <button 
-        onClick={() => onNavigate('nutrition')}
+        onClick={() => navigate('/voice')}
         className="p-4 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded-lg text-left transition-colors"
       >
         <div className="text-green-300 font-medium text-sm">Log Meal</div>
         <div className="text-green-200 text-xs">Track your nutrition</div>
       </button>
       <button 
-        onClick={() => onNavigate('chat')}
+        onClick={() => navigate('/chat')}
         className="p-4 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg text-left transition-colors"
       >
         <div className="text-blue-300 font-medium text-sm">Chat with Pat</div>
         <div className="text-blue-200 text-xs">Get personalized advice</div>
       </button>
       <button 
-        onClick={() => onNavigate('progress')}
+        onClick={() => navigate('/dashboard')}
         className="p-4 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg text-left transition-colors"
       >
         <div className="text-purple-300 font-medium text-sm">View Progress</div>
@@ -119,10 +117,11 @@ const QuickActions = ({ onNavigate }: { onNavigate: (page: string) => void }) =>
       </button>
     </div>
   </div>
-);
+  );
+};
 
-export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
-  const [showNavigation, setShowNavigation] = useState(false);
+export const ProfilePage: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'account' | 'usage'>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -379,7 +378,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
             </p>
             <div className="flex gap-3">
               <button 
-                onClick={() => onNavigate('chat')}
+                onClick={() => navigate('/chat')}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 Chat with Pat
@@ -630,7 +629,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
       <AIInsights insights={aiInsights} />
 
       {/* Quick Actions */}
-      <QuickActions onNavigate={onNavigate} />
+       <QuickActions />
 
     </div>
   );
@@ -962,22 +961,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      <NavigationSidebar 
-        isOpen={showNavigation} 
-        onClose={() => setShowNavigation(false)} 
-        onNavigate={onNavigate}
-        onNewChat={() => onNavigate('chat')}
-        userProfile={null}
-      />
-      
-      <AppBar 
-        title="Profile" 
-        onBack={() => onNavigate('dashboard')}
-        onMenu={() => setShowNavigation(true)}
-        showBack
-      />
-      
+    <div className="min-h-screen bg-gray-950 text-gray-100">      
       <div className="px-4 py-6">
         {/* Tab Navigation */}
         <div className="flex overflow-x-auto mb-6 bg-gray-900 rounded-2xl p-2">
