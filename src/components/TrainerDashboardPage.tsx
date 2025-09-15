@@ -34,14 +34,10 @@ interface Client {
 }
 
 interface TrainerDashboardPageProps {
-  onNavigate: (page: string) => void;
   userProfile: UserProfile | null;
-  userProfile: UserProfile | null;
-  userProfile: UserProfile | null; // Add this prop
 }
 
-export const TrainerDashboardPage: React.FC<TrainerDashboardPageProps> = ({ onNavigate, userProfile }) => {
-  const [showNavigation, setShowNavigation] = useState(false);
+export const TrainerDashboardPage: React.FC<TrainerDashboardPageProps> = ({ userProfile }) => {
   const [activeView, setActiveView] = useState<'clients' | 'analytics' | 'permissions'>('clients');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'trial'>('all');

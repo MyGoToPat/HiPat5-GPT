@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import MainHeader from '../components/layout/MainHeader';
 import NavigationSidebar from '../components/NavigationSidebar';
 import { ChatManager } from '../utils/chatManager';
+import { getSupabase, getUserProfile } from '../lib/supabase';
 
 type ChatSummary = {
   id: string;
@@ -10,6 +11,7 @@ type ChatSummary = {
   updated_at: string | null;
 };
 
+type UserProfile = { role?: 'admin' | 'trainer' | 'user' | string } | null;
 function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/admin/agents/')) return 'Agent Details';
   if (pathname.startsWith('/admin/agents')) return 'Agents';
@@ -31,6 +33,7 @@ export default function RootLayout() {
 
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [chats, setChats] = useState<ChatSummary[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile>(null);
 
   // Load chats whenever location changes or sidebar opens
   useEffect(() => {
@@ -62,6 +65,26 @@ export default function RootLayout() {
     return () => { active = false; };
   }, [location.pathname, isNavOpen]);
 
+  // Load user profile for role-based navigation
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const supabase = getSupabase();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!active || !user) return;
+
+        const profile = await getUserProfile(user.id);
+        if (!active) return;
+        
+        setUserProfile(profile);
+      } catch (err) {
+        console.error('Failed to load user profile', err);
+        if (active) setUserProfile(null);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
   const pageTitle = getPageTitle(location.pathname);
 
   return (
@@ -73,6 +96,7 @@ export default function RootLayout() {
         onClose={() => setIsNavOpen(false)}
         onNavigate={(path: string) => { setIsNavOpen(false); navigate(path); }}
         recentChats={chats}
+        userProfile={userProfile}
       />
 
       {/* pt-[44px] to clear fixed 44px header */}

@@ -64,7 +64,7 @@ function App() {
             path="tdee"
             element={<TDEEOnboardingWizard onComplete={() => window.location.href = '/dashboard'} />}
           />
-          <Route path="trainer-dashboard" element={<TrainerDashboardPage />} />
+          <Route path="trainer-dashboard" element={<TrainerDashboardPage userProfile={null} />} />
 
           {/* ADMIN-ONLY NESTED ROUTES */}
           <Route path="admin">
