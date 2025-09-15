@@ -1,21 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PatAvatar } from './PatAvatar';
 import { VoiceWaveform } from './VoiceWaveform';
-import { AppBar } from './AppBar';
-import { NavigationSidebar } from './NavigationSidebar';
 import { ConversationAgentManager } from '../utils/conversationAgents';
 import { AnalysedFoodItem } from '../types/food';
-import { Folder, Video, Image, Upload, Share, Plus, Mic, X, Camera, RotateCcw } from 'lucide-react';
+import { Folder, Video, Image, Upload, Share, Plus, Mic, X, Camera, RotateCcw, ArrowLeft } from 'lucide-react';
 import { fetchFoodMacros } from '../lib/food';
+import { useNavigate } from 'react-router-dom';
 
 interface TalkingPatPage2Props {
-  onNavigate: (page: string, state?: { autoStartMode?: 'takePhoto' | 'videoStream' }) => void;
   initialState?: {
     autoStartMode?: 'takePhoto' | 'videoStream';
   };
 }
 
-export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ onNavigate, initialState }) => {
+export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ initialState }) => {
+  const navigate = useNavigate();
   const [selectedOption, setSelectedOption] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -23,7 +22,6 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ onNavigate, in
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<any | null>(null);
   const [caption, setCaption] = useState("Choose how you'd like to share with me");
-  const [showNavigation, setShowNavigation] = useState(false);
   const [triggeredAgent, setTriggeredAgent] = useState<string>('');
 
   // Phase 2: Real-time streaming states
@@ -338,21 +336,17 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ onNavigate, in
   }, [initialState]);
 
   return (
-    <div className="h-screen bg-pat-gradient flex flex-col">
-      <NavigationSidebar 
-        isOpen={showNavigation} 
-        onClose={() => setShowNavigation(false)} 
-        onNavigate={onNavigate}
-        onNewChat={() => onNavigate('chat')}
-        userProfile={null}
-      />
-      
-      <AppBar 
-        title="PAT" 
-        onBack={() => onNavigate('voice')}
-        onMenu={() => setShowNavigation(true)}
-        showBack
-      />
+    <div className="h-screen bg-pat-gradient flex flex-col pt-[44px]">
+      {/* In-content back button */}
+      <div className="absolute top-12 left-4 z-10">
+        <button
+          onClick={() => navigate('/voice')}
+          className="p-2 hover:bg-white/20 rounded-full text-white transition-colors"
+          aria-label="Back to Voice"
+        >
+          <ArrowLeft size={24} />
+        </button>
+      </div>
       
       <div className="flex-1 flex flex-col items-center justify-center px-6 text-white">
       <div className="flex-1 flex flex-col items-center justify-center">
@@ -498,7 +492,7 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ onNavigate, in
                 setSelectedOption('');
                 setCaption("Choose how you'd like to share with me");
               } else {
-                onNavigate('voice');
+                navigate('/voice');
               }
             }}
             className="p-3 hover:bg-gray-200 rounded-full transition-colors"

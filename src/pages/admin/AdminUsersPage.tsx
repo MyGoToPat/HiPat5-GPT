@@ -275,7 +275,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 pt-[44px]">
       <AdminHeader 
         title="User Management" 
         subtitle={`${users.length} users shown • ${pendingBetaRequests.length} pending beta requests`}

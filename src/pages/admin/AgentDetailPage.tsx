@@ -106,7 +106,7 @@ export default function AgentDetailPage() {
   ];
 
   return (
-    <div className="p-6">
+    <div className="p-6 pt-[44px]">
       <AdminHeader
         title={agent ? `Agent: ${agent.name}` : 'Agent'}
         subtitle={agent ? `slug: ${agent.id}` : ''}

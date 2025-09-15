@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PatAvatar } from './PatAvatar';
 import { VoiceWaveform } from './VoiceWaveform';
-import { Video, Mic, Volume2, VolumeX, MessageSquare, Keyboard, Speaker } from 'lucide-react';
+import { Video, Mic, Volume2, VolumeX, Keyboard, Speaker, ArrowLeft } from 'lucide-react';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
 import { MetricAlert } from '../types/metrics';
 import { ConversationAgentManager } from '../utils/conversationAgents';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useNavigate } from 'react-router-dom';
-
 
 export const TalkingPatPage1: React.FC = () => {
   const navigate = useNavigate();
@@ -133,7 +132,7 @@ export const TalkingPatPage1: React.FC = () => {
         if (triggeredAgent.requiresCamera) {
           response = `Great! I'll help you with ${triggeredAgent.title}. Let me open the camera for you.`;
           setTimeout(() => {
-             navigate('/camera');
+            navigate('/camera');
           }, 2000);
         } else {
           response = ConversationAgentManager.generateMealTrackingResponse(transcript);
@@ -171,7 +170,7 @@ export const TalkingPatPage1: React.FC = () => {
         setTimeout(() => {
           // Determine auto-start mode based on agent
           const autoStartMode = agentTitle.includes('eating') ? 'takePhoto' : 'videoStream';
-           navigate('/camera', { state: { autoStartMode } });
+          navigate('/camera', { state: { autoStartMode } });
         }, 2000);
         return;
       }
@@ -249,7 +248,7 @@ export const TalkingPatPage1: React.FC = () => {
   }, []);
 
   return (
-    <div className="h-screen bg-pat-gradient flex flex-col w-full overflow-x-hidden">
+    <div className="h-screen bg-pat-gradient flex flex-col w-full overflow-x-hidden pt-[44px]">
       <div className="flex-1 flex flex-col px-6 text-white overflow-hidden">
 
         {/* Pat Avatar - Positioned Higher */}

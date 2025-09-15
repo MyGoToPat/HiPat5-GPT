@@ -153,7 +153,7 @@ export default function AgentsListPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-[44px]">
       <div className="max-w-7xl mx-auto p-8">
         <AdminHeader 
           title="Personality Agents" 

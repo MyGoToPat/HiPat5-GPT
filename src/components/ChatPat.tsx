@@ -25,7 +25,6 @@ import toast from 'react-hot-toast';
 import { getSupabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
-
 export const ChatPat: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -600,7 +599,7 @@ export const ChatPat: React.FC = () => {
 
   if (isLoadingChat) {
     return (
-      <div className="h-screen bg-pat-gradient text-white flex items-center justify-center">
+      <div className="h-screen bg-pat-gradient text-white flex items-center justify-center pt-[44px]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-white">Loading chat...</p>
@@ -610,7 +609,7 @@ export const ChatPat: React.FC = () => {
   }
 
   return (
-    <div className="h-screen bg-pat-gradient text-white flex flex-col">
+    <div className="h-screen bg-pat-gradient text-white flex flex-col pt-[44px]">
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto px-4 py-6">
           {messages.length === 1 && !isTyping && (

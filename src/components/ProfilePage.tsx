@@ -961,7 +961,7 @@ export const ProfilePage: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">      
+    <div className="min-h-screen bg-gray-950 text-gray-100 pt-[44px]">      
       <div className="px-4 py-6">
         {/* Tab Navigation */}
         <div className="flex overflow-x-auto mb-6 bg-gray-900 rounded-2xl p-2">

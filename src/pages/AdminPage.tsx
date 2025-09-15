@@ -7,7 +7,7 @@ import UpgradeRequests from '../components/admin/UpgradeRequests';
 export default function AdminPage() {
   return (
     <AdminGuard>
-      <div style={{ padding: 24 }}>
+      <div style={{ padding: 24, paddingTop: 68 }}>
         <h1 style={{ marginBottom: 8 }}>Admin Dashboard</h1>
         <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 16 }}>
           Build: {import.meta.env.MODE} — {new Date().toLocaleString()}

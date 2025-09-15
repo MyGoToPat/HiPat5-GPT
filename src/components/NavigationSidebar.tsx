@@ -281,4 +281,6 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
       </div>
     </>
   );
-};
+}
+
+export default NavigationSidebar;

@@ -299,27 +299,7 @@ export const TrainerDashboardPage: React.FC<TrainerDashboardPageProps> = ({ onNa
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <NavigationSidebar 
-        isOpen={showNavigation} 
-        onClose={() => setShowNavigation(false)} 
-        onNavigate={onNavigate}
-        onNewChat={() => onNavigate('chat')}
-        userProfile={userProfile}
-      />
-      
-      <AppBar 
-        title="Client Management" 
-        onMenu={() => setShowNavigation(true)}
-      />
-      
-      {/* Admin Confirmation Banner */}
-      {userProfile?.role === 'admin' && (
-        <div className="bg-blue-600 text-white p-3 text-center font-semibold text-sm">
-          You are logged in as an Administrator.
-        </div>
-      )}
-      
+    <div className="min-h-screen bg-gray-50 pt-[44px]">
       <div className="p-6">
         {/* View Toggle */}
         <div className="mb-6">
