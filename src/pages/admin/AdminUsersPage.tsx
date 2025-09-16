@@ -539,9 +539,11 @@ export default function AdminUsersPage() {
                   <input
                     type="checkbox"
                     checked={editingUser.beta_user}
-                    onChange={(e) => setEditingUser({ ...editingUser, beta_user: e.target.checked })}
+                    onChange={(e) => {
+                      setEditingUser({ ...editingUser, beta_user: e.target.checked });
                       // 🔍 DIAGNOSTIC: Log checkbox changes
                       console.log("📝 BETA CHECKBOX CHANGED:", e.target.checked);
+                    }}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <div>
