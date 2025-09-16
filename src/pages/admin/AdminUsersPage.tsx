@@ -4,18 +4,18 @@ import { Search, Filter, ChevronLeft, ChevronRight, UserCheck, UserX, Crown, Use
 import toast from 'react-hot-toast';
 import AdminHeader from '../../components/admin/AdminHeader';
 
-interface UserRow {
+type AdminUserRow = {
   user_id: string;
   email: string;
-  created_at: string;
   name: string | null;
   role: 'user' | 'trainer' | 'admin';
   plan_type: 'free' | 'trial' | 'paid_user' | 'enterprise';
   beta_user: boolean;
+  created_at: string;
   latest_beta_status: 'pending' | 'approved' | 'denied' | null;
   latest_beta_requested_at: string | null;
   latest_beta_request_id: string | null;
-}
+};
 
 interface PaginationCursor {
   created_at: string;
@@ -23,7 +23,7 @@ interface PaginationCursor {
 }
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<UserRow[]>([]);
+  const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -69,7 +69,7 @@ export default function AdminUsersPage() {
         setCursors([]);
       }
 
-      const { data, error } = await supabase.rpc('admin_user_list', {
+      const { data, error } = await supabase.rpc('admin_user_list_compact', {
         search: search || null,
         role_filter: roleFilter,
         plan_filter: planFilter,
