@@ -82,7 +82,12 @@ export default function AdminUsersPage() {
 
       if (error) {
         console.error('Error fetching users:', error);
-        setError(error.message);
+        // Check for admin permission errors and provide user-friendly message
+        if (error.code === 'PGRST202' || error.message?.includes('not found') || error.message?.includes('permission')) {
+          setError('You do not have permission to view this page. Admin access required.');
+        } else {
+          setError(error.message);
+        }
         return;
       }
 
@@ -334,7 +339,7 @@ export default function AdminUsersPage() {
 
           <select
             value={roleFilter || ''}
-            onChange={(e) => setRoleFilter(e.target.value || null)}
+            onChange={(e) => setRoleFilter(e.target.value === '' ? null : e.target.value as any)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Roles</option>
@@ -345,7 +350,7 @@ export default function AdminUsersPage() {
 
           <select
             value={planFilter || ''}
-            onChange={(e) => setPlanFilter(e.target.value || null)}
+            onChange={(e) => setPlanFilter(e.target.value === '' ? null : e.target.value as any)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Plans</option>
@@ -367,7 +372,7 @@ export default function AdminUsersPage() {
 
           <select
             value={statusFilter || ''}
-            onChange={(e) => setStatusFilter(e.target.value || null)}
+            onChange={(e) => setStatusFilter(e.target.value === '' ? null : e.target.value as any)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Status</option>
