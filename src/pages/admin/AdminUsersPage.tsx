@@ -150,12 +150,23 @@ export default function AdminUsersPage() {
 
   const handleUpdateUser = async (userId: string, updates: { role?: AppRole; plan_type?: string }) => {
     setSaveError(null);
+    
+    // Include beta_user in updates if editingUser has it
+    const fullUpdates = { 
+      ...updates,
+      ...(editingUser && typeof editingUser.beta_user === 'boolean' ? { beta_user: editingUser.beta_user } : {})
+    };
+    
+    console.log('Sending update payload:', fullUpdates, 'for user:', userId);
+    
     try {
       const { error } = await supabase
         .from('profiles')
-        .update(updates)
+        .update(fullUpdates)
         .eq('user_id', userId);
 
+      console.log('Supabase update result:', { error });
+      
       if (error) {
         console.error('Error updating user:', error);
         
@@ -176,7 +187,7 @@ export default function AdminUsersPage() {
         return;
       }
 
-      toast.success('User updated successfully');
+      toast.success(`User updated successfully: Role=${fullUpdates.role || 'unchanged'}, Beta=${fullUpdates.beta_user !== undefined ? fullUpdates.beta_user : 'unchanged'}`);
       setShowEditModal(false);
       setEditingUser(null);
       setSaveError(null);
@@ -531,6 +542,22 @@ export default function AdminUsersPage() {
                   <option value="free_user">Free User</option>
                   <option value="paid_user">Paid User</option>
                 </select>
+              </div>
+              
+              {/* Beta User Toggle */}
+              <div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editingUser.beta_user}
+                    onChange={(e) => setEditingUser({ ...editingUser, beta_user: e.target.checked })}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Beta User Access</span>
+                    <p className="text-xs text-gray-500">Enable beta features for this user</p>
+                  </div>
+                </label>
               </div>
             </div>
 
