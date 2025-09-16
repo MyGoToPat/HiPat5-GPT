@@ -98,16 +98,39 @@ export default function AdminUsersPage() {
         setCursors([]);
       }
 
-      const { data, error } = await supabase.rpc('admin_user_list_compact', {
-        search_query: search || null,
-        role_filter: roleFilter,
-        plan_filter: null,
-        beta_only: betaOnly,
-        status_filter: statusFilter,
-        limit: 25,
-        after_created_at: afterCreatedAt,
-        after_id: afterId
-      });
+      // Replace RPC call with direct table query to avoid type casting issues
+      let query = supabase
+        .from('profiles')
+        .select(`
+          id,
+          user_id,
+          name,
+          email,
+          role,
+          beta_user,
+          created_at,
+          plan_type
+        `)
+        .order('created_at', { ascending: false });
+
+      // Apply role filter if specified
+      if (roleFilter && roleFilter !== 'all') {
+        query = query.eq('role', roleFilter);
+      }
+
+      // Apply search term if specified
+      if (searchTerm) {
+        query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+      }
+
+      // Apply pagination
+      const offset = direction === 'first' ? 0 : 
+                    direction === 'next' ? currentPage * itemsPerPage : 
+                    Math.max(0, (currentPage - 2) * itemsPerPage);
+      
+      query = query.range(offset, offset + itemsPerPage - 1);
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching users:', error);
