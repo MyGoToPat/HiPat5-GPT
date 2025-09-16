@@ -31,6 +31,7 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   
+  
   // Filters
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<AppRole | null>(null);
@@ -560,6 +561,15 @@ export default function AdminUsersPage() {
               </div>
             )}
 
+            {saveError && (
+              <div className="mx-6 mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle size={16} className="text-red-600" />
+                  <p className="text-red-700 text-sm">{saveError}</p>
+                </div>
+              </div>
+            )}
+
             <div className="mt-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
@@ -572,6 +582,7 @@ export default function AdminUsersPage() {
                   <option value="trainer">Trainer</option>
                   <option value="free_user">Free User</option>
                   <option value="paid_user">Paid User</option>
+                  <option value="beta">Beta</option>
                   <option value="beta">Beta</option>
                 </select>
               </div>
