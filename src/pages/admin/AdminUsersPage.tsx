@@ -7,12 +7,7 @@ import { useRole } from '../../hooks/useRole';
 import { type AppRole, getRoleDisplayName } from '../../config/rbac';
 
 type AdminUserRow = {
-  id: string; // Add the primary key 'id'
-  id: string; // Add the primary key 'id'
-  id: string; // Add the primary key 'id'
-  id: string; // Add the primary key 'id'
-  id: string; // Add the primary key 'id'
-  id: string; // Add the primary key 'id'
+  id: string; // Primary key from profiles table
   user_id: string;
   email: string;
   name: string | null;
@@ -155,18 +150,30 @@ export default function AdminUsersPage() {
   }
 
   const handleUpdateUser = async (
-    profileId: string, // Change from userId to profileId (the 'id' from profiles table)
-    updates: { role?: AppRole; plan_type?: string; beta_user?: boolean }
+    profileId: string, // Primary key from profiles table
+    updates: { role?: AppRole; beta_user?: boolean }
   ) => {
     setSaveError(null);
     
     try {
-      console.log("UPDATING USER", userId, updates);
+      console.log("🚨 DIAGNOSTIC: USER UPDATE TRACE");
+      console.log("📤 Step 1 - Payload to Supabase:", updates);
+      console.log("👤 Step 1 - Target Profile ID (primary key):", profileId);
+      
+      // Get current auth state for debugging
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log("🔐 Step 1 - Current Auth State:", user ? { id: user.id, email: user.email, app_metadata: user.app_metadata } : null);
+      
+      console.log("📡 Step 2 - Making Supabase update call...");
 
       const { error } = await supabase
         .from('profiles')
         .update(updates)
-        .eq('id', profileId); // Change from user_id to id
+        .eq('id', profileId); // Use primary key instead of user_id
+      
+      console.log("📥 Step 3 - Complete Supabase Response:");
+      console.log("  ✅ Data returned:", data);
+      console.log("  ❌ Error returned:", error);
 
       if (error) {
         console.error('Error updating user:', error);
@@ -547,7 +554,6 @@ export default function AdminUsersPage() {
                     checked={editingUser.beta_user}
                     onChange={(e) => {
                       setEditingUser({ ...editingUser, beta_user: e.target.checked }); // eslint-disable-next-line react/jsx-no-duplicate-props
-                      // 🔍 DIAGNOSTIC: Log checkbox changes
                       console.log("📝 BETA CHECKBOX CHANGED:", e.target.checked);
                     }}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
