@@ -7,7 +7,7 @@ import { useRole } from '../../hooks/useRole';
 import { type AppRole, getRoleDisplayName } from '../../config/rbac';
 
 type AdminUserRow = {
-  id: string; // Primary key from profiles table
+  id: string; // Primary key from 'profiles'
   user_id: string;
   email: string;
   name: string | null;
@@ -95,7 +95,18 @@ export default function AdminUsersPage() {
         return;
       }
 
-      const usersList = data || [];
+      const usersList = (data || []).map((row: any) => ({
+        id: row.id, // from Supabase RPC
+        user_id: row.user_id,
+        email: row.email,
+        name: row.name,
+        role: row.role,
+        beta_user: row.beta_user,
+        created_at: row.created_at,
+        latest_beta_status: row.latest_beta_status,
+        latest_beta_requested_at: row.latest_beta_requested_at,
+        latest_beta_request_id: row.latest_beta_request_id,
+      }));
       setUsers(usersList);
       
       // Update pagination state
@@ -149,54 +160,41 @@ export default function AdminUsersPage() {
     );
   }
 
-  const handleUpdateUser = async (
-    profileId: string, // Primary key from profiles table
-    updates: { role?: AppRole; beta_user?: boolean }
-  ) => {
+  const handleUpdateUser = async (profileId: string, updatedFields: Partial<AdminUserRow>) => {
+    console.log('🔧 Updating user with ID:', profileId);
+    console.log('Payload being sent:', updatedFields);
+
     setSaveError(null);
     
     try {
-      console.log("🚨 DIAGNOSTIC: USER UPDATE TRACE");
-      console.log("📤 Step 1 - Payload to Supabase:", updates);
-      console.log("👤 Step 1 - Target Profile ID (primary key):", profileId);
-      
-      // Get current auth state for debugging
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log("🔐 Step 1 - Current Auth State:", user ? { id: user.id, email: user.email, app_metadata: user.app_metadata } : null);
-      
-      console.log("📡 Step 2 - Making Supabase update call...");
+      const {
+        data: authUser,
+        error: authError,
+      } = await supabase.auth.getUser();
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', profileId); // Use primary key instead of user_id
-      
-      console.log("📥 Step 3 - Complete Supabase Response:");
-      console.log("  ✅ Data returned:", data);
-      console.log("  ❌ Error returned:", error);
-
-      if (error) {
-        console.error('Error updating user:', error);
-        
-        if (
-          error.message?.includes('profiles_role_check_std') || 
-            error.message?.includes('violates check constraint') ||
-            error.message?.includes('check constraint') ||
-            error.message?.includes('constraint') ||
-            error.code === '23514'
-        ) {
-          setSaveError("This role is not allowed by the database constraint. Please run the role constraint migration first.");
-          toast.error('Role change failed: Database constraint violation');
-          return;
-        }
-        
-        const errorMsg = error.message || 'Unknown database error';
-        setSaveError(errorMsg);
-        toast.error(`Failed to update user: ${errorMsg}`);
+      if (authError) {
+        console.error('❌ Auth error:', authError.message);
+        setSaveError(authError.message);
         return;
       }
 
-      toast.success(`User updated successfully: Role=${updates.role}, Beta=${updates.beta_user}`);
+      console.log('🔐 Current auth user:', authUser ? { id: authUser.id, email: authUser.email } : null);
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updatedFields)
+        .eq('id', profileId);
+
+      if (error) {
+        console.error('❌ Supabase update error:', error.message);
+        setSaveError(error.message);
+        toast.error(`Failed to update user: ${error.message}`);
+        return;
+      } else {
+        console.log('✅ Update success:', data);
+        toast.success('User updated successfully!');
+      }
+
       setShowEditModal(false);
       setEditingUser(null);
       setSaveError(null);
@@ -553,7 +551,7 @@ export default function AdminUsersPage() {
                     checked={editingUser.beta_user}
                     onChange={(e) => {
                       setEditingUser({ ...editingUser, beta_user: e.target.checked });
-                      console.log("📝 BETA CHECKBOX CHANGED:", e.target.checked);
+                      console.log('📝 Beta checkbox changed to:', e.target.checked);
                     }}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
@@ -573,10 +571,19 @@ export default function AdminUsersPage() {
 
             <div className="mt-6 flex gap-3">
               <button
-                onClick={() => handleUpdateUser(editingUser.id, { // Pass editingUser.id (the primary key)
-                  role: editingUser.role,
-                  beta_user: editingUser.beta_user,
-                })}
+                onClick={() => {
+                  console.log('🎯 Save button clicked - calling handleUpdateUser with:', {
+                    profileId: editingUser.id,
+                    updatedFields: {
+                      role: editingUser.role,
+                      beta_user: editingUser.beta_user,
+                    }
+                  });
+                  handleUpdateUser(editingUser.id, {
+                    role: editingUser.role,
+                    beta_user: editingUser.beta_user,
+                  });
+                }}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
               >
                 Save Changes
