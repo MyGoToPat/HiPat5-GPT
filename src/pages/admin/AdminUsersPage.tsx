@@ -159,9 +159,9 @@ export default function AdminUsersPage() {
       if (error) {
         console.error('Error updating user:', error);
         
-        // Check for beta role not enabled in database
-        if (error.message?.includes('beta') || error.message?.includes('enum') || error.message?.includes('invalid input value')) {
-          setSaveError("The 'beta' role is not enabled in the database yet. Ask Admin to enable it in Supabase.");
+        // Check for role constraint violation
+        if (error.message?.includes('profiles_role_check_std') || error.message?.includes('violates check constraint')) {
+          setSaveError("This role is not allowed by the database constraint. Please run the role constraint migration first.");
           // Revert the editing user's role
           if (editingUser) {
             const originalUser = users.find(u => u.user_id === userId);
@@ -173,6 +173,7 @@ export default function AdminUsersPage() {
         }
         
         toast.error('Failed to update user');
+        setSaveError(error.message);
         return;
       }
 
@@ -184,6 +185,7 @@ export default function AdminUsersPage() {
     } catch (err: any) {
       console.error('Update user error:', err);
       toast.error('Failed to update user');
+      setSaveError('An unexpected error occurred');
     }
   };
 
