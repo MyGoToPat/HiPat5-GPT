@@ -48,23 +48,6 @@ export default function AdminUsersPage() {
 
   const supabase = getSupabase();
   
-  // Check admin access
-  if (!can('admin.panel')) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={20} className="text-red-600" />
-            <div>
-              <h3 className="font-medium text-red-900">Admin Access Required</h3>
-              <p className="text-red-700 text-sm">You do not have permission to view this page.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const fetchUsers = useCallback(async (direction: 'first' | 'next' | 'prev' = 'first') => {
     setLoading(true);
     setError(null);
@@ -148,6 +131,31 @@ export default function AdminUsersPage() {
   useEffect(() => {
     fetchUsers('first');
   }, []);
+  
+  // Check admin access
+  if (!can('admin.panel')) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={20} className="text-red-600" />
+            <div>
+              <h3 className="font-medium text-red-900">Admin Access Required</h3>
+              <p className="text-red-700 text-sm">You do not have permission to view this page.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+
+
+
+
+
+
+
 
   const handleUpdateUser = async (userId: string, updates: { role?: AppRole; plan_type?: string }) => {
     setSaveError(null);
