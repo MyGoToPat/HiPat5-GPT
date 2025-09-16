@@ -148,7 +148,6 @@ export default function AdminUsersPage() {
     );
   }
 
-  const handleUpdateUser = async (userId: string, updates: { role?: AppRole; plan_type?: string }) => {
   const handleUpdateUser = async (
     userId: string,
     updates: { role?: AppRole; plan_type?: string; beta_user?: boolean }
@@ -514,27 +513,16 @@ export default function AdminUsersPage() {
                 <div className="flex items-center gap-2 mt-1">
                   <p className="text-gray-600 text-sm">{editingUser.email}</p>
                   {getRoleChip(editingUser.role)}
-                <label className="flex items-center space-x-2 mt-4">
-                  <input
-                    type="checkbox"
-                    checked={editingUser.beta_user}
-                    onChange={(e) =>
-                      setEditingUser((prev) => ({
-                        ...prev!,
-                        beta_user: e.target.checked,
-                      }))
-                    }
-                  />
-                  <span>Beta User</span>
-                </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
                 <select
                   value={editingUser.role}
-                  onClick={() => handleUpdateUser(editingUser.user_id, { 
-                    role: editingUser.role,
-                    beta_user: editingUser.beta_user,
-                  })}
+                  onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as AppRole })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="admin">Admin</option>
@@ -560,11 +548,20 @@ export default function AdminUsersPage() {
                   </div>
                 </label>
               </div>
+
+              {saveError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-red-800 text-sm">{saveError}</p>
+                </div>
+              )}
             </div>
 
             <div className="mt-6 flex gap-3">
               <button
-                onClick={() => handleUpdateUser(editingUser.user_id, { role: editingUser.role })}
+                onClick={() => handleUpdateUser(editingUser.user_id, { 
+                  role: editingUser.role,
+                  beta_user: editingUser.beta_user,
+                })}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
               >
                 Save Changes
