@@ -1,10 +1,15 @@
 import React from 'react';
 import { useEffect, useState } from 'react';
 import { getSupabase } from '../lib/supabase';
+import { hasPrivilege, type AppRole, type Privilege } from '../config/rbac';
 
 export function useRole() {
-  const [role, setRole] = useState<string | null>(null);
+  const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  const can = (privilege: Privilege): boolean => {
+    return hasPrivilege(role, privilege);
+  };
 
   useEffect(() => {
     const getRole = async () => {
@@ -26,12 +31,12 @@ export function useRole() {
 
           if (error) {
             console.error('[useRole] profiles fetch error:', error.message);
-            setRole('free_user'); // fallback role
+            setRole('free_user' as AppRole); // fallback role
             setLoading(false);
             return;
           }
 
-          setRole(data?.role || 'free_user');
+          setRole((data?.role as AppRole) || 'free_user');
         } catch (profileError: any) {
           console.error('[useRole] profiles fetch error:', profileError.message);
           setRole(null);
@@ -47,7 +52,7 @@ export function useRole() {
     getRole();
   }, []);
 
-  return { role, loading };
+  return { role, loading, can };
 }
 
 export function AdminGuard({ children }: { children: React.ReactNode }) {

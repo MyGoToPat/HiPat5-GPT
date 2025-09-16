@@ -3,6 +3,7 @@ import { Mail, Lock, Eye, EyeOff, User, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PatAvatar } from '../../components/PatAvatar';
 import { getSupabase } from '../../lib/supabase';
+import { type AppRole } from '../../config/rbac';
 
 interface RegisterPageProps {
   onNavigate: (page: string) => void;
@@ -89,6 +90,20 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
       }
 
       if (data.user) {
+        // Ensure all new users start as free_user role
+        try {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ role: 'free_user' as AppRole })
+            .eq('user_id', data.user.id);
+          
+          if (profileError) {
+            console.warn('Could not set default role:', profileError);
+          }
+        } catch (profileUpdateError) {
+          console.warn('Profile role update failed:', profileUpdateError);
+        }
+        
         setSuccess('Registration successful! Please check your email for a confirmation link.');
         // Redirect to beta holding page
         navigate('/welcome-beta', { replace: true });

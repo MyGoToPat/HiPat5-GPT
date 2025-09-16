@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Edit, Mic, BarChart3, User, Users, Settings, Zap } from 'lucide-react';
 import { NAV_ITEMS } from '../config/navItems';
+import { useRole } from '../hooks/useRole';
 
 type ChatSummary = { id: string; title: string | null; updated_at: string | null; };
 type UserProfile = { role?: 'admin' | 'trainer' | 'user' | string } | null;
@@ -14,13 +15,15 @@ type Props = {
 };
 
 export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentChats, userProfile }: Props) {
+  const { can } = useRole();
+  
   if (!isOpen) return null;
 
   const role = (userProfile?.role ?? 'user') as 'admin' | 'trainer' | 'user';
 
-  const primary   = NAV_ITEMS.filter(i => i.section === 'primary' && (!i.roles || i.roles.includes(role)));
-  const admin     = NAV_ITEMS.filter(i => i.section === 'admin' && (!i.roles || i.roles.includes(role)));
-  const utilities = NAV_ITEMS.filter(i => i.section === 'utilities' && (!i.roles || i.roles.includes(role)));
+  const primary   = NAV_ITEMS.filter(i => i.section === 'primary' && (!i.roles || i.roles.includes(role)) && (!i.requirePrivilege || can(i.requirePrivilege)));
+  const admin     = NAV_ITEMS.filter(i => i.section === 'admin' && (!i.roles || i.roles.includes(role)) && (!i.requirePrivilege || can(i.requirePrivilege)));
+  const utilities = NAV_ITEMS.filter(i => i.section === 'utilities' && (!i.roles || i.roles.includes(role)) && (!i.requirePrivilege || can(i.requirePrivilege)));
 
   const iconFor = (label: string) => {
     switch (label) {

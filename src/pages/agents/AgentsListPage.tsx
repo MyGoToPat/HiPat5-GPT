@@ -1,10 +1,37 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Bot, ExternalLink, FileText } from 'lucide-react';
+import { useRole } from '../../hooks/useRole';
+import { ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const FEATURE_SHOPLENS = import.meta.env.VITE_FEATURE_SHOPLENS !== 'false';
 
 export default function AgentsListPage() {
+  const { can } = useRole();
+  const navigate = useNavigate();
+  
+  if (!can('agents.view')) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Bot size={24} className="text-red-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600 mb-6">Your role doesn't allow access to agents yet.</p>
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors mx-auto"
+          >
+            <ArrowLeft size={16} />
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
   const agents = [];
   
   if (FEATURE_SHOPLENS) {
@@ -14,7 +41,7 @@ export default function AgentsListPage() {
       description: 'Analyze supplement labels (deterministic stub).',
       href: '/admin/agents/shoplens',
       icon: '🔍',
-      available: true
+      available: can('agents.use.shoplens')
     });
   }
 
@@ -54,11 +81,19 @@ export default function AgentsListPage() {
                 <div className="flex items-center gap-3">
                   <Link
                     to={agent.href}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      agent.available 
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
                     aria-label={`Open ${agent.name}`}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    {...(!agent.available && { 
+                      onClick: (e: React.MouseEvent) => e.preventDefault(),
+                      title: "Your role doesn't allow this yet"
+                    })}
                   >
                     <ExternalLink size={16} />
-                    Open
+                    {agent.available ? 'Open' : 'Restricted'}
                   </Link>
                   
                   <button
