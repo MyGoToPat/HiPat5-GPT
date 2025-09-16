@@ -188,6 +188,27 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleProcessBetaRequest = async (requestId: string, approve: boolean, userName: string) => {
+    try {
+      const { error } = await supabase.rpc('process_beta_request', {
+        request_id: requestId,
+        approve: approve
+      });
+
+      if (error) {
+        console.error('Error processing beta request:', error);
+        toast.error('Failed to process beta request');
+        return;
+      }
+
+      toast.success(`Beta request ${approve ? 'approved' : 'denied'} for ${userName}`);
+      fetchUsers('first'); // Refresh the list
+    } catch (err: any) {
+      console.error('Process beta request error:', err);
+      toast.error('Failed to process beta request');
+    }
+  };
+
   const getRoleChip = (role: AppRole) => {
     const colors = {
       admin: 'bg-red-100 text-red-800 border-red-200',
@@ -406,6 +427,7 @@ export default function AdminUsersPage() {
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
+            <caption className="sr-only">User management table with role assignment capabilities</caption>
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
@@ -416,16 +438,13 @@ export default function AdminUsersPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beta Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
-          <caption className="sr-only">User management table with role assignment capabilities</caption>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {users.length === 0 && !loading ? (
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sign-up</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    No users found matching your filters.
+                  </td>
                 </tr>
               ) : (
                 users.map((user) => (
@@ -434,7 +453,7 @@ export default function AdminUsersPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-gray-900">{user.name || 'No name'}</span>
-                          {user.role === 'beta' && (
+                          {user.beta_user && (
                             <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
                               Beta
                             </span>
@@ -449,8 +468,18 @@ export default function AdminUsersPage() {
                     <td className="px-6 py-4">
                       {getPlanChip(user.plan_type)}
                     </td>
+                    <td className="px-6 py-4">
+                      {user.beta_user ? (
+                        <CheckCircle size={16} className="text-green-600" />
+                      ) : (
+                        <XCircle size={16} className="text-gray-400" />
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {formatDate(user.created_at)}
+                    </td>
+                    <td className="px-6 py-4">
+                      {getBetaStatusBadge(user.latest_beta_status)}
                     </td>
                     <td className="px-6 py-4">
                       <button
@@ -482,17 +511,37 @@ export default function AdminUsersPage() {
               onClick={() => fetchUsers('prev')}
               disabled={cursors.length <= 1}
               className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-gray-600 text-sm">{editingUser.email}</p>
-                    {getRoleChip(editingUser.role)}
-                  </div>
-                </div>
-              </div>
+            >
+              <ChevronLeft size={16} />
               Previous
             </button>
+
+            <button
+              onClick={() => fetchUsers('next')}
+              disabled={!hasNextPage}
+              className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              Next
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Edit User Modal */}
+      {showEditModal && editingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-gray-600 text-sm">{editingUser.email}</p>
+                  {getRoleChip(editingUser.role)}
+                </div>
+              </div>
+            </div>
+
             {/* Error Banner */}
             {saveError && (
               <div className="mx-6 mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
@@ -503,51 +552,60 @@ export default function AdminUsersPage() {
               </div>
             )}
 
-            <button
-              onClick={() => fetchUsers('next')}
-              disabled={!hasNextPage}
-              className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            <div className="mt-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                <select
                   value={editingUser.role}
-              Next
-              <ChevronRight size={16} />
-            </button>
+                  onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as AppRole })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="admin">Admin</option>
+                  <option value="trainer">Trainer</option>
                   <option value="free_user">Free User</option>
                   <option value="paid_user">Paid User</option>
                   <option value="beta">Beta</option>
-          subtitle={`${users.length} users shown`}
-      </div>
+                </select>
+              </div>
 
-        {/* Save Error Banner */}
-        {saveError && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center gap-2">
-              <AlertTriangle size={20} className="text-red-600" />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Plan Type</label>
+                <select
                   value={editingUser.plan_type}
-                <h3 className="font-medium text-red-900">Role Update Failed</h3>
-                <p className="text-red-700 text-sm">{saveError}</p>
-              </div>
-            </div>
-          </div>
-        )}
+                  onChange={(e) => setEditingUser({ ...editingUser, plan_type: e.target.value as any })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="trial">Trial</option>
                   <option value="enterprise">Enterprise</option>
-              <option value="paid_user">Paid User</option>
-              <option value="free_user">Free User</option>
+                  <option value="paid_user">Paid User</option>
+                  <option value="free">Free User</option>
+                </select>
               </div>
             </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
                 onClick={() => handleUpdateUser(editingUser.user_id, {
                   role: editingUser.role,
-                  plan_type: editingUser.plan_type,
-                onClick={() => {
-                  setShowEditModal(false);
                   plan_type: editingUser.plan_type
                 })}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
               >
                 Save Changes
               </button>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingUser(null);
+                  setSaveError(null);
+                }}
+                className="px-6 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg"
+              >
+                Cancel
+              </button>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
