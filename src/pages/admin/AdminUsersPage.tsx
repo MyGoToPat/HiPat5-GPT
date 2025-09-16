@@ -11,7 +11,6 @@ type AdminUserRow = {
   email: string;
   name: string | null;
   role: AppRole;
-  plan_type: 'free' | 'trial' | 'paid_user' | 'enterprise';
   beta_user: boolean;
   created_at: string;
   latest_beta_status: 'pending' | 'approved' | 'denied' | null;
@@ -35,7 +34,6 @@ export default function AdminUsersPage() {
   // Filters
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<AppRole | null>(null);
-  const [planFilter, setPlanFilter] = useState<'free' | 'trial' | 'paid_user' | 'enterprise' | null>(null);
   const [betaOnly, setBetaOnly] = useState<boolean | null>(null);
   const [statusFilter, setStatusFilter] = useState<'pending' | 'approved' | 'denied' | null>(null);
   
@@ -77,7 +75,7 @@ export default function AdminUsersPage() {
       const { data, error } = await supabase.rpc('admin_user_list_compact', {
         search_query: search || null,
         role_filter: roleFilter,
-        plan_filter: planFilter,
+        plan_filter: null,
         beta_only: betaOnly,
         status_filter: statusFilter,
         limit: 25,
@@ -114,6 +112,7 @@ export default function AdminUsersPage() {
       setLoading(false);
     }
   }, [search, roleFilter, planFilter, betaOnly, statusFilter, cursors, supabase]);
+  }, [search, roleFilter, betaOnly, statusFilter, cursors, supabase]);
 
   // Debounced search
   useEffect(() => {
@@ -126,7 +125,7 @@ export default function AdminUsersPage() {
   // Fetch when filters change
   useEffect(() => {
     fetchUsers('first');
-  }, [roleFilter, planFilter, betaOnly, statusFilter]);
+  }, [roleFilter, betaOnly, statusFilter]);
 
   // Initial load
   useEffect(() => {
@@ -158,7 +157,7 @@ export default function AdminUsersPage() {
 
 
 
-  const handleUpdateUser = async (userId: string, updates: { role?: AppRole; plan_type?: string }) => {
+  const handleUpdateUser = async (userId: string, updates: { role?: AppRole }) => {
     setSaveError(null);
     try {
       const { error } = await supabase
@@ -221,15 +220,15 @@ export default function AdminUsersPage() {
   const getRoleChip = (role: AppRole) => {
     const colors = {
       admin: 'bg-red-100 text-red-800 border-red-200',
-      beta: 'bg-purple-100 text-purple-800 border-purple-200',
       trainer: 'bg-blue-100 text-blue-800 border-blue-200',
+      beta: 'bg-purple-100 text-purple-800 border-purple-200',
       paid_user: 'bg-green-100 text-green-800 border-green-200',
       free_user: 'bg-gray-100 text-gray-800 border-gray-200'
     };
     const icons = {
       admin: Crown,
-      beta: UserCheck,
       trainer: UserCheck,
+      beta: UserCheck,
       paid_user: CheckCircle,
       free_user: User
     };
@@ -239,29 +238,6 @@ export default function AdminUsersPage() {
       <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${colors[role] || colors.free_user}`}>
         <IconComponent size={12} />
         {getRoleDisplayName(role)}
-      </span>
-    );
-  };
-
-  const getPlanChip = (planType: string) => {
-    const colors = {
-      enterprise: 'bg-purple-100 text-purple-800 border-purple-200',
-      paid_user: 'bg-green-100 text-green-800 border-green-200',
-      trial: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      free: 'bg-gray-100 text-gray-800 border-gray-200'
-    };
-    const icons = {
-      enterprise: Building,
-      paid_user: CheckCircle,
-      trial: Clock,
-      free: User
-    };
-    const IconComponent = icons[planType as keyof typeof icons] || User;
-    
-    return (
-      <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${colors[planType as keyof typeof colors] || colors.free}`}>
-        <IconComponent size={12} />
-        {planType === 'paid_user' ? 'Paid' : planType.charAt(0).toUpperCase() + planType.slice(1)}
       </span>
     );
   };
@@ -393,20 +369,10 @@ export default function AdminUsersPage() {
           >
             <option value="">All Roles</option>
             <option value="admin">Admin</option>
+            <option value="beta">Beta</option>
             <option value="trainer">Trainer</option>
-            <option value="user">User</option>
-          </select>
-
-          <select
-            value={planFilter || ''}
-            onChange={(e) => setPlanFilter(e.target.value === '' ? null : e.target.value as any)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Plans</option>
-            <option value="enterprise">Enterprise</option>
             <option value="paid_user">Paid User</option>
-            <option value="trial">Trial</option>
-            <option value="free">Free</option>
+            <option value="free_user">Free User</option>
           </select>
 
           <label className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm cursor-pointer hover:bg-gray-50">
@@ -441,7 +407,6 @@ export default function AdminUsersPage() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beta</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sign-up</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beta Status</th>
@@ -456,26 +421,10 @@ export default function AdminUsersPage() {
                   </td>
                 </tr>
               ) : (
-                users.map((user) => (
-                  <tr key={user.user_id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900">{user.name || 'No name'}</span>
-                          {user.beta_user && (
-                            <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
-                              Beta
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-600">{user.email}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       {getRoleChip(user.role)}
-                    </td>
-                    <td className="px-6 py-4">
-                      {getPlanChip(user.plan_type)}
                     </td>
                     <td className="px-6 py-4">
                       {user.beta_user ? (
@@ -493,8 +442,7 @@ export default function AdminUsersPage() {
                     <td className="px-6 py-4">
                       <button
                         onClick={() => {
-                          setEditingUser(user);
-                          setShowEditModal(true);
+                          role: editingUser.role
                           setSaveError(null);
                         }}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
