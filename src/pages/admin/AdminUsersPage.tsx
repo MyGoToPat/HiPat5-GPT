@@ -166,7 +166,7 @@ export default function AdminUsersPage() {
       
       console.log("📡 Step 2 - Making Supabase update call...");
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update(updates)
         .eq('id', profileId); // Use primary key instead of user_id
@@ -533,12 +533,11 @@ export default function AdminUsersPage() {
             <div className="space-y-4 mt-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                <select // eslint-disable-next-line react/jsx-no-duplicate-props
+                <select
                   value={editingUser.role}
                   onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as AppRole })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                        onClick={() => { // Pass editingUser.id (the primary key)
                   <option value="beta">Beta</option>
                   <option value="trainer">Trainer</option>
                   <option value="free_user">Free User</option>
@@ -553,7 +552,7 @@ export default function AdminUsersPage() {
                     type="checkbox"
                     checked={editingUser.beta_user}
                     onChange={(e) => {
-                      setEditingUser({ ...editingUser, beta_user: e.target.checked }); // eslint-disable-next-line react/jsx-no-duplicate-props
+                      setEditingUser({ ...editingUser, beta_user: e.target.checked });
                       console.log("📝 BETA CHECKBOX CHANGED:", e.target.checked);
                     }}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
