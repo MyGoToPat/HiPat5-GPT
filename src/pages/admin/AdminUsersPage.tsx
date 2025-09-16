@@ -160,20 +160,19 @@ export default function AdminUsersPage() {
         console.error('Error updating user:', error);
         
         // Check for role constraint violation
-        if (error.message?.includes('profiles_role_check_std') || error.message?.includes('violates check constraint')) {
+        if (error.message?.includes('profiles_role_check_std') || 
+            error.message?.includes('violates check constraint') ||
+            error.message?.includes('check constraint') ||
+            error.message?.includes('constraint') ||
+            error.code === '23514') {
           setSaveError("This role is not allowed by the database constraint. Please run the role constraint migration first.");
-          // Revert the editing user's role
-          if (editingUser) {
-            const originalUser = users.find(u => u.user_id === userId);
-            if (originalUser) {
-              setEditingUser({ ...editingUser, role: originalUser.role });
-            }
-          }
+          toast.error('Role change failed: Database constraint violation');
           return;
         }
         
-        toast.error('Failed to update user');
-        setSaveError(error.message);
+        const errorMsg = error.message || 'Unknown database error';
+        setSaveError(errorMsg);
+        toast.error(`Failed to update user: ${errorMsg}`);
         return;
       }
 
@@ -181,11 +180,15 @@ export default function AdminUsersPage() {
       setShowEditModal(false);
       setEditingUser(null);
       setSaveError(null);
-      fetchUsers('first'); // Refresh the list
+      
+      // Force refresh the user list to show changes immediately
+      await fetchUsers('first');
+      
     } catch (err: any) {
       console.error('Update user error:', err);
-      toast.error('Failed to update user');
-      setSaveError('An unexpected error occurred');
+      const errorMsg = err.message || 'An unexpected error occurred';
+      setSaveError(errorMsg);
+      toast.error(`Failed to update user: ${errorMsg}`);
     }
   };
 
