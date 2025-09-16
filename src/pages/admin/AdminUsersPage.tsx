@@ -7,6 +7,12 @@ import { useRole } from '../../hooks/useRole';
 import { type AppRole, getRoleDisplayName } from '../../config/rbac';
 
 type AdminUserRow = {
+  id: string; // Add the primary key 'id'
+  id: string; // Add the primary key 'id'
+  id: string; // Add the primary key 'id'
+  id: string; // Add the primary key 'id'
+  id: string; // Add the primary key 'id'
+  id: string; // Add the primary key 'id'
   user_id: string;
   email: string;
   name: string | null;
@@ -149,7 +155,7 @@ export default function AdminUsersPage() {
   }
 
   const handleUpdateUser = async (
-    userId: string,
+    profileId: string, // Change from userId to profileId (the 'id' from profiles table)
     updates: { role?: AppRole; plan_type?: string; beta_user?: boolean }
   ) => {
     setSaveError(null);
@@ -160,7 +166,7 @@ export default function AdminUsersPage() {
       const { error } = await supabase
         .from('profiles')
         .update(updates)
-        .eq('user_id', userId);
+        .eq('id', profileId); // Change from user_id to id
 
       if (error) {
         console.error('Error updating user:', error);
@@ -520,12 +526,12 @@ export default function AdminUsersPage() {
             <div className="space-y-4 mt-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                <select
+                <select // eslint-disable-next-line react/jsx-no-duplicate-props
                   value={editingUser.role}
                   onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as AppRole })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="admin">Admin</option>
+                        onClick={() => { // Pass editingUser.id (the primary key)
                   <option value="beta">Beta</option>
                   <option value="trainer">Trainer</option>
                   <option value="free_user">Free User</option>
@@ -540,7 +546,7 @@ export default function AdminUsersPage() {
                     type="checkbox"
                     checked={editingUser.beta_user}
                     onChange={(e) => {
-                      setEditingUser({ ...editingUser, beta_user: e.target.checked });
+                      setEditingUser({ ...editingUser, beta_user: e.target.checked }); // eslint-disable-next-line react/jsx-no-duplicate-props
                       // 🔍 DIAGNOSTIC: Log checkbox changes
                       console.log("📝 BETA CHECKBOX CHANGED:", e.target.checked);
                     }}
@@ -562,7 +568,7 @@ export default function AdminUsersPage() {
 
             <div className="mt-6 flex gap-3">
               <button
-                onClick={() => handleUpdateUser(editingUser.user_id, { 
+                onClick={() => handleUpdateUser(editingUser.id, { // Pass editingUser.id (the primary key)
                   role: editingUser.role,
                   beta_user: editingUser.beta_user,
                 })}
