@@ -517,7 +517,7 @@ export default function AdminUsersPage() {
               </div>
             </div>
 
-            <div className="mt-4 space-y-4">
+            <div className="space-y-4 mt-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
                 <select
