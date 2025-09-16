@@ -16,7 +16,6 @@ type AdminUserRow = {
   latest_beta_status: 'pending' | 'approved' | 'denied' | null;
   latest_beta_requested_at: string | null;
   latest_beta_request_id: string | null;
-  plan_type: string;
 };
 
 interface PaginationCursor {
@@ -528,28 +527,11 @@ export default function AdminUsersPage() {
                   <option value="paid_user">Paid User</option>
                 </select>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Plan Type</label>
-                <select
-                  value={editingUser.plan_type}
-                  onChange={(e) => setEditingUser({ ...editingUser, plan_type: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="trial">Trial</option>
-                  <option value="enterprise">Enterprise</option>
-                  <option value="paid_user">Paid User</option>
-                  <option value="free">Free User</option>
-                </select>
-              </div>
             </div>
 
             <div className="mt-6 flex gap-3">
               <button
-                onClick={() => handleUpdateUser(editingUser.user_id, {
-                  role: editingUser.role,
-                  plan_type: editingUser.plan_type
-                })}
+                onClick={() => handleUpdateUser(editingUser.user_id, { role: editingUser.role })}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
               >
                 Save Changes
