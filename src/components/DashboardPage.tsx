@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PatAvatar } from './PatAvatar';
 import { MessageSquare, Mic } from 'lucide-react';
-import { MessageSquare, Mic } from 'lucide-react';
 import { FrequencySection } from './dashboard/FrequencySection';
 import { RestSection } from './dashboard/RestSection';
 import { EnergySection } from './dashboard/EnergySection';
