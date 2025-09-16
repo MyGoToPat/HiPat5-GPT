@@ -149,33 +149,30 @@ export default function AdminUsersPage() {
   }
 
   const handleUpdateUser = async (userId: string, updates: { role?: AppRole; plan_type?: string }) => {
+  const handleUpdateUser = async (
+    userId: string,
+    updates: { role?: AppRole; plan_type?: string; beta_user?: boolean }
+  ) => {
     setSaveError(null);
     
-    // Include beta_user in updates if editingUser has it
-    const fullUpdates = { 
-      ...updates,
-      ...(editingUser && typeof editingUser.beta_user === 'boolean' ? { beta_user: editingUser.beta_user } : {})
-    };
-    
-    console.log('Sending update payload:', fullUpdates, 'for user:', userId);
-    
     try {
+      console.log("UPDATING USER", userId, updates);
+
       const { error } = await supabase
         .from('profiles')
-        .update(fullUpdates)
+        .update(updates)
         .eq('user_id', userId);
 
-      console.log('Supabase update result:', { error });
-      
       if (error) {
         console.error('Error updating user:', error);
         
-        // Check for role constraint violation
-        if (error.message?.includes('profiles_role_check_std') || 
+        if (
+          error.message?.includes('profiles_role_check_std') || 
             error.message?.includes('violates check constraint') ||
             error.message?.includes('check constraint') ||
             error.message?.includes('constraint') ||
-            error.code === '23514') {
+            error.code === '23514'
+        ) {
           setSaveError("This role is not allowed by the database constraint. Please run the role constraint migration first.");
           toast.error('Role change failed: Database constraint violation');
           return;
@@ -187,14 +184,12 @@ export default function AdminUsersPage() {
         return;
       }
 
-      toast.success(`User updated successfully: Role=${fullUpdates.role || 'unchanged'}, Beta=${fullUpdates.beta_user !== undefined ? fullUpdates.beta_user : 'unchanged'}`);
+      toast.success(`User updated successfully: Role=${updates.role}, Beta=${updates.beta_user}`);
       setShowEditModal(false);
       setEditingUser(null);
       setSaveError(null);
       
-      // Force refresh the user list to show changes immediately
       await fetchUsers('first');
-      
     } catch (err: any) {
       console.error('Update user error:', err);
       const errorMsg = err.message || 'An unexpected error occurred';
@@ -446,9 +441,14 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-6 py-4">
                       {user.beta_user ? (
-                        <CheckCircle size={16} className="text-green-600" />
+                        <span className="flex items-center gap-1">
+                          <CheckCircle size={16} className="text-green-600" />
+                          ✅
+                        </span>
                       ) : (
-                        <XCircle size={16} className="text-gray-400" />
+                        <span className="flex items-center gap-1">
+                          <XCircle size={16} className="text-gray-400" />
+                        </span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
@@ -514,26 +514,27 @@ export default function AdminUsersPage() {
                 <div className="flex items-center gap-2 mt-1">
                   <p className="text-gray-600 text-sm">{editingUser.email}</p>
                   {getRoleChip(editingUser.role)}
-                </div>
-              </div>
-            </div>
-
-            {/* Error Banner */}
-            {saveError && (
-              <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle size={16} className="text-red-600" />
-                  <p className="text-red-700 text-sm">{saveError}</p>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-6 space-y-4">
+                <label className="flex items-center space-x-2 mt-4">
+                  <input
+                    type="checkbox"
+                    checked={editingUser.beta_user}
+                    onChange={(e) =>
+                      setEditingUser((prev) => ({
+                        ...prev!,
+                        beta_user: e.target.checked,
+                      }))
+                    }
+                  />
+                  <span>Beta User</span>
+                </label>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
                 <select
                   value={editingUser.role}
-                  onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as AppRole })}
+                  onClick={() => handleUpdateUser(editingUser.user_id, { 
+                    role: editingUser.role,
+                    beta_user: editingUser.beta_user,
+                  })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="admin">Admin</option>
