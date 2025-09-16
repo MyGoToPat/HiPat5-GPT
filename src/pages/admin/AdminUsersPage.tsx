@@ -48,6 +48,31 @@ export default function AdminUsersPage() {
 
   const supabase = getSupabase();
   
+  // Update user privileges via Supabase RPC
+  const updatePrivileges = async (userId: string, newRole: string, isBeta: boolean) => {
+    try {
+      const { error } = await supabase.rpc('update_user_privileges', {
+        p_user_id: userId,
+        p_role: newRole,
+        p_beta_user: isBeta,
+      });
+
+      if (error) {
+        toast.error('Failed to update user privileges.');
+        console.error('❌ RPC update_user_privileges error:', error);
+        return false;
+      } else {
+        toast.success('User privileges updated.');
+        console.log('✅ RPC update_user_privileges success');
+        return true;
+      }
+    } catch (err: any) {
+      toast.error('Failed to update user privileges.');
+      console.error('❌ RPC update_user_privileges exception:', err);
+      return false;
+    }
+  };
+
   const fetchUsers = useCallback(async (direction: 'first' | 'next' | 'prev' = 'first') => {
     setLoading(true);
     setError(null);
@@ -161,50 +186,22 @@ export default function AdminUsersPage() {
   }
 
   const handleUpdateUser = async (profileId: string, updatedFields: Partial<AdminUserRow>) => {
-    console.log('🔧 Updating user with ID:', profileId);
-    console.log('Payload being sent:', updatedFields);
+    if (!editingUser) return;
+    
+    console.log('🔧 Updating user via RPC - User ID:', editingUser.user_id);
+    console.log('New Role:', editingUser.role, 'New Beta Status:', editingUser.beta_user);
 
     setSaveError(null);
     
-    try {
-      const {
-        data: authUser,
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError) {
-        console.error('❌ Auth error:', authError.message);
-        setSaveError(authError.message);
-        return;
-      }
-
-      console.log('🔐 Current auth user:', authUser ? { id: authUser.id, email: authUser.email } : null);
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updatedFields)
-        .eq('id', profileId);
-
-      if (error) {
-        console.error('❌ Supabase update error:', error.message);
-        setSaveError(error.message);
-        toast.error(`Failed to update user: ${error.message}`);
-        return;
-      } else {
-        console.log('✅ Update success:', data);
-        toast.success('User updated successfully!');
-      }
-
+    const success = await updatePrivileges(editingUser.user_id, editingUser.role, editingUser.beta_user);
+    
+    if (success) {
       setShowEditModal(false);
       setEditingUser(null);
       setSaveError(null);
-      
       await fetchUsers('first');
-    } catch (err: any) {
-      console.error('Update user error:', err);
-      const errorMsg = err.message || 'An unexpected error occurred';
-      setSaveError(errorMsg);
-      toast.error(`Failed to update user: ${errorMsg}`);
+    } else {
+      setSaveError('Failed to update user privileges. Please try again.');
     }
   };
 
