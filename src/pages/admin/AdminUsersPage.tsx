@@ -16,6 +16,7 @@ type AdminUserRow = {
   latest_beta_status: 'pending' | 'approved' | 'denied' | null;
   latest_beta_requested_at: string | null;
   latest_beta_request_id: string | null;
+  plan_type: string;
 };
 
 interface PaginationCursor {
@@ -111,7 +112,6 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, roleFilter, planFilter, betaOnly, statusFilter, cursors, supabase]);
   }, [search, roleFilter, betaOnly, statusFilter, cursors, supabase]);
 
   // Debounced search
@@ -149,15 +149,7 @@ export default function AdminUsersPage() {
     );
   }
 
-
-
-
-
-
-
-
-
-  const handleUpdateUser = async (userId: string, updates: { role?: AppRole }) => {
+  const handleUpdateUser = async (userId: string, updates: { role?: AppRole; plan_type?: string }) => {
     setSaveError(null);
     try {
       const { error } = await supabase
@@ -421,6 +413,17 @@ export default function AdminUsersPage() {
                   </td>
                 </tr>
               ) : (
+                users.map((user) => (
+                  <tr key={user.user_id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                          <User size={16} className="text-gray-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{user.name || 'No name'}</div>
+                          <div className="text-sm text-gray-600">{user.email}</div>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -442,7 +445,8 @@ export default function AdminUsersPage() {
                     <td className="px-6 py-4">
                       <button
                         onClick={() => {
-                          role: editingUser.role
+                          setEditingUser(user);
+                          setShowEditModal(true);
                           setSaveError(null);
                         }}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
