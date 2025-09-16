@@ -553,16 +553,7 @@ export default function AdminUsersPage() {
 
             {/* Error Banner */}
             {saveError && (
-              <div className="mx-6 mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle size={16} className="text-red-600" />
-                  <p className="text-red-700 text-sm">{saveError}</p>
-                </div>
-              </div>
-            )}
-
-            {saveError && (
-              <div className="mx-6 mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
                 <div className="flex items-center gap-2">
                   <AlertTriangle size={16} className="text-red-600" />
                   <p className="text-red-700 text-sm">{saveError}</p>
@@ -579,11 +570,10 @@ export default function AdminUsersPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="admin">Admin</option>
+                  <option value="beta">Beta</option>
                   <option value="trainer">Trainer</option>
                   <option value="free_user">Free User</option>
                   <option value="paid_user">Paid User</option>
-                  <option value="beta">Beta</option>
-                  <option value="beta">Beta</option>
                 </select>
               </div>
 
