@@ -1,7 +1,7 @@
 import React from 'react';
 import { TalkingPatPage1 } from '../components/TalkingPatPage1';
 import { useRole } from '../hooks/useRole';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Mic } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 
