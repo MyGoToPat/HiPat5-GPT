@@ -119,8 +119,8 @@ export default function AdminUsersPage() {
       }
 
       // Apply search term if specified
-      if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
       }
 
       // Apply pagination
