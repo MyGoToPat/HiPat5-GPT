@@ -564,6 +564,7 @@ export default function AdminUsersPage() {
                   onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as AppRole })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
+                  <option value="admin">Admin</option>
                   <option value="beta">Beta</option>
                   <option value="trainer">Trainer</option>
                   <option value="free_user">Free User</option>
