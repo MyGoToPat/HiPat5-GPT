@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import AdminHeader from '../../components/admin/AdminHeader';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAgentsStore } from '../../store/agents';
-import { Plus, CheckCircle, Trash2, Settings, ArrowLeft, ChevronLeft } from 'lucide-react';
+import { Plus, CheckCircle, Trash2, Settings } from 'lucide-react';
 import { AgentVersionCreateModal } from '../../components/agents/AgentVersionCreateModal';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../../lib/supabase';
+import { BackButton } from '../../components/common/BackButton';
 
 export default function AgentDetailPage() {
   const navigate = useNavigate();
@@ -108,15 +109,9 @@ export default function AgentDetailPage() {
 
   return (
     <div className="p-6 pt-[44px]">
-      {/* Back Button */}
-      <div className="mb-4">
-        <button
-          onClick={() => navigate('/admin/agents')}
-          className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <ChevronLeft size={16} />
-          <span>Back to Agents</span>
-        </button>
+      {/* Standardized Back Button */}
+      <div className="mb-6">
+        <BackButton to="/admin/agents" label="Back to Agents" />
       </div>
 
       <AdminHeader

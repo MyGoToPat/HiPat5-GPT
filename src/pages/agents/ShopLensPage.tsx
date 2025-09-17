@@ -5,12 +5,10 @@ import { RiskBadge } from '../../components/agents/RiskBadge';
 import { analyzeLabel, fetchUserFeedback, getConfig, saveConfig } from '../../lib/shoplens';
 import type { Analysis, UserFeedback, ShopLensConfig } from '../../types/shoplens';
 import { useRole } from '../../hooks/useRole';
-import { ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { BackButton } from '../../components/common/BackButton';
 
 export default function ShopLensPage() {
   const { can } = useRole();
-  const navigate = useNavigate();
   
   if (!can('agents.use.shoplens')) {
     return (
@@ -21,13 +19,7 @@ export default function ShopLensPage() {
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
           <p className="text-gray-600 mb-6">Your role doesn't allow access to ShopLens yet.</p>
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors mx-auto"
-          >
-            <ArrowLeft size={16} />
-            Back to Dashboard
-          </button>
+          <BackButton to="/" label="Back to Dashboard" className="mx-auto bg-blue-600 hover:bg-blue-700 text-white" />
         </div>
       </div>
     );
@@ -133,6 +125,11 @@ export default function ShopLensPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 pt-[44px]">
+      {/* Standardized Back Button */}
+      <div className="mb-6">
+        <BackButton to="/admin/agents" label="Back to Agents" />
+      </div>
+      
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">

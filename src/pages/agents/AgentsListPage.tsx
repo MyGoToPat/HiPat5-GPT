@@ -2,14 +2,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Bot, ExternalLink, FileText } from 'lucide-react';
 import { useRole } from '../../hooks/useRole';
-import { ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { BackButton } from '../../components/common/BackButton';
 
 const FEATURE_SHOPLENS = import.meta.env.VITE_FEATURE_SHOPLENS !== 'false';
 
 export default function AgentsListPage() {
   const { can } = useRole();
-  const navigate = useNavigate();
   
   if (!can('agents.view')) {
     return (
@@ -20,13 +18,7 @@ export default function AgentsListPage() {
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
           <p className="text-gray-600 mb-6">Your role doesn't allow access to agents yet.</p>
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors mx-auto"
-          >
-            <ArrowLeft size={16} />
-            Back to Dashboard
-          </button>
+          <BackButton to="/" label="Back to Dashboard" className="mx-auto bg-blue-600 hover:bg-blue-700 text-white" />
         </div>
       </div>
     );
@@ -47,6 +39,11 @@ export default function AgentsListPage() {
 
   return (
     <main aria-labelledby="agents-h1" className="min-h-screen bg-gray-50 p-6">
+      {/* Standardized Back Button */}
+      <div className="mb-6">
+        <BackButton to="/admin" label="Back to Admin" />
+      </div>
+      
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 id="agents-h1" className="text-3xl font-bold text-gray-900 mb-2">Agents</h1>
