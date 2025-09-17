@@ -34,6 +34,7 @@ const EditUserModal = ({ editingUser, setEditingUser, showEditModal, setShowEdit
   };
 
   const handleUpdateUser = async () => {
+    const supabase = getSupabase();
     const { user_id, role, beta_user } = editingUser;
     const { error } = await supabase.rpc('update_user_privileges', {
       target_user_id: user_id,
