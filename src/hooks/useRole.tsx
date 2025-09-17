@@ -26,12 +26,12 @@ export function useRole() {
           const { data, error } = await supabase
             .from('profiles')
             .select('role')
-            .eq('user_id', user.id) // ✅ correct key
+            .eq('user_id', user.id)
             .maybeSingle();
 
           if (error) {
             console.error('[useRole] profiles fetch error:', error.message);
-            setRole('free_user' as AppRole);
+            setRole('free_user' as AppRole); // fallback role
             setLoading(false);
             return;
           }
@@ -53,4 +53,11 @@ export function useRole() {
   }, []);
 
   return { role, loading, can };
+}
+
+export function AdminGuard({ children }: { children: React.ReactNode }) {
+  const { role, loading } = useRole();
+  if (loading) return null; // keep UI quiet during initial fetch
+  if (role !== 'admin') return <div>Not authorized</div>;
+  return <>{children}</>;
 }
