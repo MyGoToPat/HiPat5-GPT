@@ -7,6 +7,8 @@ import { ExternalLink, Settings, CheckCircle, ChevronDown, ChevronUp } from 'luc
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../../lib/supabase';
+import AgentTemplateWizard from '@/components/admin/agents/AgentTemplateWizard';
+import { getPersonalityAgents, getPersonalitySwarm } from '@/state/personalityStore';
 
 type AgentRow = {
   id?: string | number;
@@ -28,6 +30,7 @@ export default function AgentsListPage() {
   const [betaEnabled, setBetaEnabled] = React.useState(false);
   const [paidEnabled, setPaidEnabled] = React.useState(false);
   const [roleFilter, setRoleFilter] = React.useState<string | null>(null);
+  const [wizardOpen, setWizardOpen] = React.useState(false);
 
   // Compute filtered results based on role selection
   const filtered = !roleFilter ? (rows ?? []) : (rows ?? []).filter(r => (r.versionConfig?.swarm ?? '') === roleFilter);
@@ -37,31 +40,54 @@ export default function AgentsListPage() {
 
   React.useEffect(() => {
     (async () => {
-      const { data } = await sb
-        .from('agents')
-        .select('id, slug, name, enabled, order, current_version_id')
-        .order('order', { ascending: true });
-      
-      const rows = (data as AgentRow[]) ?? [];
-      
-      // Collect unique version IDs
-      const ids = Array.from(new Set(rows.map(r => r.current_version_id).filter(Boolean)));
-      
-      if (ids.length > 0) {
-        // Bulk fetch versions
-        const { data: vers } = await sb
-          .from('agent_versions')
-          .select('id, config, config_json')
-          .in('id', ids);
+      // If filtering for personality, use local store
+      if (roleFilter === 'pats-personality') {
+        const personalityAgents = getPersonalityAgents();
+        const swarm = getPersonalitySwarm();
         
-        // Map & attach
-        const map = new Map((vers || []).map(v => [v.id, (v.config ?? v.config_json ?? {})]));
-        setRows(rows.map(r => ({ ...r, versionConfig: map.get(r.current_version_id) || {} })));
+        const personalityRows: AgentRow[] = swarm.map(agentId => {
+          const agent = personalityAgents[agentId];
+          if (!agent) return null;
+          return {
+            id: agent.id,
+            slug: agent.id,
+            name: agent.name,
+            enabled: agent.enabled,
+            order: agent.order,
+            current_version_id: null,
+            versionConfig: { swarm: 'pats-personality' }
+          };
+        }).filter(Boolean) as AgentRow[];
+        
+        setRows(personalityRows);
       } else {
-        setRows(rows);
+        // For other filters, use existing Supabase logic
+        const { data } = await sb
+          .from('agents')
+          .select('id, slug, name, enabled, order, current_version_id')
+          .order('order', { ascending: true });
+        
+        const rows = (data as AgentRow[]) ?? [];
+        
+        // Collect unique version IDs
+        const ids = Array.from(new Set(rows.map(r => r.current_version_id).filter(Boolean)));
+        
+        if (ids.length > 0) {
+          // Bulk fetch versions
+          const { data: vers } = await sb
+            .from('agent_versions')
+            .select('id, config, config_json')
+            .in('id', ids);
+          
+          // Map & attach
+          const map = new Map((vers || []).map(v => [v.id, (v.config ?? v.config_json ?? {})]));
+          setRows(rows.map(r => ({ ...r, versionConfig: map.get(r.current_version_id) || {} })));
+        } else {
+          setRows(rows);
+        }
       }
     })();
-  }, []);
+  }, [roleFilter]);
 
   function setRow(key: string | number, patch: Partial<AgentRow>) {
     setRows(curr =>
@@ -159,7 +185,16 @@ export default function AgentsListPage() {
           title="Personality Agents" 
           subtitle="Configure AI personality modules for Pat"
           right={
-            <div></div>
+            <div>
+              {roleFilter === 'pats-personality' && (
+                <button
+                  onClick={() => setWizardOpen(true)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
+                >
+                  New Agent
+                </button>
+              )}
+            </div>
           }
         />
         
@@ -444,6 +479,34 @@ export default function AgentsListPage() {
 
         {/* Help Section */}
       </div>
+      
+      <AgentTemplateWizard 
+        open={wizardOpen} 
+        onClose={() => {
+          setWizardOpen(false);
+          // Refresh personality agents from local store
+          if (roleFilter === 'pats-personality') {
+            const personalityAgents = getPersonalityAgents();
+            const swarm = getPersonalitySwarm();
+            
+            const personalityRows: AgentRow[] = swarm.map(agentId => {
+              const agent = personalityAgents[agentId];
+              if (!agent) return null;
+              return {
+                id: agent.id,
+                slug: agent.id,
+                name: agent.name,
+                enabled: agent.enabled,
+                order: agent.order,
+                current_version_id: null,
+                versionConfig: { swarm: 'pats-personality' }
+              };
+            }).filter(Boolean) as AgentRow[];
+            
+            setRows(personalityRows);
+          }
+        }} 
+      />
     </div>
   );
 }
