@@ -129,7 +129,6 @@ const EditUserModal = ({ editingUser, setEditingUser, showEditModal, setShowEdit
     </div>
   );
 };
-const BETA_ALLOWED: AppRole[] = ['trainer','paid_user'];
 
 type AdminUserRow = {
   id: string; // Primary key from 'profiles'
