@@ -49,9 +49,9 @@ export default function AdminUsersPage() {
   const updatePrivileges = async (userId: string, newRole: string, isBeta: boolean) => {
     try {
       const { error } = await supabase.rpc('update_user_privileges', {
-        p_user_id: userId,
-        p_role: newRole,
-        p_beta_user: isBeta,
+       target_user_id: userId,
+       new_role: newRole,
+       is_beta_user: isBeta,
       });
 
       if (error) {
