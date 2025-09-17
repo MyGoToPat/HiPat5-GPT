@@ -74,10 +74,31 @@ export default function RootLayout() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!active || !user) return;
 
-        const profile = await getUserProfile(user.id);
-        if (!active) return;
-        
-        setUserProfile(profile);
+        try {
+          const profile = await getUserProfile(user.id);
+          if (!active) return;
+          
+          setUserProfile(profile);
+        } catch (profileError: any) {
+          if (!profileError.message?.includes('infinite recursion detected')) {
+            console.error('Failed to load user profile', profileError);
+          }
+          
+          // Handle infinite recursion in RLS policies
+          if (profileError.message?.includes('infinite recursion detected')) {
+            console.warn('[RootLayout] RLS policy infinite recursion detected, using fallback profile');
+            // Create fallback profile from auth user data
+            const fallbackProfile = {
+              role: user.app_metadata?.role || 'user',
+              email: user.email || '',
+              name: user.user_metadata?.name || user.email?.split('@')[0] || 'User'
+            };
+            if (!active) return;
+            setUserProfile(fallbackProfile);
+          } else {
+            if (active) setUserProfile(null);
+          }
+        }
       } catch (err) {
         console.error('Failed to load user profile', err);
         if (active) setUserProfile(null);
