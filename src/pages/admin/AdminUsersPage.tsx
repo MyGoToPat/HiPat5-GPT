@@ -567,8 +567,6 @@ export default function AdminUsersPage() {
                   <option value="admin">Admin</option>
                   <option value="trainer">Trainer</option>
                   <option value="user">User</option>
-                  <option value="free_user">Free User</option>
-                  <option value="paid_user">Paid User</option>
                 </select>
               </div>
               
