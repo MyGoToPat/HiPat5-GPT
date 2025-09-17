@@ -80,7 +80,9 @@ export default function RootLayout() {
           
           setUserProfile(profile);
         } catch (profileError: any) {
-          console.error('Failed to load user profile', profileError);
+          if (!profileError.message?.includes('infinite recursion detected')) {
+            console.error('Failed to load user profile', profileError);
+          }
           
           // Handle infinite recursion in RLS policies
           if (profileError.message?.includes('infinite recursion detected')) {

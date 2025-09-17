@@ -29,7 +29,11 @@ export function useRole() {
           .maybeSingle();
 
         if (error) {
-          console.error('[useRole] profiles fetch error:', error.message);
+          if (error.message?.includes('infinite recursion detected in policy for relation "profiles"')) {
+            console.warn('[useRole] RLS policy infinite recursion detected - this is a backend configuration issue');
+          } else {
+            console.error('[useRole] profiles fetch error:', error.message);
+          }
           setRole(null);
         } else {
           setRole(data?.role ?? null);
