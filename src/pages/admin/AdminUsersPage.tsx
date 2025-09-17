@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getSupabase } from '../../lib/supabase';
-import { Search, Filter, ChevronLeft, ChevronRight, UserCheck, UserX, Crown, User, Building, Clock, CheckCircle, XCircle, AlertTriangle, Edit, MoreVertical } from 'lucide-react';
+import { Search, Filter, ChevronLeft, ChevronRight, UserCheck, UserX, Crown, User, Building, Clock, CheckCircle, XCircle, AlertTriangle, Edit } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminHeader from '../../components/admin/AdminHeader';
 import { useRole } from '../../hooks/useRole';
@@ -9,11 +9,125 @@ import { type AppRole, getRoleDisplayName } from '../../config/rbac';
 export type AppRole = 'admin' | 'trainer' | 'user' | 'free_user' | 'paid_user';
 export const APP_ROLES: AppRole[] = ['admin','trainer','user','free_user','paid_user'];
 export const APP_ROLE_LABELS: Record<AppRole,string> = {
-  admin: 'Admin',
-  trainer: 'Trainer',
-  user: 'User',
-  free_user: 'Free User',
-  paid_user: 'Paid User',
+ admin: 'Admin',
+ trainer: 'Trainer',
+ user: 'User',
+ free_user: 'Free User',
+ paid_user: 'Paid User',
+};
+const BETA_ALLOWED: AppRole[] = ['trainer','paid_user'];
+
+const EditUserModal = ({ editingUser, setEditingUser, showEditModal, setShowEditModal }) => {
+  if (!showEditModal || !editingUser) return null;
+
+  const handleChangeRole = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextRole = e.target.value as AppRole;
+    setEditingUser(prev => ({
+      ...prev,
+      role: nextRole,
+      beta_user: BETA_ALLOWED.includes(nextRole) ? prev.beta_user : false,
+    }));
+  };
+
+  const handleChangeBeta = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditingUser(prev => ({ ...prev, beta_user: e.target.checked }));
+  };
+
+  const handleUpdateUser = async () => {
+    const { user_id, role, beta_user } = editingUser;
+    const { error } = await supabase.rpc('update_user_privileges', {
+      target_user_id: user_id,
+      new_role: role,
+      is_beta_user: beta_user,
+    });
+    if (error) {
+      toast.error('Failed to update user privileges.');
+      return;
+    }
+    toast.success('User privileges updated.');
+    setShowEditModal(false);
+    fetchUsers(0);
+  };
+
+  const isBetaAllowed = BETA_ALLOWED.includes(editingUser.role as AppRole);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-gray-600 text-sm">{editingUser.email}</p>
+              {getRoleChip(editingUser.role)}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4 mt-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+            <select
+              value={editingUser.role as AppRole}
+              onChange={handleChangeRole}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {APP_ROLES.map(r => (
+                <option key={r} value={r}>{APP_ROLE_LABELS[r]}</option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Beta User Toggle */}
+          <div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!editingUser.beta_user}
+                onChange={handleChangeBeta}
+                disabled={!isBetaAllowed}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Beta User Access</span>
+                <p className="text-xs text-gray-500">
+                  {isBetaAllowed
+                    ? 'Enable beta features for this user'
+                    : 'Beta access only available for trainers and paid users'
+                  }
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {saveError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-red-800 text-sm">{saveError}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 flex gap-3">
+          <button
+            onClick={handleUpdateUser}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+          >
+            Save Changes
+          </button>
+          <button
+            onClick={() => {
+              setShowEditModal(false);
+              setEditingUser(null);
+              setSaveError(null);
+            }}
+            className="px-6 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 const BETA_ALLOWED: AppRole[] = ['trainer','paid_user'];
 
@@ -46,7 +160,6 @@ export default function AdminUsersPage() {
   const [betaOnly, setBetaOnly] = useState<boolean | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   
-  // Pagination
   const [currentPage, setCurrentPage] = useState(0);
   const [hasNextPage, setHasNextPage] = useState(false);
   
@@ -54,8 +167,6 @@ export default function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<AdminUserRow | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const supabase = getSupabase();
-  
   // Update user privileges via Supabase RPC
   const updatePrivileges = async (userId: string, newRole: string, isBeta: boolean) => {
     try {
@@ -171,7 +282,6 @@ export default function AdminUsersPage() {
         latest_beta_request_id: null,
       }));
       
-      // Update pagination state
       setHasNextPage(usersList.length > itemsPerPage);
       setCurrentPage(page);
       
@@ -195,7 +305,6 @@ export default function AdminUsersPage() {
     return () => clearTimeout(timeoutId);
   }, [search]);
 
-  // Fetch when filters change
   useEffect(() => {
     setCurrentPage(0);
     fetchUsers(0);
@@ -226,9 +335,6 @@ export default function AdminUsersPage() {
   const handleUpdateUser = async (profileId: string, updatedFields: Partial<AdminUserRow>) => {
     if (!editingUser) return;
     
-    console.log('🔧 Updating user via RPC - User ID:', editingUser.user_id);
-    console.log('New Role:', editingUser.role, 'New Beta Status:', editingUser.beta_user);
-
     setSaveError(null);
     
     const success = await updatePrivileges(editingUser.user_id, editingUser.role, editingUser.beta_user);
@@ -266,21 +372,9 @@ export default function AdminUsersPage() {
   };
 
   const getRoleChip = (role: AppRole) => {
-    const colors = {
-      admin: 'bg-red-100 text-red-800 border-red-200',
-      trainer: 'bg-blue-100 text-blue-800 border-blue-200',
-      beta: 'bg-purple-100 text-purple-800 border-purple-200',
-      paid_user: 'bg-green-100 text-green-800 border-green-200',
-      free_user: 'bg-gray-100 text-gray-800 border-gray-200'
-    };
-    const icons = {
-      admin: Crown,
-      trainer: UserCheck,
-      beta: UserCheck,
-      paid_user: CheckCircle,
-      free_user: User
-    };
-    const IconComponent = icons[role] || User;
+    const colors = { admin: 'bg-red-100 text-red-800 border-red-200', trainer: 'bg-blue-100 text-blue-800 border-blue-200', paid_user: 'bg-green-100 text-green-800 border-green-200', free_user: 'bg-gray-100 text-gray-800 border-gray-200', user: 'bg-gray-100 text-gray-800 border-gray-200' };
+    const icons = { admin: Crown, trainer: UserCheck, paid_user: CheckCircle, free_user: User, user: User };
+    const IconComponent = icons[role];
     
     return (
       <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${colors[role] || colors.free_user}`}>
@@ -554,105 +648,7 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Edit User Modal */}
-      {showEditModal && editingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-gray-600 text-sm">{editingUser.email}</p>
-                  {getRoleChip(editingUser.role)}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 mt-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                <select
-                  value={editingUser.role}
-                  onChange={(e) => {
-                    const nextRole = e.target.value as AppRole;
-                    setEditingUser(prev => ({
-                      ...prev,
-                      role: nextRole,
-                      beta_user: BETA_ALLOWED.includes(nextRole) ? prev.beta_user : false, // auto-uncheck if not allowed
-                    }));
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {APP_ROLES.map(role => (
-                    <option key={role} value={role}>{APP_ROLE_LABELS[role]}</option>
-                  ))}
-                </select>
-              </div>
-              
-              {/* Beta User Toggle */}
-              <div>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editingUser.beta_user}
-                    disabled={!BETA_ALLOWED.includes(editingUser.role as AppRole)}
-                    onChange={(e) => {
-                      setEditingUser({ ...editingUser, beta_user: e.target.checked });
-                      console.log('📝 Beta checkbox changed to:', e.target.checked);
-                    }}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <div>
-                    <span className="text-sm font-medium text-gray-700">Beta User Access</span>
-                    <p className="text-xs text-gray-500">
-                      {BETA_ALLOWED.includes(editingUser.role as AppRole) 
-                        ? 'Enable beta features for this user'
-                        : 'Beta access only available for trainers and paid users'
-                      }
-                    </p>
-                  </div>
-                </label>
-              </div>
-
-              {saveError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-red-800 text-sm">{saveError}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => {
-                  console.log('🎯 Save button clicked - calling handleUpdateUser with:', {
-                    profileId: editingUser.id,
-                    updatedFields: {
-                      role: editingUser.role,
-                      beta_user: editingUser.beta_user,
-                    }
-                  });
-                  handleUpdateUser(editingUser.id, {
-                    role: editingUser.role,
-                    beta_user: editingUser.beta_user,
-                  });
-                }}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-              >
-                Save Changes
-              </button>
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingUser(null);
-                  setSaveError(null);
-                }}
-                className="px-6 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <EditUserModal editingUser={editingUser} setEditingUser={setEditingUser} showEditModal={showEditModal} setShowEditModal={setShowEditModal} />
     </div>
   );
 }
