@@ -170,6 +170,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [, setSaveError] = useState<string | null>(null);
   
   
   // Filters
