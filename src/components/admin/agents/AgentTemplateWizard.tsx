@@ -10,6 +10,7 @@ import {
 type Props = {
   open: boolean;
   onClose: () => void;
+  editingAgent?: AgentConfig | null;
 };
 
 type TemplateKind = "classifier-pre" | "generator-main" | "rewriter-post";
@@ -50,39 +51,77 @@ const starterByTemplate = (kind: TemplateKind) => {
   }
 };
 
-export default function AgentTemplateWizard({ open, onClose }: Props) {
+export default function AgentTemplateWizard({ open, onClose, editingAgent }: Props) {
   const [template, setTemplate] = useState<TemplateKind>("classifier-pre");
   const starter = useMemo(() => starterByTemplate(template), [template]);
 
-  const [id, setId] = useState("");
-  const [name, setName] = useState("");
-  const [phase, setPhase] = useState<AgentPhase>(starter.phase);
-  const [enabled, setEnabled] = useState(true);
-  const [order, setOrder] = useState<number>((getPersonalitySwarm().length || 0) + 1);
+  const [id, setId] = useState(editingAgent?.id || "");
+  const [name, setName] = useState(editingAgent?.name || "");
+  const [phase, setPhase] = useState<AgentPhase>(editingAgent?.phase || starter.phase);
+  const [enabled, setEnabled] = useState(editingAgent?.enabled ?? true);
+  const [order, setOrder] = useState<number>(editingAgent?.order || (getPersonalitySwarm().length || 0) + 1);
 
-  const [instructions, setInstructions] = useState(starter.instructions);
-  const [promptTemplate, setPromptTemplate] = useState(starter.promptTemplate);
-  const [tonePreset, setTonePreset] = useState<TonePreset>("spartan");
-  const [toneNotes, setToneNotes] = useState("");
+  const [instructions, setInstructions] = useState(editingAgent?.instructions || starter.instructions);
+  const [promptTemplate, setPromptTemplate] = useState(editingAgent?.promptTemplate || starter.promptTemplate);
+  const [tonePreset, setTonePreset] = useState<TonePreset>(editingAgent?.tone?.preset || "spartan");
+  const [toneNotes, setToneNotes] = useState(editingAgent?.tone?.notes || "");
 
-  const [model, setModel] = useState("gpt-4o-mini");
-  const [temperature, setTemperature] = useState(0.2);
-  const [maxOutputTokens, setMaxOutputTokens] = useState(500);
-  const [responseFormat, setResponseFormat] = useState<"text" | "json">(starter.responseFormat as any);
-  const [jsonSchema, setJsonSchema] = useState<string | null>(starter.jsonSchema);
+  const [model, setModel] = useState(editingAgent?.api?.model || "gpt-4o-mini");
+  const [temperature, setTemperature] = useState(editingAgent?.api?.temperature || 0.2);
+  const [maxOutputTokens, setMaxOutputTokens] = useState(editingAgent?.api?.maxOutputTokens || 500);
+  const [responseFormat, setResponseFormat] = useState<"text" | "json">(editingAgent?.api?.responseFormat as any || starter.responseFormat as any);
+  const [jsonSchema, setJsonSchema] = useState<string | null>(editingAgent?.api?.jsonSchema || starter.jsonSchema);
 
+  // Reset form when editing agent changes
   React.useEffect(() => {
-    setPhase(starter.phase);
-    setInstructions(starter.instructions);
-    setPromptTemplate(starter.promptTemplate);
-    setResponseFormat(starter.responseFormat as any);
-    setJsonSchema(starter.jsonSchema);
-  }, [starter]);
+    if (editingAgent) {
+      setId(editingAgent.id);
+      setName(editingAgent.name);
+      setPhase(editingAgent.phase);
+      setEnabled(editingAgent.enabled);
+      setOrder(editingAgent.order);
+      setInstructions(editingAgent.instructions);
+      setPromptTemplate(editingAgent.promptTemplate);
+      setTonePreset(editingAgent.tone.preset);
+      setToneNotes(editingAgent.tone.notes || "");
+      setModel(editingAgent.api.model);
+      setTemperature(editingAgent.api.temperature);
+      setMaxOutputTokens(editingAgent.api.maxOutputTokens);
+      setResponseFormat(editingAgent.api.responseFormat as any);
+      setJsonSchema(editingAgent.api.jsonSchema);
+    } else {
+      // Reset to defaults when not editing
+      setId("");
+      setName("");
+      setPhase(starter.phase);
+      setEnabled(true);
+      setOrder((getPersonalitySwarm().length || 0) + 1);
+      setInstructions(starter.instructions);
+      setPromptTemplate(starter.promptTemplate);
+      setTonePreset("spartan");
+      setToneNotes("");
+      setModel("gpt-4o-mini");
+      setTemperature(0.2);
+      setMaxOutputTokens(500);
+      setResponseFormat(starter.responseFormat as any);
+      setJsonSchema(starter.jsonSchema);
+    }
+  }, [editingAgent, starter]);
+  // Only apply template changes when not editing
+  React.useEffect(() => {
+    if (!editingAgent) {
+      setPhase(starter.phase);
+      setInstructions(starter.instructions);
+      setPromptTemplate(starter.promptTemplate);
+      setResponseFormat(starter.responseFormat as any);
+      setJsonSchema(starter.jsonSchema);
+    }
+  }, [starter, editingAgent]);
 
   if (!open) return null;
 
   const agents = getPersonalityAgents();
-  const idExists = id && !!agents[id];
+  const idExists = id && !!agents[id] && (!editingAgent || editingAgent.id !== id);
 
   const preview = {
     provider: "openai",
@@ -100,7 +139,7 @@ export default function AgentTemplateWizard({ open, onClose }: Props) {
   function onSave() {
     if (!id || !name) return alert("Please provide an id and name.");
     if (!/^[a-z0-9-]+$/.test(id)) return alert("ID must be lowercase, numbers and hyphens only.");
-    if (idExists) return alert("This agent id already exists.");
+    if (idExists) return alert("This agent ID already exists.");
 
     const cfg: AgentConfig = {
       id,
@@ -137,13 +176,16 @@ export default function AgentTemplateWizard({ open, onClose }: Props) {
     <div className="fixed inset-0 z-[999] bg-black/40">
       <div className="absolute right-0 top-0 h-full w-full max-w-3xl bg-white shadow-xl overflow-auto">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">New Personality Agent</h2>
+          <h2 className="text-xl font-semibold">
+            {editingAgent ? 'Edit Personality Agent' : 'New Personality Agent'}
+          </h2>
           <button className="px-3 py-1 rounded border hover:bg-gray-50" onClick={onClose}>Close</button>
         </div>
 
         <div className="p-4 space-y-6">
           {/* Template */}
-          <section>
+          {!editingAgent && (
+            <section>
             <h3 className="font-semibold mb-2">Template</h3>
             <select
               value={template}
@@ -154,7 +196,8 @@ export default function AgentTemplateWizard({ open, onClose }: Props) {
               <option value="generator-main">Generator (Main)</option>
               <option value="rewriter-post">Rewriter (Post)</option>
             </select>
-          </section>
+            </section>
+          )}
 
           {/* Basic Info */}
           <section>
@@ -163,8 +206,10 @@ export default function AgentTemplateWizard({ open, onClose }: Props) {
               <div>
                 <label className="block text-sm font-medium mb-1">Agent ID (slug)</label>
                 <input value={id} onChange={(e) => setId(e.target.value)} placeholder="e.g., clarity-coach-2"
-                       className="w-full border rounded px-3 py-2"/>
+                       className="w-full border rounded px-3 py-2"
+                       disabled={!!editingAgent}/>
                 {idExists && <p className="text-xs text-red-600 mt-1">ID already exists.</p>}
+                {editingAgent && <p className="text-xs text-gray-600 mt-1">ID cannot be changed when editing.</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Name</label>

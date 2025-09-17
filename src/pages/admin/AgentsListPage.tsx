@@ -31,6 +31,7 @@ export default function AgentsListPage() {
   const [paidEnabled, setPaidEnabled] = React.useState(false);
   const [roleFilter, setRoleFilter] = React.useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = React.useState(false);
+  const [editingAgent, setEditingAgent] = React.useState<any>(null);
 
   // Compute filtered results based on role selection
   const filtered = !roleFilter ? (rows ?? []) : (rows ?? []).filter(r => (r.versionConfig?.swarm ?? '') === roleFilter);
@@ -387,12 +388,28 @@ export default function AgentsListPage() {
                       </td>
                       
                       <td className="px-6 py-4">
-                        <Link
-                          to={`/admin/agents/${row.id}`}
-                          className="text-blue-600 hover:text-blue-900 text-sm"
-                        >
-                          Edit
-                        </Link>
+                        {roleFilter === 'pats-personality' ? (
+                          <button
+                            onClick={() => {
+                              const agents = getPersonalityAgents();
+                              const agent = agents[row.slug];
+                              if (agent) {
+                                setEditingAgent(agent);
+                                setWizardOpen(true);
+                              }
+                            }}
+                            className="text-blue-600 hover:text-blue-900 text-sm"
+                          >
+                            Edit
+                          </button>
+                        ) : (
+                          <Link
+                            to={`/admin/agents/${row.id}`}
+                            className="text-blue-600 hover:text-blue-900 text-sm"
+                          >
+                            Edit
+                          </Link>
+                        )}
                       </td>
                     </tr>
                     
@@ -436,12 +453,28 @@ export default function AgentsListPage() {
                           
                           <div className="flex items-end gap-2 mt-4">
                             <div className="flex items-end gap-2">
-                              <Link
-                                to={`/admin/agents/${row.id}`}
-                                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
-                              >
-                                Edit Agent
-                              </Link>
+                              {roleFilter === 'pats-personality' ? (
+                                <button
+                                  onClick={() => {
+                                    const agents = getPersonalityAgents();
+                                    const agent = agents[row.slug];
+                                    if (agent) {
+                                      setEditingAgent(agent);
+                                      setWizardOpen(true);
+                                    }
+                                  }}
+                                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
+                                >
+                                  Edit Agent
+                                </button>
+                              ) : (
+                                <Link
+                                  to={`/admin/agents/${row.id}`}
+                                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
+                                >
+                                  Edit Agent
+                                </Link>
+                              )}
                               <button
                                 disabled={!row._dirty}
                                 onClick={() => saveRow(row)}
@@ -482,8 +515,10 @@ export default function AgentsListPage() {
       
       <AgentTemplateWizard 
         open={wizardOpen} 
+        editingAgent={editingAgent}
         onClose={() => {
           setWizardOpen(false);
+          setEditingAgent(null);
           // Refresh personality agents from local store
           if (roleFilter === 'pats-personality') {
             const personalityAgents = getPersonalityAgents();
