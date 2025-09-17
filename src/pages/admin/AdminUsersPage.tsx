@@ -96,7 +96,7 @@ export default function AdminUsersPage() {
 
       // Apply search term if specified
       if (search) {
-        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+        query = query.or(\`name.ilike.%${search}%,email.ilike.%${search}%`);
       }
 
       // Apply beta filter if specified
@@ -668,4 +668,9 @@ export default function AdminUsersPage() {
       )}
     </div>
   );
+}
+        )
+    }
+  }
+  )
 }
