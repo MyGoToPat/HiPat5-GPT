@@ -34,7 +34,16 @@ export function useRole() {
 
           if (error) {
             console.error('[useRole] profiles fetch error:', error.message);
-            setRole('free_user' as AppRole); // fallback role
+            
+            // Handle infinite recursion in RLS policies
+            if (error.message?.includes('infinite recursion detected')) {
+              console.warn('[useRole] RLS policy infinite recursion detected, using fallback role');
+              // Use auth metadata or default to 'user' role
+              const fallbackRole = session.user?.app_metadata?.role || 'user';
+              setRole(fallbackRole as AppRole);
+            } else {
+              setRole('free_user' as AppRole); // fallback role
+            }
             setLoading(false);
             return;
           }
@@ -44,7 +53,15 @@ export function useRole() {
           setRole(userRole);
         } catch (profileError: any) {
           console.error('[useRole] profiles fetch error:', profileError.message);
-          setRole(null);
+          
+          // Handle infinite recursion in RLS policies
+          if (profileError.message?.includes('infinite recursion detected')) {
+            console.warn('[useRole] RLS policy infinite recursion detected, using fallback role');
+            const fallbackRole = session.user?.app_metadata?.role || 'user';
+            setRole(fallbackRole as AppRole);
+          } else {
+            setRole(null);
+          }
         }
       } catch (authError) {
         console.error('[useRole] auth error:', authError);

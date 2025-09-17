@@ -19,13 +19,32 @@ export const getSupabase = () => supabase;
 
 export async function getUserProfile(user_id: string) {
   if (!user_id) throw new Error('getUserProfile: missing user_id');
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', user_id)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
+  
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', user_id)
+      .maybeSingle();
+    
+    if (error) {
+      // Handle infinite recursion in RLS policies
+      if (error.message?.includes('infinite recursion detected')) {
+        console.warn('[getUserProfile] RLS policy infinite recursion detected, returning null');
+        return null;
+      }
+      throw error;
+    }
+    
+    return data;
+  } catch (err: any) {
+    // Handle infinite recursion in RLS policies
+    if (err.message?.includes('infinite recursion detected')) {
+      console.warn('[getUserProfile] RLS policy infinite recursion detected, returning null');
+      return null;
+    }
+    throw err;
+  }
 }
 
 // ---- BEGIN AUTO-STUBS (do not edit below; regenerated) ----
