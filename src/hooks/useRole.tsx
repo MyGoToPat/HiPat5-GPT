@@ -1,8 +1,12 @@
+// src/hooks/useRole.tsx
+
 import { useEffect, useState } from 'react';
+import { useAuth } from './useAuth';
 import { getSupabase } from '../lib/supabase';
-import { hasPrivilege, type AppRole, type Privilege } from '../config/rbac';
+import { hasPrivilege, AppRole, Privilege } from '../config/rbac';
 
 export function useRole() {
+  const { session } = useAuth();
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -13,41 +17,30 @@ export function useRole() {
   useEffect(() => {
     const fetchRole = async () => {
       const supabase = getSupabase();
-
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          setRole(null);
-          setLoading(false);
-          return;
-        }
-
         const { data, error } = await supabase
           .from('profiles')
           .select('role')
-          .eq('user_id', user.id)
+          .eq('user_id', session?.user.id) // ✅ FIXED
           .maybeSingle();
 
         if (error) {
-          if (error.message?.includes('infinite recursion detected in policy for relation "profiles"')) {
-            console.warn('[useRole] RLS policy infinite recursion detected - this is a backend configuration issue');
-          } else {
-            console.error('[useRole] profiles fetch error:', error.message);
-          }
-          setRole(null);
-        } else {
-          setRole(data?.role ?? null);
+          console.warn('[useRole] profile fetch error:', error.message);
         }
+
+        setRole(data?.role ?? null);
       } catch (err) {
-        console.error('[useRole] unexpected error:', err);
+        console.error('[useRole] fetchRole error:', err);
         setRole(null);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchRole();
-  }, []);
+    if (session?.user?.id) {
+      fetchRole();
+    }
+  }, [session?.user?.id]);
 
   return { role, loading, can };
 }
