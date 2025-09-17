@@ -7,13 +7,15 @@ import { useRole } from '../../hooks/useRole';
 import { getRoleDisplayName } from '../../config/rbac';
 
 export type AppRole = 'admin' | 'trainer' | 'user' | 'free_user' | 'paid_user';
-export const APP_ROLES: AppRole[] = ['admin','trainer','user'];
+export const APP_ROLES: AppRole[] = ['admin','trainer','user','free_user','paid_user'];
 export const APP_ROLE_LABELS: Record<AppRole,string> = {
   admin: 'Admin',
   trainer: 'Trainer',
   user: 'User',
+  free_user: 'Free User',
+  paid_user: 'Paid User',
 };
-const BETA_ALLOWED: AppRole[] = ['trainer'];
+const BETA_ALLOWED: AppRole[] = ['trainer','paid_user'];
 
 const getRoleChip = (role: AppRole) => {
   const colors = { admin: 'bg-red-100 text-red-800 border-red-200', trainer: 'bg-blue-100 text-blue-800 border-blue-200', paid_user: 'bg-green-100 text-green-800 border-green-200', free_user: 'bg-gray-100 text-gray-800 border-gray-200', user: 'bg-gray-100 text-gray-800 border-gray-200' };
@@ -35,7 +37,6 @@ const EditUserModal = ({
   showEditModal,
   setShowEditModal,
   fetchUsers,
-  setSaveError,
 }: {
   supabase: ReturnType<typeof getSupabase>;
   editingUser: any;
@@ -43,7 +44,6 @@ const EditUserModal = ({
   showEditModal: boolean;
   setShowEditModal: (v: boolean) => void;
   fetchUsers: (page?: number) => void;
-  setSaveError: (error: string | null) => void;
 }) => {
   if (!showEditModal || !editingUser) return null;
 
@@ -184,7 +184,6 @@ export default function AdminUsersPage() {
   // Modals
   const [editingUser, setEditingUser] = useState<AdminUserRow | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Update user privileges via Supabase RPC
   const updatePrivileges = async (userId: string, newRole: string, isBeta: boolean) => {
@@ -661,7 +660,6 @@ export default function AdminUsersPage() {
         showEditModal={showEditModal}
         setShowEditModal={setShowEditModal}
         fetchUsers={fetchUsers}
-        setSaveError={setSaveError}
       />
     </div>
   );
