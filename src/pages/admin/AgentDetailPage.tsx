@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import AdminHeader from '../../components/admin/AdminHeader';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAgentsStore } from '../../store/agents';
-import { Plus, CheckCircle, Trash2, Settings, ArrowLeft } from 'lucide-react';
+import { Plus, CheckCircle, Trash2, Settings, ArrowLeft, ChevronLeft } from 'lucide-react';
 import { AgentVersionCreateModal } from '../../components/agents/AgentVersionCreateModal';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../../lib/supabase';
 
 export default function AgentDetailPage() {
+  const navigate = useNavigate();
   const { agentId } = useParams<{ agentId: string }>();
   const {
     getAgentById,
@@ -107,6 +108,17 @@ export default function AgentDetailPage() {
 
   return (
     <div className="p-6 pt-[44px]">
+      {/* Back Button */}
+      <div className="mb-4">
+        <button
+          onClick={() => navigate('/admin/agents')}
+          className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <ChevronLeft size={16} />
+          <span>Back to Agents</span>
+        </button>
+      </div>
+
       <AdminHeader
         title={agent ? `Agent: ${agent.name}` : 'Agent'}
         subtitle={agent ? `slug: ${agent.id}` : ''}
@@ -198,13 +210,13 @@ export default function AgentDetailPage() {
       ) : (
         <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-white border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Version</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Configuration</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created At</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider bg-gray-50">Version</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider bg-gray-50">Configuration</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider bg-gray-50">Created At</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider bg-gray-50">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider bg-gray-50">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
