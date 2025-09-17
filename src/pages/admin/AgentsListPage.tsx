@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { getSupabase } from '../../lib/supabase';
 import AgentTemplateWizard from '@/components/admin/agents/AgentTemplateWizard';
 import { getPersonalityAgents, getPersonalitySwarm } from '@/state/personalityStore';
+import AgentBulkActions from '@/components/admin/agents/AgentBulkActions';
 
 type AgentRow = {
   id?: string | number;
@@ -32,6 +33,14 @@ export default function AgentsListPage() {
   const [roleFilter, setRoleFilter] = React.useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = React.useState(false);
   const [editingAgent, setEditingAgent] = React.useState<any>(null);
+
+  // Force re-render when personality store updates
+  const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
+  React.useEffect(() => {
+    const onRefresh = () => forceUpdate();
+    window.addEventListener("hipat:personality:refresh", onRefresh);
+    return () => window.removeEventListener("hipat:personality:refresh", onRefresh);
+  }, []);
 
   // Compute filtered results based on role selection
   const filtered = !roleFilter ? (rows ?? []) : (rows ?? []).filter(r => (r.versionConfig?.swarm ?? '') === roleFilter);
@@ -188,12 +197,15 @@ export default function AgentsListPage() {
           right={
             <div>
               {roleFilter === 'pats-personality' && (
-                <button
-                  onClick={() => setWizardOpen(true)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
-                >
-                  New Agent
-                </button>
+                <div className="flex items-center gap-3">
+                  <AgentBulkActions />
+                  <button
+                    onClick={() => setWizardOpen(true)}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors"
+                  >
+                    New Agent
+                  </button>
+                </div>
               )}
             </div>
           }

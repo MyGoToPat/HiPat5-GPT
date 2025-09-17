@@ -14,7 +14,7 @@ const defaultState: PersonalityState = {
   swarm: Object.keys(defaultPersonalityAgents).sort(
     (a, b) => (defaultPersonalityAgents[a].order ?? 0) - (defaultPersonalityAgents[b].order ?? 0)
   ),
-  version: 1,
+  version: 2,
 };
 
 function load(): PersonalityState {
@@ -59,6 +59,6 @@ export function setPersonalitySwarm(agentIds: string[]) {
 }
 
 export function resetPersonalityState() {
-  state = { ...defaultState, agents: { ...defaultState.agents }, swarm: [...defaultState.swarm] };
+  state = JSON.parse(JSON.stringify(defaultState));
   persist();
 }
