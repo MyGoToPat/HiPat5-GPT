@@ -20,10 +20,6 @@ type AdminUserRow = {
 };
 
 const itemsPerPage = 25;
-interface PaginationCursor {
-  created_at: string;
-  user_id: string;
-}
 
 export default function AdminUsersPage() {
   const { can } = useRole();
@@ -37,10 +33,9 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<AppRole | null>(null);
   const [betaOnly, setBetaOnly] = useState<boolean | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'approved' | 'denied' | null>(null);
   
   // Pagination
-  const [cursors, setCursors] = useState<PaginationCursor[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
   const [hasNextPage, setHasNextPage] = useState(false);
   
   // Modals
@@ -61,7 +56,8 @@ export default function AdminUsersPage() {
       if (error) {
         toast.error('Failed to update user privileges.');
         console.error('❌ RPC update_user_privileges error:', error);
-        return false;
+        setCurrentPage(0);
+        await fetchUsers(0);
       } else {
         toast.success('User privileges updated.');
         console.log('✅ RPC update_user_privileges success');
@@ -74,32 +70,12 @@ export default function AdminUsersPage() {
     }
   };
 
-  const fetchUsers = useCallback(async (direction: 'first' | 'next' | 'prev' = 'first') => {
+  const fetchUsers = useCallback(async (page: number = 0) => {
     setLoading(true);
     setError(null);
     
     try {
-      let afterCreatedAt: string | null = null;
-      let afterId: string | null = null;
-      
-      if (direction === 'next' && cursors.length > 0) {
-        const lastCursor = cursors[cursors.length - 1];
-        afterCreatedAt = lastCursor.created_at;
-        afterId = lastCursor.user_id;
-      } else if (direction === 'prev' && cursors.length > 1) {
-        // Remove current page cursor and use previous
-        const newCursors = cursors.slice(0, -1);
-        setCursors(newCursors);
-        if (newCursors.length > 0) {
-          const prevCursor = newCursors[newCursors.length - 1];
-          afterCreatedAt = prevCursor.created_at;
-          afterId = prevCursor.user_id;
-        }
-      } else if (direction === 'first') {
-        setCursors([]);
-      }
-
-      // Replace RPC call with direct table query to avoid type casting issues
+      // Direct table query to avoid RPC type casting issues
       let query = supabase
         .from('profiles')
         .select(`
@@ -115,7 +91,7 @@ export default function AdminUsersPage() {
         .order('created_at', { ascending: false });
 
       // Apply role filter if specified
-      if (roleFilter && roleFilter !== 'all') {
+      if (roleFilter) {
         query = query.eq('role', roleFilter);
       }
 
@@ -124,12 +100,16 @@ export default function AdminUsersPage() {
         query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
       }
 
+      // Apply beta filter if specified
+      if (betaOnly === true) {
+        query = query.eq('beta_user', true);
+      }
+
       // Apply pagination
-      const offset = direction === 'first' ? 0 : 
-                    direction === 'next' ? currentPage * itemsPerPage : 
-                    Math.max(0, (currentPage - 2) * itemsPerPage);
+      const offset = page * itemsPerPage;
       
-      query = query.range(offset, offset + itemsPerPage - 1);
+      // Fetch one extra to determine if there's a next page
+      query = query.range(offset, offset + itemsPerPage);
 
       const { data, error } = await query;
 
@@ -145,26 +125,24 @@ export default function AdminUsersPage() {
       }
 
       const usersList = (data || []).map((row: any) => ({
-        id: row.id, // from Supabase RPC
+        id: row.id,
         user_id: row.user_id,
         email: row.email,
         name: row.name,
         role: row.role,
         beta_user: row.beta_user,
         created_at: row.created_at,
-        latest_beta_status: row.latest_beta_status,
-        latest_beta_requested_at: row.latest_beta_requested_at,
-        latest_beta_request_id: row.latest_beta_request_id,
+        latest_beta_status: null, // Not available from direct profiles query
+        latest_beta_requested_at: null,
+        latest_beta_request_id: null,
       }));
-      setUsers(usersList);
       
       // Update pagination state
-      setHasNextPage(usersList.length === 25);
+      setHasNextPage(usersList.length > itemsPerPage);
+      setCurrentPage(page);
       
-      if (direction === 'next' && usersList.length > 0) {
-        const lastUser = usersList[usersList.length - 1];
-        setCursors(prev => [...prev, { created_at: lastUser.created_at, user_id: lastUser.user_id }]);
-      }
+      // Display only itemsPerPage items
+      setUsers(usersList.slice(0, itemsPerPage));
       
     } catch (err: any) {
       console.error('Fetch error:', err);
@@ -172,24 +150,26 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, roleFilter, betaOnly, statusFilter, cursors, supabase]);
+  }, [search, roleFilter, betaOnly, supabase]);
 
   // Debounced search
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      fetchUsers('first');
+      setCurrentPage(0);
+      fetchUsers(0);
     }, 300);
     return () => clearTimeout(timeoutId);
   }, [search]);
 
   // Fetch when filters change
   useEffect(() => {
-    fetchUsers('first');
-  }, [roleFilter, betaOnly, statusFilter]);
+    setCurrentPage(0);
+    fetchUsers(0);
+  }, [roleFilter, betaOnly]);
 
   // Initial load
   useEffect(() => {
-    fetchUsers('first');
+    fetchUsers(0);
   }, []);
   
   // Check admin access
@@ -243,7 +223,8 @@ export default function AdminUsersPage() {
       }
 
       toast.success(`Beta request ${approve ? 'approved' : 'denied'} for ${userName}`);
-      fetchUsers('first'); // Refresh the list
+      setCurrentPage(0);
+      fetchUsers(0); // Refresh the list
     } catch (err: any) {
       console.error('Process beta request error:', err);
       toast.error('Failed to process beta request');
@@ -327,7 +308,7 @@ export default function AdminUsersPage() {
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-800">Error: {error}</p>
           <button 
-            onClick={() => fetchUsers('first')}
+            onClick={() => fetchUsers(0)}
             className="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm"
           >
             Retry
@@ -420,7 +401,8 @@ export default function AdminUsersPage() {
 
           <select
             value={statusFilter || ''}
-            onChange={(e) => setStatusFilter(e.target.value === '' ? null : e.target.value as any)}
+            onChange={() => {}} // Disabled for now since direct profiles query doesn't have beta status
+            disabled
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Status</option>
@@ -471,7 +453,9 @@ export default function AdminUsersPage() {
                       {getRoleChip(user.role)}
                     </td>
                     <td className="px-6 py-4">
-                      {user.beta_user ? (
+                      {user.role === 'admin' ? (
+                        <span className="text-xs text-gray-500 italic">Full Access</span>
+                      ) : user.beta_user ? (
                         <span className="flex items-center gap-1">
                           <CheckCircle size={16} className="text-green-600" />
                           ✅
@@ -515,8 +499,8 @@ export default function AdminUsersPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => fetchUsers('prev')}
-              disabled={cursors.length <= 1}
+              onClick={() => fetchUsers(currentPage - 1)}
+              disabled={currentPage === 0}
               className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
               <ChevronLeft size={16} />
@@ -524,7 +508,7 @@ export default function AdminUsersPage() {
             </button>
 
             <button
-              onClick={() => fetchUsers('next')}
+              onClick={() => fetchUsers(currentPage + 1)}
               disabled={!hasNextPage}
               className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
