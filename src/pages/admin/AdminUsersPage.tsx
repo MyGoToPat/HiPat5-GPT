@@ -19,6 +19,7 @@ type AdminUserRow = {
   latest_beta_request_id: string | null;
 };
 
+const itemsPerPage = 25;
 interface PaginationCursor {
   created_at: string;
   user_id: string;
