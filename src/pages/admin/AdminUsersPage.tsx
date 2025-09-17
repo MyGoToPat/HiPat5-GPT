@@ -4,20 +4,34 @@ import { Search, Filter, ChevronLeft, ChevronRight, UserCheck, UserX, Crown, Use
 import toast from 'react-hot-toast';
 import AdminHeader from '../../components/admin/AdminHeader';
 import { useRole } from '../../hooks/useRole';
-import { type AppRole, getRoleDisplayName } from '../../config/rbac';
+import { getRoleDisplayName } from '../../config/rbac';
 
 export type AppRole = 'admin' | 'trainer' | 'user' | 'free_user' | 'paid_user';
 export const APP_ROLES: AppRole[] = ['admin','trainer','user','free_user','paid_user'];
 export const APP_ROLE_LABELS: Record<AppRole,string> = {
- admin: 'Admin',
- trainer: 'Trainer',
- user: 'User',
- free_user: 'Free User',
- paid_user: 'Paid User',
+  admin: 'Admin',
+  trainer: 'Trainer',
+  user: 'User',
+  free_user: 'Free User',
+  paid_user: 'Paid User',
 };
 const BETA_ALLOWED: AppRole[] = ['trainer','paid_user'];
 
-const EditUserModal = ({ editingUser, setEditingUser, showEditModal, setShowEditModal }) => {
+const EditUserModal = ({
+  supabase,
+  editingUser,
+  setEditingUser,
+  showEditModal,
+  setShowEditModal,
+  fetchUsers,
+}: {
+  supabase: ReturnType<typeof getSupabase>;
+  editingUser: any;
+  setEditingUser: (u: any) => void;
+  showEditModal: boolean;
+  setShowEditModal: (v: boolean) => void;
+  fetchUsers: (page?: number) => void;
+}) => {
   if (!showEditModal || !editingUser) return null;
 
   const handleChangeRole = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -34,12 +48,11 @@ const EditUserModal = ({ editingUser, setEditingUser, showEditModal, setShowEdit
   };
 
   const handleUpdateUser = async () => {
-    const supabase = getSupabase();
     const { user_id, role, beta_user } = editingUser;
     const { error } = await supabase.rpc('update_user_privileges', {
       target_user_id: user_id,
       new_role: role,
-      is_beta_user: beta_user,
+      is_beta_user: !!beta_user,
     });
     if (error) {
       toast.error('Failed to update user privileges.');
@@ -100,12 +113,6 @@ const EditUserModal = ({ editingUser, setEditingUser, showEditModal, setShowEdit
               </div>
             </label>
           </div>
-
-          {saveError && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-red-800 text-sm">{saveError}</p>
-            </div>
-          )}
         </div>
 
         <div className="mt-6 flex gap-3">
@@ -118,10 +125,7 @@ const EditUserModal = ({ editingUser, setEditingUser, showEditModal, setShowEdit
           <button
             onClick={() => {
               setShowEditModal(false);
-              setEditingUser(null);
-              setSaveError(null);
             }}
-            className="px-6 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg"
           >
             Cancel
           </button>
@@ -148,10 +152,11 @@ const itemsPerPage = 25;
 
 export default function AdminUsersPage() {
   const { can } = useRole();
+  const supabase = getSupabase();
+  
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
   
   
   // Filters
@@ -648,7 +653,14 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Edit User Modal */}
-      <EditUserModal editingUser={editingUser} setEditingUser={setEditingUser} showEditModal={showEditModal} setShowEditModal={setShowEditModal} />
+      <EditUserModal
+        supabase={supabase}
+        editingUser={editingUser}
+        setEditingUser={setEditingUser}
+        showEditModal={showEditModal}
+        setShowEditModal={setShowEditModal}
+        fetchUsers={fetchUsers}
+      />
     </div>
   );
 }
