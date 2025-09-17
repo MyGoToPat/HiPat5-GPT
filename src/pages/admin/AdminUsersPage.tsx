@@ -17,6 +17,19 @@ export const APP_ROLE_LABELS: Record<AppRole,string> = {
 };
 const BETA_ALLOWED: AppRole[] = ['trainer','paid_user'];
 
+const getRoleChip = (role: AppRole) => {
+  const colors = { admin: 'bg-red-100 text-red-800 border-red-200', trainer: 'bg-blue-100 text-blue-800 border-blue-200', paid_user: 'bg-green-100 text-green-800 border-green-200', free_user: 'bg-gray-100 text-gray-800 border-gray-200', user: 'bg-gray-100 text-gray-800 border-gray-200' };
+  const icons = { admin: Crown, trainer: UserCheck, paid_user: CheckCircle, free_user: User, user: User };
+  const IconComponent = icons[role];
+  
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${colors[role] || colors.free_user}`}>
+      <IconComponent size={12} />
+      {getRoleDisplayName(role)}
+    </span>
+  );
+};
+
 const EditUserModal = ({
   supabase,
   editingUser,
@@ -374,19 +387,6 @@ export default function AdminUsersPage() {
       console.error('Process beta request error:', err);
       toast.error('Failed to process beta request');
     }
-  };
-
-  const getRoleChip = (role: AppRole) => {
-    const colors = { admin: 'bg-red-100 text-red-800 border-red-200', trainer: 'bg-blue-100 text-blue-800 border-blue-200', paid_user: 'bg-green-100 text-green-800 border-green-200', free_user: 'bg-gray-100 text-gray-800 border-gray-200', user: 'bg-gray-100 text-gray-800 border-gray-200' };
-    const icons = { admin: Crown, trainer: UserCheck, paid_user: CheckCircle, free_user: User, user: User };
-    const IconComponent = icons[role];
-    
-    return (
-      <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${colors[role] || colors.free_user}`}>
-        <IconComponent size={12} />
-        {getRoleDisplayName(role)}
-      </span>
-    );
   };
 
   const getBetaStatusBadge = (status: string | null) => {
