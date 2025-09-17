@@ -76,7 +76,7 @@ export default function AdminUsersPage() {
     setError(null);
     
     try {
-      // Direct table query to avoid RPC type casting issues
+      // Direct table query - should fetch ALL users if admin JWT is present
       let query = supabase
         .from('profiles')
         .select(`
@@ -86,9 +86,7 @@ export default function AdminUsersPage() {
           email,
           role,
           beta_user,
-          created_at,
-          plan_type
-        `)
+          created_at
         .order('created_at', { ascending: false });
 
       // Apply role filter if specified
@@ -125,6 +123,52 @@ export default function AdminUsersPage() {
         return;
       }
 
+      // Enhanced debugging and validation
+      console.log('Admin Users Query Result:', {
+        query_executed: 'profiles table direct query',
+        total_results: data?.length || 0,
+        first_user: data?.[0] || null,
+        filters_applied: {
+          role: roleFilter,
+          search: search,
+          beta_only: betaOnly
+        }
+      });
+
+      // UI fallback if no users are returned
+      if (!data || data.length === 0) {
+        console.warn('No users returned from profiles query - check RLS policies and admin JWT claims');
+        if (!roleFilter && !search && !betaOnly) {
+          setError('No users found. Check if your role is admin and you\'re authenticated.');
+        }
+        setUsers([]);
+        setHasNextPage(false);
+        setCurrentPage(page);
+        return;
+      }
+      // Enhanced debugging and validation
+      console.log('Admin Users Query Result:', {
+        query_executed: 'profiles table direct query',
+        total_results: data?.length || 0,
+        first_user: data?.[0] || null,
+        filters_applied: {
+          role: roleFilter,
+          search: search,
+          beta_only: betaOnly
+        }
+      });
+
+      // UI fallback if no users are returned
+      if (!data || data.length === 0) {
+        console.warn('No users returned from profiles query - check RLS policies and admin JWT claims');
+        if (!roleFilter && !search && !betaOnly) {
+          setError('No users found. Verify your admin role and authentication status.');
+        }
+        setUsers([]);
+        setHasNextPage(false);
+        setCurrentPage(page);
+        return;
+      }
       const usersList = (data || []).map((row: any) => ({
         id: row.id,
         user_id: row.user_id,
@@ -204,7 +248,7 @@ export default function AdminUsersPage() {
       setShowEditModal(false);
       setEditingUser(null);
       setSaveError(null);
-      await fetchUsers('first');
+      await fetchUsers(0);
     } else {
       setSaveError('Failed to update user privileges. Please try again.');
     }
@@ -344,9 +388,6 @@ export default function AdminUsersPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => user.latest_beta_request_id && handleProcessBetaRequest(user.latest_beta_request_id, true, user.name || user.email)}
-                    className="flex-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm"
-                  >
-                    Approve
                   </button>
                   <button
                     onClick={() => user.latest_beta_request_id && handleProcessBetaRequest(user.latest_beta_request_id, false, user.name || user.email)}
@@ -432,8 +473,25 @@ export default function AdminUsersPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {users.length === 0 && !loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                    No users found matching your filters.
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <div className="space-y-3">
+                      <AlertTriangle size={32} className="text-gray-400 mx-auto" />
+                      <div>
+                        <h3 className="font-medium text-gray-900 mb-1">No users found</h3>
+                        <p className="text-gray-500 text-sm">
+                          {!roleFilter && !search && !betaOnly 
+                            ? 'Check if your role is admin and you\'re authenticated. Try refreshing the page.'
+                            : 'No users match your current filters. Try adjusting your search criteria.'
+                          }
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => fetchUsers(0)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                      >
+                        Retry
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (
