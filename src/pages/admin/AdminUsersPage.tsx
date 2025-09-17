@@ -6,6 +6,17 @@ import AdminHeader from '../../components/admin/AdminHeader';
 import { useRole } from '../../hooks/useRole';
 import { type AppRole, getRoleDisplayName } from '../../config/rbac';
 
+export type AppRole = 'admin' | 'trainer' | 'user' | 'free_user' | 'paid_user';
+export const APP_ROLES: AppRole[] = ['admin','trainer','user','free_user','paid_user'];
+export const APP_ROLE_LABELS: Record<AppRole,string> = {
+  admin: 'Admin',
+  trainer: 'Trainer',
+  user: 'User',
+  free_user: 'Free User',
+  paid_user: 'Paid User',
+};
+const BETA_ALLOWED: AppRole[] = ['trainer','paid_user'];
+
 type AdminUserRow = {
   id: string; // Primary key from 'profiles'
   user_id: string;
@@ -561,12 +572,19 @@ export default function AdminUsersPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
                 <select
                   value={editingUser.role}
-                  onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as AppRole })}
+                  onChange={(e) => {
+                    const nextRole = e.target.value as AppRole;
+                    setEditingUser(prev => ({
+                      ...prev,
+                      role: nextRole,
+                      beta_user: BETA_ALLOWED.includes(nextRole) ? prev.beta_user : false, // auto-uncheck if not allowed
+                    }));
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="admin">Admin</option>
-                  <option value="trainer">Trainer</option>
-                  <option value="user">User</option>
+                  {APP_ROLES.map(role => (
+                    <option key={role} value={role}>{APP_ROLE_LABELS[role]}</option>
+                  ))}
                 </select>
               </div>
               
@@ -576,6 +594,7 @@ export default function AdminUsersPage() {
                   <input
                     type="checkbox"
                     checked={editingUser.beta_user}
+                    disabled={!BETA_ALLOWED.includes(editingUser.role as AppRole)}
                     onChange={(e) => {
                       setEditingUser({ ...editingUser, beta_user: e.target.checked });
                       console.log('📝 Beta checkbox changed to:', e.target.checked);
@@ -584,7 +603,12 @@ export default function AdminUsersPage() {
                   />
                   <div>
                     <span className="text-sm font-medium text-gray-700">Beta User Access</span>
-                    <p className="text-xs text-gray-500">Enable beta features for this user</p>
+                    <p className="text-xs text-gray-500">
+                      {BETA_ALLOWED.includes(editingUser.role as AppRole) 
+                        ? 'Enable beta features for this user'
+                        : 'Beta access only available for trainers and paid users'
+                      }
+                    </p>
                   </div>
                 </label>
               </div>
