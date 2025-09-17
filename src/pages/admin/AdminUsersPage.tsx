@@ -401,7 +401,7 @@ export default function AdminUsersPage() {
           </label>
 
           <select
-            value={statusFilter || ''}
+            value=""
             onChange={() => {}} // Disabled for now since direct profiles query doesn't have beta status
             disabled
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
