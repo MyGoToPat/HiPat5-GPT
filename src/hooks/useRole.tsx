@@ -1,9 +1,11 @@
 import React from 'react';
 import { useEffect, useState } from 'react';
 import { getSupabase } from '../lib/supabase';
+import { useAuth } from './useAuth';
 import { hasPrivilege, type AppRole, type Privilege } from '../config/rbac';
 
 export function useRole() {
+  const { session } = useAuth();
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
   
@@ -14,9 +16,10 @@ export function useRole() {
   useEffect(() => {
     const getRole = async () => {
       try {
+        setLoading(true);
         const supabase = getSupabase();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
+        
+        if (!session?.user) {
           setRole(null);
           setLoading(false);
           return;
@@ -26,7 +29,7 @@ export function useRole() {
           const { data, error } = await supabase
             .from('profiles')
             .select('role')
-            .eq('user_id', user.id)
+            .eq('user_id', session.user.id)
             .maybeSingle();
 
           if (error) {
@@ -36,7 +39,9 @@ export function useRole() {
             return;
           }
 
-          setRole((data?.role as AppRole) || 'free_user');
+          const userRole = (data?.role as AppRole) || 'free_user';
+          console.log('[useRole] Role fetched for user:', session.user.id, 'Role:', userRole);
+          setRole(userRole);
         } catch (profileError: any) {
           console.error('[useRole] profiles fetch error:', profileError.message);
           setRole(null);
@@ -49,8 +54,13 @@ export function useRole() {
       }
     };
 
-    getRole();
-  }, []);
+    if (session?.user?.id) {
+      getRole();
+    } else {
+      setRole(null);
+      setLoading(false);
+    }
+  }, [session?.user?.id]); // ✅ Re-fetches role when session changes
 
   return { role, loading, can };
 }

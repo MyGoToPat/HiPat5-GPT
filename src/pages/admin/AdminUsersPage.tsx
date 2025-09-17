@@ -139,14 +139,27 @@ export default function AdminUsersPage() {
       // UI fallback if no users are returned
       if (!data || data.length === 0) {
         console.warn('No users returned from profiles query - check RLS policies and admin JWT claims');
+        // Enhanced user feedback for admin access issues
         if (!roleFilter && !search && !betaOnly) {
-          setError('No users found. Verify your admin role and authentication status.');
+          setError('No users found. Check if your role is admin and you\'re authenticated. Try logging out and back in to refresh your session.');
         }
         setUsers([]);
         setHasNextPage(false);
         setCurrentPage(page);
         return;
       }
+
+      // Enhanced debugging for admin visibility
+      console.log('✅ Users fetched successfully:', {
+        total_users: data.length,
+        first_user_sample: data[0] ? {
+          name: data[0].name,
+          role: data[0].role,
+          beta_user: data[0].beta_user
+        } : null,
+        current_filters: { roleFilter, search, betaOnly }
+      });
+
       const usersList = (data || []).map((row: any) => ({
         id: row.id,
         user_id: row.user_id,
