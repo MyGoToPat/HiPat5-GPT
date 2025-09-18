@@ -1,21 +1,74 @@
 import React from 'react';
-import { Zap, Apple, TrendingDown } from 'lucide-react';
+import { Zap, Apple, TrendingDown, Edit3, Save, X } from 'lucide-react';
 import { MacroWheel } from './MacroWheel';
 import { EnergyData } from '../../types/metrics';
 import { CollapsibleTile } from './CollapsibleTile';
+import { setMacroOverrides } from '../../lib/macros';
+import { getSupabase } from '../../lib/supabase';
+import toast from 'react-hot-toast';
 
 interface EnergySectionProps {
   energyData?: EnergyData;
 }
 
 export const EnergySection: React.FC<EnergySectionProps> = ({ energyData }) => {
+  const [showEditModal, setShowEditModal] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [macroOverrides, setMacroOverrides] = React.useState<{
+    protein_g?: number;
+    fat_g?: number;
+    carb_g?: number;
+  } | null>(null);
+  const [editForm, setEditForm] = React.useState({
+    protein_g: 0,
+    fat_g: 0,
+    carb_g: 0
+  });
+
+  // Fetch user's macro overrides on mount
+  React.useEffect(() => {
+    const fetchOverrides = async () => {
+      try {
+        const supabase = getSupabase();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from('user_metrics')
+          .select('protein_g, carbs_g, fat_g')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error fetching macro overrides:', error);
+          return;
+        }
+
+        if (data && (data.protein_g || data.carbs_g || data.fat_g)) {
+          setMacroOverrides({
+            protein_g: data.protein_g,
+            fat_g: data.fat_g,
+            carb_g: data.carbs_g
+          });
+        }
+      } catch (error) {
+        console.error('Error in fetchOverrides:', error);
+      }
+    };
+
+    fetchOverrides();
+  }, []);
+
   // Use provided data or fallback to defaults
   const calories = energyData?.calories || 0;
   const tdee = energyData?.tdee || 2200;
   const deficit = tdee - calories;
-  const protein = energyData?.protein_g || 0;
-  const carbs = energyData?.carb_g || 0;
-  const fat = energyData?.fat_g || 0;
+  
+  // Use overrides if they exist, otherwise fall back to calculated values
+  const protein = macroOverrides?.protein_g ?? energyData?.protein_g ?? 0;
+  const carbs = macroOverrides?.carb_g ?? energyData?.carb_g ?? 0;
+  const fat = macroOverrides?.fat_g ?? energyData?.fat_g ?? 0;
+
   // Use provided data or create default structure
   const displayEnergyData: EnergyData = energyData || {
     date: '2024-01-21',
@@ -29,6 +82,38 @@ export const EnergySection: React.FC<EnergySectionProps> = ({ energyData }) => {
     last_meal_time: '20:15',
     tdee: tdee,
     bmr: 1850
+  };
+
+  const handleOpenEditModal = () => {
+    // Pre-populate form with current values (overrides or calculated)
+    setEditForm({
+      protein_g: protein,
+      fat_g: fat,
+      carb_g: carbs
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveMacros = async () => {
+    setIsSaving(true);
+    try {
+      await setMacroOverrides(editForm.protein_g, editForm.fat_g, editForm.carb_g);
+      
+      // Update local state immediately
+      setMacroOverrides({
+        protein_g: editForm.protein_g,
+        fat_g: editForm.fat_g,
+        carb_g: editForm.carb_g
+      });
+      
+      setShowEditModal(false);
+      toast.success('Macro targets updated successfully!');
+    } catch (error) {
+      console.error('Error saving macro overrides:', error);
+      toast.error('Failed to save macro targets. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const condensedContent = (
@@ -100,15 +185,123 @@ export const EnergySection: React.FC<EnergySectionProps> = ({ energyData }) => {
   );
 
   return (
-    <CollapsibleTile
-      title="Energy"
-      icon={Zap}
-      iconColor="text-green-400"
-      hoverColor="border-green-600"
-      condensedContent={condensedContent}
-      className=""
-    >
-      {fullContent}
-    </CollapsibleTile>
+    <>
+      <CollapsibleTile
+        title="Energy"
+        icon={Zap}
+        iconColor="text-green-400"
+        hoverColor="border-green-600"
+        condensedContent={condensedContent}
+        className=""
+        headerAction={
+          <button
+            onClick={handleOpenEditModal}
+            className="p-1 hover:bg-gray-800 rounded-lg transition-colors"
+            title="Edit macro targets"
+          >
+            <Edit3 size={16} className="text-gray-400 hover:text-white" />
+          </button>
+        }
+      >
+        {fullContent}
+      </CollapsibleTile>
+
+      {/* Edit Macros Modal */}
+      {showEditModal && (
+        <>
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShowEditModal(false)} />
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl z-50 w-full max-w-md">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Edit Macro Targets</h3>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X size={20} className="text-gray-600" />
+                </button>
+              </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Protein (grams)
+                </label>
+                <input
+                  type="number"
+                  value={editForm.protein_g}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, protein_g: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  min="0"
+                  max="500"
+                />
+              </div>
+              <p className="text-gray-600 text-sm mt-1">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fat (grams)
+                </label>
+                <input
+                  type="number"
+                  value={editForm.fat_g}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, fat_g: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  min="0"
+                  max="300"
+                />
+              </div>
+                Customize your daily macro targets (grams)
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Carbs (grams)
+                </label>
+                <input
+                  type="number"
+                  value={editForm.carb_g}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, carb_g: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  min="0"
+                  max="800"
+                />
+              </div>
+              </p>
+              {macroOverrides && (
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                  <p className="text-blue-800 text-sm">
+                    💡 You have custom macro targets set. These will replace the calculated values.
+                  </p>
+                </div>
+              )}
+            </div>
+            </div>
+            <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowEditModal(false)}
+                disabled={isSaving}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveMacros}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    Save Targets
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 };

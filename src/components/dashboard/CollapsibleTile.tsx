@@ -9,6 +9,7 @@ interface CollapsibleTileProps {
   children: React.ReactNode;
   condensedContent: React.ReactNode;
   className?: string;
+  headerAction?: React.ReactNode;
 }
 
 export const CollapsibleTile: React.FC<CollapsibleTileProps> = ({
@@ -18,7 +19,8 @@ export const CollapsibleTile: React.FC<CollapsibleTileProps> = ({
   hoverColor,
   children,
   condensedContent,
-  className = ''
+  className = '',
+  headerAction
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -27,20 +29,28 @@ export const CollapsibleTile: React.FC<CollapsibleTileProps> = ({
       {/* Header */}
       <div 
         className="flex items-center justify-between p-4 sm:p-6 pb-3 sm:pb-4"
-        onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center gap-3">
+        <div 
+          className="flex items-center gap-3 cursor-pointer flex-1"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
           <IconComponent size={20} className={`${iconColor} group-hover:brightness-110 transition-all`} />
           <h3 className="text-base sm:text-lg font-semibold text-white truncate" title={title}>{title}</h3>
         </div>
         
-        <button className="p-1 hover:bg-gray-800 rounded-lg transition-colors">
-          {isExpanded ? (
-            <ChevronUp size={16} className="text-gray-400" />
-          ) : (
-            <ChevronDown size={16} className="text-gray-400" />
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          {headerAction}
+          <button 
+            className="p-1 hover:bg-gray-800 rounded-lg transition-colors"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            {isExpanded ? (
+              <ChevronUp size={16} className="text-gray-400" />
+            ) : (
+              <ChevronDown size={16} className="text-gray-400" />
+            )}
+          </button>
+        </div>
       </div>
       
       {/* Content */}
