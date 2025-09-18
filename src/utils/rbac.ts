@@ -7,3 +7,7 @@ export function isPrivileged(role: UserRole | null): boolean {
 export function canToggle(role: UserRole | null): boolean {
   return role === 'admin' || role === 'beta';
 }
+
+export function isAdmin(role: UserRole | null): boolean {
+  return role === 'admin';
+}

@@ -18,6 +18,8 @@ export type AgentConfig = {
   phase: AgentPhase;     // pre | generate | post
   enabled: boolean;
   order: number;         // execution order within Personality swarm
+  enabledForPaid?: boolean;      // Enable for paid users
+  enabledForFreeTrial?: boolean; // Enable for free/trial users
   instructions: string;  // system rules enforced by the agent
   promptTemplate: string;// prompt chunk used by this agent
   tone: { preset: TonePreset; notes?: string };
