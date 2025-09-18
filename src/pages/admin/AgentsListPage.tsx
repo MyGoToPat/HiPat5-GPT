@@ -43,7 +43,6 @@ export default function AgentsListPage() {
   const [editingAgent, setEditingAgent] = React.useState<any>(null);
   const [showNewRoleModal, setShowNewRoleModal] = React.useState(false);
   const [showAddAgentModal, setShowAddAgentModal] = React.useState(false);
-  const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
 
   // Get current user role for gating toggles
   const { role: currentUserRole, loading: roleLoading } = useRole();
