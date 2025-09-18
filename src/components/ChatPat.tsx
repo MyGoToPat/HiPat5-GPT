@@ -26,8 +26,6 @@ import { getSupabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { useRole } from '../hooks/useRole';
 import { isPrivileged } from '../utils/rbac';
-import { useRole } from '../hooks/useRole';
-import { isPrivileged } from '../utils/rbac';
 
 export const ChatPat: React.FC = () => {
   const navigate = useNavigate();
