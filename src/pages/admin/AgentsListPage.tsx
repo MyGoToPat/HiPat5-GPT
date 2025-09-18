@@ -257,7 +257,6 @@ export default function AgentsListPage() {
         <AdminHeader 
           title="Personality Agents" 
           subtitle="Configure AI personality modules for Pat"
-          backTo="/admin"
           right={
             <div>
               {canCreateRoles(currentUserRole) && (

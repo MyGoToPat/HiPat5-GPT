@@ -117,7 +117,6 @@ export default function AgentDetailPage() {
       <AdminHeader
         title={agent ? `Agent: ${agent.name}` : 'Agent'}
         subtitle={agent ? `slug: ${agent.id}` : ''}
-        backTo="/admin/agents"
         right={
           <div className="flex items-center gap-2">
             <Link to={`/chat?agent=${agent?.id ?? ''}`} className="px-3 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200">

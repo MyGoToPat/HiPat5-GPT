@@ -1,10 +1,9 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 type Props = {
   title: string;
   subtitle?: string;
-  backTo?: string;       // default '/admin/agents'
   right?: React.ReactNode; // actions slot
 };
 
@@ -15,10 +14,14 @@ const label = (seg: string) => {
   return seg; // fallback (e.g., slug)
 };
 
-const AdminHeader: React.FC<Props> = ({ title, subtitle, backTo = '/admin/agents', right }) => {
+const AdminHeader: React.FC<Props> = ({ title, subtitle, right }) => {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const crumbs = pathname.split('/').filter(Boolean).slice(0, 3); // e.g., ['admin','agents','sandbox'|':slug']
 
+  const handleBackClick = () => {
+    navigate(-1); // Browser back navigation
+  };
   return (
     <div className="mb-4 border-b border-neutral-800 pb-3 flex items-start justify-between gap-3">
       <div className="space-y-2">
@@ -31,9 +34,12 @@ const AdminHeader: React.FC<Props> = ({ title, subtitle, backTo = '/admin/agents
           ))}
         </div>
         <div className="flex items-center gap-3">
-          <Link to={backTo} className="px-3 py-1.5 rounded bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-neutral-200">
+          <button 
+            onClick={handleBackClick}
+            className="px-3 py-1.5 rounded bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-neutral-200 transition-colors"
+          >
             ← Back
-          </Link>
+          </button>
           <div>
             <h1 className="text-lg font-semibold text-neutral-100">{title}</h1>
             {subtitle && <p className="text-xs text-neutral-400">{subtitle}</p>}
