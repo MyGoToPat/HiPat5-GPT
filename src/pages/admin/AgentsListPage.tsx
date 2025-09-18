@@ -396,16 +396,16 @@ export default function AgentsListPage() {
             <table className="min-w-full">
               <thead className="sticky top-0 z-10 bg-neutral-900/95 backdrop-blur text-left border-b border-neutral-800">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Expand</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Agent</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Enable for Paid</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Enable for Free/Trial</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-400 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-base font-semibold text-white">Expand</th>
+                  <th className="px-6 py-4 text-left text-base font-semibold text-white">Agent</th>
+                  <th className="px-6 py-4 text-left text-base font-semibold text-white">Status</th>
+                  <th className="px-6 py-4 text-left text-base font-semibold text-white">Enable for Paid</th>
+                  <th className="px-6 py-4 text-left text-base font-semibold text-white">Enable for Free/Trial</th>
+                  <th className="px-6 py-4 text-left text-base font-semibold text-white">
                     Swarm
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Order</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Actions</th>
+                  <th className="px-6 py-4 text-left text-base font-semibold text-white">Order</th>
+                  <th className="px-6 py-4 text-left text-base font-semibold text-white">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
