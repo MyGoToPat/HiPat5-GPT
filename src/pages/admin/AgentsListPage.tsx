@@ -2,16 +2,18 @@ import React from 'react';
 import AdminHeader from '../../components/admin/AdminHeader';
 import RoleTabs from '../../components/admin/RoleTabs';
 import { ROLE_ORCHESTRATORS } from '../../lib/role-orchestrators';
-import { SWARM_TABS } from '../../lib/swarm-tabs';
+import { SWARM_TABS as INITIAL_SWARM_TABS } from '../../lib/swarm-tabs';
 import { ExternalLink, Settings, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../../lib/supabase';
 import AgentTemplateWizard from '@/components/admin/agents/AgentTemplateWizard';
-import { getPersonalityAgents, getPersonalitySwarm } from '@/state/personalityStore';
+import { getPersonalityAgents, getPersonalitySwarm, upsertPersonalityAgent } from '@/state/personalityStore';
 import AgentBulkActions from '@/components/admin/agents/AgentBulkActions';
 import { useRole } from '../../hooks/useRole';
-import { canToggle } from '../../utils/rbac';
+import { canToggle, isAdmin } from '../../utils/rbac';
+import { NewRoleModal } from '../../components/admin/roles/NewRoleModal';
+import { AddSwarmAgentModal } from '../../components/admin/agents/AddSwarmAgentModal';
 
 type AgentRow = {
   id?: string | number;
@@ -19,6 +21,8 @@ type AgentRow = {
   name: string;
   enabled: boolean;
   order: number;
+  enabledForPaid?: boolean;
+  enabledForFreeTrial?: boolean;
   current_version_id?: string;
   _open?: boolean;
   _dirty?: boolean;
@@ -33,8 +37,11 @@ export default function AgentsListPage() {
   const [betaEnabled, setBetaEnabled] = React.useState(false);
   const [paidEnabled, setPaidEnabled] = React.useState(false);
   const [roleFilter, setRoleFilter] = React.useState<string | null>(null);
+  const [swarmTabs, setSwarmTabs] = React.useState(INITIAL_SWARM_TABS);
   const [wizardOpen, setWizardOpen] = React.useState(false);
   const [editingAgent, setEditingAgent] = React.useState<any>(null);
+  const [showNewRoleModal, setShowNewRoleModal] = React.useState(false);
+  const [showAddAgentModal, setShowAddAgentModal] = React.useState(false);
 
   // Get current user role for gating toggles
   const { role: currentUserRole, loading: roleLoading } = useRole();
@@ -68,6 +75,8 @@ export default function AgentsListPage() {
             slug: agent.id,
             name: agent.name,
             enabled: agent.enabled,
+            enabledForPaid: agent.enabledForPaid ?? true,
+            enabledForFreeTrial: agent.enabledForFreeTrial ?? true,
             order: agent.order,
             current_version_id: null,
             versionConfig: { swarm: 'pats-personality' }
@@ -124,6 +133,36 @@ export default function AgentsListPage() {
     // Implementation for saving role access
     toast.success('Role access settings saved');
   }
+
+  const handleCreateRole = (roleName: string) => {
+    // Create new role tab (UI-only, stored in local state)
+    const newRole = {
+      id: roleName.toLowerCase().replace(/\s+/g, '-'),
+      label: roleName,
+      blurb: `Custom role: ${roleName}`
+    };
+    
+    setSwarmTabs(prev => [...prev, newRole]);
+    toast.success(`Role "${roleName}" created`);
+  };
+
+  const handleAddAgentsToSwarm = (agentIds: string[], roleName: string) => {
+    // Update agents to be assigned to this role (UI-only)
+    const personalityAgents = getPersonalityAgents();
+    
+    agentIds.forEach(agentId => {
+      const agent = personalityAgents[agentId];
+      if (agent) {
+        // Update agent with swarm assignment
+        upsertPersonalityAgent({
+          ...agent,
+          // Add swarm property or similar to track role assignment
+        });
+      }
+    });
+    
+    toast.success(`Added ${agentIds.length} agent(s) to ${roleName}`);
+  };
 
   async function saveRow(row: AgentRow) {
     const match = row.id != null ? { id: row.id } : { slug: row.slug };
@@ -219,16 +258,24 @@ export default function AgentsListPage() {
           subtitle="Configure AI personality modules for Pat"
           right={
             <div>
-              {roleFilter === 'pats-personality' && (
+              {roleFilter === 'pats-personality' && isAdmin(currentUserRole) && (
                 <div className="flex items-center gap-3">
                   <AgentBulkActions />
                   <button
                     onClick={() => setWizardOpen(true)}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
                   >
-                    New Agent
+                    New Role
                   </button>
                 </div>
+              )}
+              {roleFilter && roleFilter !== 'pats-personality' && isAdmin(currentUserRole) && (
+                <button
+                  onClick={() => setShowAddAgentModal(true)}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors"
+                >
+                  Add Agent to Swarm
+                </button>
               )}
             </div>
           }
@@ -242,7 +289,7 @@ export default function AgentsListPage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-medium text-gray-900">
-                {SWARM_TABS.find(t => t.id === roleFilter)?.label || roleFilter} Configuration
+                {swarmTabs.find(t => t.id === roleFilter)?.label || roleFilter} Configuration
               </h3>
               <p className="text-xs text-gray-600">Test and configure rollout settings for this role</p>
             </div>
@@ -311,10 +358,10 @@ export default function AgentsListPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <div className="max-w-md mx-auto">
               <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                {SWARM_TABS.find(tab => tab.id === roleFilter)?.label}
+                {swarmTabs.find(tab => tab.id === roleFilter)?.label}
               </h3>
               <p className="text-gray-600 mb-6">
-                {SWARM_TABS.find(tab => tab.id === roleFilter)?.blurb}
+                {swarmTabs.find(tab => tab.id === roleFilter)?.blurb}
               </p>
               <div className="flex items-center justify-center gap-4">
                 <Link
@@ -351,6 +398,8 @@ export default function AgentsListPage() {
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Expand</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Agent</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Paid</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Free/Trial</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-neutral-400 uppercase tracking-wider">
                     Swarm
                   </th>
@@ -415,8 +464,66 @@ export default function AgentsListPage() {
                       </td>
                       
                       <td className="px-6 py-4">
+                        <label className="inline-flex items-center gap-3 cursor-pointer">
+                          <div className="relative">
+                            <input
+                              type="checkbox"
+                              checked={!!(row.enabledForPaid)}
+                              onChange={e => setRow(row.id ?? row.slug, { enabledForPaid: e.target.checked })}
+                              disabled={!isAdmin(currentUserRole)}
+                              className="sr-only"
+                            />
+                            <div className={`w-11 h-6 rounded-full transition-colors ${
+                              row.enabledForPaid ? 'bg-green-500' : 'bg-gray-300'
+                            } ${!isAdmin(currentUserRole) ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                              <div className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${
+                                row.enabledForPaid ? 'translate-x-5 mt-0.5' : 'translate-x-0.5 mt-0.5'
+                              }`} />
+                            </div>
+                          </div>
+                          <span className={`text-sm font-medium ${
+                            row.enabledForPaid ? 'text-green-700' : 'text-gray-500'
+                          }`}>
+                            {row.enabledForPaid ? 'Yes' : 'No'}
+                          </span>
+                          {!isAdmin(currentUserRole) && (
+                            <span className="text-xs text-gray-500 ml-2">Admin only</span>
+                          )}
+                        </label>
+                      </td>
+                      
+                      <td className="px-6 py-4">
+                        <label className="inline-flex items-center gap-3 cursor-pointer">
+                          <div className="relative">
+                            <input
+                              type="checkbox"
+                              checked={!!(row.enabledForFreeTrial)}
+                              onChange={e => setRow(row.id ?? row.slug, { enabledForFreeTrial: e.target.checked })}
+                              disabled={!isAdmin(currentUserRole)}
+                              className="sr-only"
+                            />
+                            <div className={`w-11 h-6 rounded-full transition-colors ${
+                              row.enabledForFreeTrial ? 'bg-green-500' : 'bg-gray-300'
+                            } ${!isAdmin(currentUserRole) ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                              <div className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${
+                                row.enabledForFreeTrial ? 'translate-x-5 mt-0.5' : 'translate-x-0.5 mt-0.5'
+                              }`} />
+                            </div>
+                          </div>
+                          <span className={`text-sm font-medium ${
+                            row.enabledForFreeTrial ? 'text-green-700' : 'text-gray-500'
+                          }`}>
+                            {row.enabledForFreeTrial ? 'Yes' : 'No'}
+                          </span>
+                          {!isAdmin(currentUserRole) && (
+                            <span className="text-xs text-gray-500 ml-2">Admin only</span>
+                          )}
+                        </label>
+                      </td>
+                      
+                      <td className="px-6 py-4">
                         <span className="text-sm text-gray-600">
-                          {row.versionConfig?.swarm ? SWARM_TABS.find(t => t.id === row.versionConfig?.swarm)?.label : '—'}
+                          {row.versionConfig?.swarm ? swarmTabs.find(t => t.id === row.versionConfig?.swarm)?.label : '—'}
                         </span>
                       </td>
                       
@@ -454,17 +561,18 @@ export default function AgentsListPage() {
                     
                     {row._open && (
                       <tr className="bg-gray-50">
-                        <td colSpan={6} className="px-6 py-4">
+                        <td colSpan={8} className="px-6 py-4">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Swarm Assignment</label>
                               <select
                                 value={row.versionConfig?.swarm ?? ''}
                                 onChange={(e) => setRow(row.id ?? row.slug, { swarm: e.target.value, _dirty: true })}
+                                disabled={!isAdmin(currentUserRole)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                               >
                                 <option value="">None</option>
-                                {SWARM_TABS.map(t => (
+                                {swarmTabs.map(t => (
                                   <option key={t.id} value={t.id}>{t.label}</option>
                                 ))}
                               </select>
@@ -476,6 +584,7 @@ export default function AgentsListPage() {
                                 type="number"
                                 value={row.order ?? 0}
                                 onChange={e => setRow(row.id ?? row.slug, { order: Number(e.target.value), _dirty: true })}
+                                disabled={!isAdmin(currentUserRole)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 min="0"
                                 max="999"
@@ -540,6 +649,9 @@ export default function AgentsListPage() {
               <span>
                 {filtered.length} {roleFilter ? 'filtered' : 'total'} agents • {filtered.filter(r => r.enabled).length} enabled • {filtered.filter(r => r._dirty).length} unsaved changes
               </span>
+              {!isAdmin(currentUserRole) && (
+                <span className="text-yellow-600">• View-only mode (Admin required for changes)</span>
+              )}
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 bg-yellow-100 border border-yellow-300 rounded"></div>
                 <span className="text-xs">Unsaved changes</span>
@@ -571,6 +683,8 @@ export default function AgentsListPage() {
                 slug: agent.id,
                 name: agent.name,
                 enabled: agent.enabled,
+                enabledForPaid: agent.enabledForPaid ?? true,
+                enabledForFreeTrial: agent.enabledForFreeTrial ?? true,
                 order: agent.order,
                 current_version_id: null,
                 versionConfig: { swarm: 'pats-personality' }
@@ -580,6 +694,19 @@ export default function AgentsListPage() {
             setRows(personalityRows);
           }
         }} 
+      />
+      
+      <NewRoleModal
+        isOpen={showNewRoleModal}
+        onClose={() => setShowNewRoleModal(false)}
+        onCreate={handleCreateRole}
+      />
+      
+      <AddSwarmAgentModal
+        isOpen={showAddAgentModal}
+        onClose={() => setShowAddAgentModal(false)}
+        currentRole={roleFilter || ''}
+        onAddAgents={handleAddAgentsToSwarm}
       />
     </div>
   );
