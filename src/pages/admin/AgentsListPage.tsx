@@ -388,7 +388,7 @@ export default function AgentsListPage() {
         ) : (
           /* Agents Table */
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+          <div className="px-6 py-4 border-b border-gray-200 bg-white">
             <h2 className="text-lg font-semibold text-gray-900">Agent Configuration</h2>
           </div>
           
