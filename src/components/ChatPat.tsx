@@ -34,9 +34,6 @@ export const ChatPat: React.FC = () => {
   // Get current user role for chat access gating
   const { role: currentUserRole, loading: roleLoading } = useRole();
   
-  // Get current user role for chat access gating
-  const { role: currentUserRole, loading: roleLoading } = useRole();
-  
   // Thread management
   const [threadId, setThreadId] = useState<string>(() => newThreadId());
   const [isSending, setIsSending] = useState(false);
