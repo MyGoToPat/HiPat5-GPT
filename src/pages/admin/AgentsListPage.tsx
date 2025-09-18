@@ -10,6 +10,8 @@ import { getSupabase } from '../../lib/supabase';
 import AgentTemplateWizard from '@/components/admin/agents/AgentTemplateWizard';
 import { getPersonalityAgents, getPersonalitySwarm } from '@/state/personalityStore';
 import AgentBulkActions from '@/components/admin/agents/AgentBulkActions';
+import { useRole } from '../../hooks/useRole';
+import { canToggle } from '../../utils/rbac';
 
 type AgentRow = {
   id?: string | number;
@@ -33,6 +35,9 @@ export default function AgentsListPage() {
   const [roleFilter, setRoleFilter] = React.useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = React.useState(false);
   const [editingAgent, setEditingAgent] = React.useState<any>(null);
+
+  // Get current user role for gating toggles
+  const { role: currentUserRole, loading: roleLoading } = useRole();
 
   // Force re-render when personality store updates
   const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
@@ -187,6 +192,24 @@ export default function AgentsListPage() {
       </div>
     );
   }
+
+  // Show loading state while determining user role
+  if (roleLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-3 text-gray-600">Loading permissions...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const canToggleAgents = canToggle(currentUserRole);
 
   return (
     <div className="min-h-screen bg-gray-50 pt-[44px]">
@@ -369,11 +392,12 @@ export default function AgentsListPage() {
                               type="checkbox"
                               checked={!!row.enabled}
                               onChange={e => setRow(row.id ?? row.slug, { enabled: e.target.checked })}
+                              disabled={!canToggleAgents}
                               className="sr-only"
                             />
                             <div className={`w-11 h-6 rounded-full transition-colors ${
                               row.enabled ? 'bg-green-500' : 'bg-gray-300'
-                            }`}>
+                            } ${!canToggleAgents ? 'opacity-50 cursor-not-allowed' : ''}`}>
                               <div className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${
                                 row.enabled ? 'translate-x-5 mt-0.5' : 'translate-x-0.5 mt-0.5'
                               }`} />
@@ -384,6 +408,9 @@ export default function AgentsListPage() {
                           }`}>
                             {row.enabled ? 'Enabled' : 'Disabled'}
                           </span>
+                          {!canToggleAgents && (
+                            <span className="text-xs text-gray-500 ml-2">Admin/Beta only</span>
+                          )}
                         </label>
                       </td>
                       
