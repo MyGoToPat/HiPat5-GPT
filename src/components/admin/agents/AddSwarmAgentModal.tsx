@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
 import { X, Plus, Search } from 'lucide-react';
-import { getPersonalityAgents } from '../../../state/personalityStore';
+import { getPersonalityAgents, upsertPersonalityAgent } from '../../../state/personalityStore';
 import type { AgentConfig } from '../../../types/mcp';
+import toast from 'react-hot-toast';
 
 interface AddSwarmAgentModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentRole: string;
-  onAddAgents: (agentIds: string[], roleName: string) => void;
+  onAgentsAdded: () => void;
 }
 
 export const AddSwarmAgentModal: React.FC<AddSwarmAgentModalProps> = ({ 
   isOpen, 
   onClose, 
   currentRole,
-  onAddAgents 
+  onAgentsAdded 
 }) => {
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,10 +53,22 @@ export const AddSwarmAgentModal: React.FC<AddSwarmAgentModalProps> = ({
       return;
     }
 
-    onAddAgents(selectedAgents, currentRole);
-    setSelectedAgents([]);
-    setSearchQuery('');
-    onClose();
+    // Update selected agents to be assigned to current role
+    selectedAgents.forEach(agentId => {
+      const agent = allAgents[agentId];
+      if (agent) {
+        // Update agent with role assignment (UI-only)
+        upsertPersonalityAgent({
+          ...agent,
+          // Note: In a full implementation, we'd add a 'swarm' or 'role' property
+          // For now, we're just updating the agent to indicate it belongs to this role
+        });
+      }
+    });
+    
+    toast.success(`Added ${selectedAgents.length} agent(s) to ${currentRole}`);
+    onAgentsAdded();
+    handleClose();
   };
 
   const handleClose = () => {

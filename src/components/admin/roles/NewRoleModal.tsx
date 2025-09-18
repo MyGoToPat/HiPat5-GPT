@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { X, Plus } from 'lucide-react';
+import { addSwarmTab } from '../../../lib/swarm-tabs';
+import toast from 'react-hot-toast';
 
 interface NewRoleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (roleName: string) => void;
+  onRoleCreated: () => void;
 }
 
-export const NewRoleModal: React.FC<NewRoleModalProps> = ({ isOpen, onClose, onCreate }) => {
+export const NewRoleModal: React.FC<NewRoleModalProps> = ({ isOpen, onClose, onRoleCreated }) => {
   const [roleName, setRoleName] = useState('');
   const [error, setError] = useState('');
 
@@ -25,9 +27,22 @@ export const NewRoleModal: React.FC<NewRoleModalProps> = ({ isOpen, onClose, onC
       return;
     }
 
-    // Create the role
-    onCreate(roleName.trim());
+    // Create the role ID from the name
+    const roleId = roleName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    
+    // Add to swarm tabs
+    addSwarmTab({
+      id: roleId,
+      label: roleName.trim(),
+      blurb: `Custom role: ${roleName.trim()}`
+    });
+    
+    toast.success(`Role "${roleName.trim()}" created successfully!`);
+    
+    // Reset form and close
     setRoleName('');
+    setError('');
+    onRoleCreated();
     onClose();
   };
 

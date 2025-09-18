@@ -11,3 +11,11 @@ export function canToggle(role: UserRole | null): boolean {
 export function isAdmin(role: UserRole | null): boolean {
   return role === 'admin';
 }
+
+export function canCreateRoles(role: UserRole | null): boolean {
+  return isAdmin(role);
+}
+
+export function canManageSwarms(role: UserRole | null): boolean {
+  return isAdmin(role);
+}
