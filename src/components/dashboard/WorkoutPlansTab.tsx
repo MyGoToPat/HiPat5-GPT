@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Edit3, Trash2, Copy, Play, Pause, Calendar, Clock, Target, Activity, TrendingUp, CheckCircle, AlertTriangle, MoreVertical } from 'lucide-react';
+import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface Exercise {
   id: string;
@@ -50,6 +51,7 @@ interface WorkoutPlansTabProps {
 
 export const WorkoutPlansTab: React.FC<WorkoutPlansTabProps> = ({ clientId }) => {
   const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlan[]>([
+    // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
     {
       id: '1',
       name: 'Upper Body Strength',
@@ -191,7 +193,7 @@ export const WorkoutPlansTab: React.FC<WorkoutPlansTabProps> = ({ clientId }) =>
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filterType, setFilterType] = useState<'all' | WorkoutPlan['type']>('all');
 
-  // Mock workout templates
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   const workoutTemplates: WorkoutTemplate[] = [
     {
       id: 'template-1',
@@ -422,7 +424,8 @@ export const WorkoutPlansTab: React.FC<WorkoutPlansTabProps> = ({ clientId }) =>
   const avgCompletionRate = workoutPlans.reduce((sum, p) => sum + (p.completionRate || 0), 0) / workoutPlans.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={{ position: 'relative' }}>
+      <DataSourceBadge source="mock" />
       {/* Header with Stats */}
       <div className="flex items-center justify-between">
         <div>

@@ -133,6 +133,7 @@ export const ProfilePage: React.FC = () => {
   const [dbProfile, setDbProfile] = useState<DatabaseProfile | null>(null);
 
   const [preferences, setPreferences] = useState<UserPreferences>({
+    // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
     theme: 'dark',
     language: 'English',
     notifications: {
@@ -207,6 +208,7 @@ export const ProfilePage: React.FC = () => {
   }, []);
 
   // Mock achievements data
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   const achievements: Achievement[] = [
     {
       id: '1',
@@ -257,7 +259,7 @@ export const ProfilePage: React.FC = () => {
     }
   ];
 
-  // Mock AI insights
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   const aiInsights: AIInsight[] = [
     {
       id: '1',

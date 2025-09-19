@@ -50,6 +50,7 @@ export const TrainerDashboardPage: React.FC<TrainerDashboardPageProps> = ({ user
 
   const clientsPerPage = 10;
 
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   // TODO: Replace with actual API call when backend is ready
   const mockClients: Client[] = [
     {

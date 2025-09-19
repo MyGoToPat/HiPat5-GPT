@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Edit3, Trash2, Eye, MessageSquare, Clock, Target, Zap, Moon, Activity, AlertTriangle, CheckCircle, Play, Pause, MoreVertical } from 'lucide-react';
+import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface PTDirective {
   id: string;
@@ -32,6 +33,7 @@ interface PTDirectivesTabProps {
 
 export const PTDirectivesTab: React.FC<PTDirectivesTabProps> = ({ clientId }) => {
   const [directives, setDirectives] = useState<PTDirective[]>([
+    // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
     {
       id: '1',
       title: 'Post-Workout Protein Reminder',
@@ -100,6 +102,7 @@ export const PTDirectivesTab: React.FC<PTDirectivesTabProps> = ({ clientId }) =>
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   // Mock directive templates
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   const directiveTemplates: DirectiveTemplate[] = [
     {
       id: 'hydration',
@@ -290,7 +293,8 @@ export const PTDirectivesTab: React.FC<PTDirectivesTabProps> = ({ clientId }) =>
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={{ position: 'relative' }}>
+      <DataSourceBadge source="mock" />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

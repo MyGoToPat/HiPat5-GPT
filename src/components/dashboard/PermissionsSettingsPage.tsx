@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Shield, Eye, Edit, Users, MessageSquare, Activity, Zap, Moon, Target, AlertTriangle, CheckCircle, Info, Lock, Unlock, Clock, User } from 'lucide-react';
+import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface PermissionSetting {
   id: string;
@@ -40,6 +41,7 @@ export const PermissionsSettingsPage: React.FC<PermissionsSettingsPageProps> = (
   isTrainerView = false,
   onPermissionChange
 }) => {
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   const [permissions, setPermissions] = useState<PermissionSetting[]>([
     {
       id: 'workouts',
@@ -390,7 +392,8 @@ export const PermissionsSettingsPage: React.FC<PermissionsSettingsPageProps> = (
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-6" style={{ position: 'relative' }}>
+      <DataSourceBadge source="mock" />
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">

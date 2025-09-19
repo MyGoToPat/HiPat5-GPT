@@ -29,6 +29,7 @@ export const DashboardPage: React.FC = () => {
     totalMacros: { protein: number; carbs: number; fat: number };
   } | null>(null);
   
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   // Mock alerts data
   const [alerts, setAlerts] = useState<MetricAlert[]>([
     {
@@ -65,6 +66,7 @@ export const DashboardPage: React.FC = () => {
     }
   ]);
 
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   // Mock insights data
   const insights: CrossMetricInsight[] = [
     {
