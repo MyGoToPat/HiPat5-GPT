@@ -1,5 +1,6 @@
 import React from 'react';
 import { TrendingUp, Target, Activity, Award, Calendar } from 'lucide-react';
+import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface ProgressVisualizationsProps {
   className?: string;
@@ -23,6 +24,7 @@ interface WeightData {
 }
 
 export const ProgressVisualizations: React.FC<ProgressVisualizationsProps> = ({ className = '' }) => {
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   // Historical weight data over 6 months for long-term trends
   const weightData: WeightData[] = [
     { date: '2023-07-01', weight: 198.5, bodyFat: 19.2 },
@@ -34,6 +36,7 @@ export const ProgressVisualizations: React.FC<ProgressVisualizationsProps> = ({ 
     { date: '2024-01-01', weight: 185.2, bodyFat: 15.8 }
   ];
 
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   // Mock progress metrics
   const progressMetrics: ProgressMetric[] = [
     {
@@ -89,7 +92,8 @@ export const ProgressVisualizations: React.FC<ProgressVisualizationsProps> = ({ 
   };
 
   return (
-    <div className={`bg-gray-900 rounded-2xl p-6 border border-gray-800 ${className}`}>
+    <div className={`bg-gray-900 rounded-2xl p-6 border border-gray-800 ${className}`} style={{ position: 'relative' }}>
+      <DataSourceBadge source="mock" />
       <div className="flex items-center gap-2 mb-6">
         <TrendingUp size={20} className="text-blue-400" />
         <h3 className="text-lg font-semibold text-white">Progress Overview</h3>

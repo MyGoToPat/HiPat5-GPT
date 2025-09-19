@@ -6,6 +6,7 @@ import { CollapsibleTile } from './CollapsibleTile';
 import { setMacroOverrides } from '../../lib/macros';
 import { getSupabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
+import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface EnergySectionProps {
   energyData?: EnergyData;
@@ -186,25 +187,28 @@ export const EnergySection: React.FC<EnergySectionProps> = ({ energyData }) => {
 
   return (
     <>
-      <CollapsibleTile
-        title="Energy"
-        icon={Zap}
-        iconColor="text-green-400"
-        hoverColor="border-green-600"
-        condensedContent={condensedContent}
-        className=""
-        headerAction={
-          <button
-            onClick={handleOpenEditModal}
-            className="p-1 hover:bg-gray-800 rounded-lg transition-colors"
-            title="Edit macro targets"
-          >
-            <Edit3 size={16} className="text-gray-400 hover:text-white" />
-          </button>
-        }
-      >
-        {fullContent}
-      </CollapsibleTile>
+      <div style={{ position: 'relative' }}>
+        <DataSourceBadge source="live" />
+        <CollapsibleTile
+          title="Energy"
+          icon={Zap}
+          iconColor="text-green-400"
+          hoverColor="border-green-600"
+          condensedContent={condensedContent}
+          className=""
+          headerAction={
+            <button
+              onClick={handleOpenEditModal}
+              className="p-1 hover:bg-gray-800 rounded-lg transition-colors"
+              title="Edit macro targets"
+            >
+              <Edit3 size={16} className="text-gray-400 hover:text-white" />
+            </button>
+          }
+        >
+          {fullContent}
+        </CollapsibleTile>
+      </div>
 
       {/* Edit Macros Modal */}
       {showEditModal && (

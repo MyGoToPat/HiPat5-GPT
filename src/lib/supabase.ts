@@ -1,6 +1,20 @@
 // -- AUTO-GENERATED: canonical Supabase client w/ legacy surface --
 import { createClient } from '@supabase/supabase-js';
 
+// ENV CHECK - Development only diagnostics
+if (!import.meta.env.PROD) {
+  const envUrl = import.meta.env.VITE_SUPABASE_URL;
+  const envAnon = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  
+  console.info('[ENV CHECK] Supabase URL =', envUrl || 'undefined');
+  console.info('[ENV CHECK] ANON prefix =', envAnon ? envAnon.substring(0, 12) + '...' : 'undefined');
+  
+  const expectedUrl = 'https://jdtogitfqptdrxkczdbw.supabase.co';
+  if (envUrl && envUrl !== expectedUrl) {
+    console.error('[ENV CHECK] Wrong Supabase project URL - Expected:', expectedUrl, 'Got:', envUrl);
+  }
+}
+
 const url =
   import.meta.env.VITE_SUPABASE_URL ||
   (typeof process !== 'undefined' ? process.env.SUPABASE_URL : undefined) ||

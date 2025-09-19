@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BarChart3, Users, UserCheck, AlertTriangle, TrendingUp, TrendingDown, Download, Filter, Calendar, Trophy, Target, Zap, Clock, ChevronUp, ChevronDown, FileText, Mail, ExternalLink } from 'lucide-react';
+import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface AnalyticsOverview {
   totalClients: number;
@@ -53,6 +54,7 @@ export const AnalyticsDashboardSection: React.FC = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   // Mock analytics data
   const analyticsOverview: AnalyticsOverview = {
     totalClients: 47,
@@ -67,6 +69,7 @@ export const AnalyticsDashboardSection: React.FC = () => {
     }
   };
 
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   // Mock chart data for different metrics
   const chartData: { [key: string]: ChartData[] } = {
     workouts: [
@@ -107,6 +110,7 @@ export const AnalyticsDashboardSection: React.FC = () => {
     ]
   };
 
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   // Mock client leaderboard data
   const clientLeaderboard: ClientLeaderboard[] = [
     {
@@ -156,6 +160,7 @@ export const AnalyticsDashboardSection: React.FC = () => {
     }
   ];
 
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   // Mock analytics alerts
   const analyticsAlerts: AnalyticsAlert[] = [
     {
@@ -277,7 +282,8 @@ export const AnalyticsDashboardSection: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" style={{ position: 'relative' }}>
+      <DataSourceBadge source="mock" />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

@@ -3,12 +3,14 @@ import { Calendar, Target, TrendingUp } from 'lucide-react';
 import { HeatmapCalendar } from './HeatmapCalendar';
 import { FrequencyData } from '../../types/metrics';
 import { CollapsibleTile } from './CollapsibleTile';
+import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 export const FrequencySection: React.FC = () => {
   const workoutDays = 4;
   const weeklyGoal = 5;
   const progress = (workoutDays / weeklyGoal) * 100;
 
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   // Mock data for heatmap
   const mockFrequencyData: FrequencyData[] = [
     { date: '2024-01-15', workout_type: 'Resistance', duration_min: 75, volume_lbs: 12500, scheduled: true },
@@ -95,15 +97,18 @@ export const FrequencySection: React.FC = () => {
   );
 
   return (
-    <CollapsibleTile
-      title="Frequency"
-      icon={Calendar}
-      iconColor="text-pat-purple-400"
-      hoverColor="border-pat-purple-600"
-      condensedContent={condensedContent}
-      className=""
-    >
-      {fullContent}
-    </CollapsibleTile>
+    <div style={{ position: 'relative' }}>
+      <DataSourceBadge source="mock" />
+      <CollapsibleTile
+        title="Frequency"
+        icon={Calendar}
+        iconColor="text-pat-purple-400"
+        hoverColor="border-pat-purple-600"
+        condensedContent={condensedContent}
+        className=""
+      >
+        {fullContent}
+      </CollapsibleTile>
+    </div>
   );
 };

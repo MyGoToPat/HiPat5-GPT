@@ -3,6 +3,7 @@ import { Dumbbell, TrendingUp, Award } from 'lucide-react';
 import { VolumeProgressChart } from './VolumeProgressChart';
 import { EffortData } from '../../types/metrics';
 import { CollapsibleTile } from './CollapsibleTile';
+import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 export const EffortSection: React.FC = () => {
   const weeklyVolume = 45250; // lbs
@@ -10,6 +11,7 @@ export const EffortSection: React.FC = () => {
   const volumeIncrease = ((weeklyVolume - lastWeekVolume) / lastWeekVolume) * 100;
   const recentPRs = 3;
 
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   // Mock effort data
   const mockEffortData: EffortData[] = [
     {
@@ -100,15 +102,18 @@ export const EffortSection: React.FC = () => {
   );
 
   return (
-    <CollapsibleTile
-      title="Effort"
-      icon={Dumbbell}
-      iconColor="text-orange-400"
-      hoverColor="border-orange-600"
-      condensedContent={condensedContent}
-      className=""
-    >
-      {fullContent}
-    </CollapsibleTile>
+    <div style={{ position: 'relative' }}>
+      <DataSourceBadge source="mock" />
+      <CollapsibleTile
+        title="Effort"
+        icon={Dumbbell}
+        iconColor="text-orange-400"
+        hoverColor="border-orange-600"
+        condensedContent={condensedContent}
+        className=""
+      >
+        {fullContent}
+      </CollapsibleTile>
+    </div>
   );
 };

@@ -3,12 +3,14 @@ import { Moon, Clock, BarChart3 } from 'lucide-react';
 import { SleepStackedBar } from './SleepStackedBar';
 import { RestData } from '../../types/metrics';
 import { CollapsibleTile } from './CollapsibleTile';
+import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 export const RestSection: React.FC = () => {
   const avgSleep = 7.2;
   const sleepGoal = 8;
   const sleepQuality = 85;
 
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   // Mock sleep data
   const mockRestData: RestData[] = [
     {
@@ -161,15 +163,18 @@ export const RestSection: React.FC = () => {
   );
 
   return (
-    <CollapsibleTile
-      title="Rest"
-      icon={Moon}
-      iconColor="text-pat-blue-400"
-      hoverColor="border-pat-blue-600"
-      condensedContent={condensedContent}
-      className=""
-    >
-      {fullContent}
-    </CollapsibleTile>
+    <div style={{ position: 'relative' }}>
+      <DataSourceBadge source="mock" />
+      <CollapsibleTile
+        title="Rest"
+        icon={Moon}
+        iconColor="text-pat-blue-400"
+        hoverColor="border-pat-blue-600"
+        condensedContent={condensedContent}
+        className=""
+      >
+        {fullContent}
+      </CollapsibleTile>
+    </div>
   );
 };

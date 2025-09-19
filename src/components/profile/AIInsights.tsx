@@ -1,5 +1,6 @@
 import React from 'react';
 import { Brain, Lightbulb, TrendingUp, Target, CheckCircle, Moon } from 'lucide-react';
+import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface AIInsightsProps {
   className?: string;
@@ -18,6 +19,7 @@ interface Insight {
 }
 
 export const AIInsights: React.FC<AIInsightsProps> = ({ className = '' }) => {
+  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
   // Long-term AI insights focused on patterns and historical analysis over months/years
   const insights: Insight[] = [
     {
@@ -121,7 +123,8 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ className = '' }) => {
   };
 
   return (
-    <div className={`bg-gray-900 rounded-2xl p-6 border border-gray-800 ${className}`}>
+    <div className={`bg-gray-900 rounded-2xl p-6 border border-gray-800 ${className}`} style={{ position: 'relative' }}>
+      <DataSourceBadge source="mock" />
       <div className="flex items-center gap-2 mb-6">
         <Brain size={20} className="text-purple-400" />
         <h3 className="text-lg font-semibold text-white">AI Insights</h3>

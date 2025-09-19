@@ -1,5 +1,6 @@
 import React from 'react';
 import { Trophy, Target, Award, Star, Clock, Zap } from 'lucide-react';
+import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface Achievement {
   id: string;
@@ -45,7 +46,8 @@ export const AchievementBadges: React.FC<AchievementBadgesProps> = ({ achievemen
   };
 
   return (
-    <div className={`bg-gray-900 rounded-2xl p-6 border border-gray-800 ${className}`}>
+    <div className={`bg-gray-900 rounded-2xl p-6 border border-gray-800 ${className}`} style={{ position: 'relative' }}>
+      <DataSourceBadge source="mock" />
       <div className="flex items-center gap-2 mb-6">
         <Trophy size={20} className="text-yellow-400" />
         <h3 className="text-lg font-semibold text-white">Achievements</h3>
