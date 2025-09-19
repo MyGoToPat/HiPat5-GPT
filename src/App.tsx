@@ -11,6 +11,7 @@ import RootLayout from './layouts/RootLayout';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import BetaPendingPage from './pages/auth/BetaPendingPage';
 import Health from './pages/Health';
 
 // App pages
@@ -42,6 +43,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage onNavigate={() => {}} />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={() => {}} />} />
+        <Route path="/beta-pending" element={<BetaPendingPage />} />
         <Route path="/health" element={<Health />} />
         <Route path="/welcome-beta" element={<WelcomeBetaPage />} />
 
