@@ -104,14 +104,11 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
           console.warn('Profile role update failed:', profileUpdateError);
         }
         
-        setSuccess('Registration successful! Please check your email for a confirmation link.');
-        // Redirect to beta holding page
-        navigate('/welcome-beta', { replace: true });
-        // Clear form
-        setName('');
-        setEmail('');
-        setPassword('');
-        setConfirmPassword('');
+        if (data?.session) {
+          await supabase.auth.signOut();
+        }
+        toast.success("Signed up. You're being considered for beta.");
+        navigate("/beta-pending");
       }
     } catch (error) {
       console.error('Registration error:', error);
