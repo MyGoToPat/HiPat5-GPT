@@ -40,7 +40,14 @@ export const LoginPage: React.FC = () => {
       });
       
       if (authError) {
-        const msg = authError.message || 'Sign in failed. Check your email and password.';
+        let msg = 'Sign in failed. Check your email and password.';
+        
+        if (authError.message?.includes('Email not confirmed') || authError.message?.includes('email_not_confirmed')) {
+          msg = 'Please check your email and click the confirmation link before signing in.';
+        } else {
+          msg = authError.message || msg;
+        }
+        
         console.warn('[login] auth error:', authError);
         setError(msg);
         return;

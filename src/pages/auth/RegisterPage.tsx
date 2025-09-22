@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, User, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { PatAvatar } from '../../components/PatAvatar';
 import { getSupabase } from '../../lib/supabase';
 import { type AppRole } from '../../config/rbac';
@@ -81,8 +82,10 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
       });
 
       if (authError) {
-        if (authError.message.includes('User already registered')) {
+        if (authError.message?.includes('User already registered')) {
           setError('An account with this email already exists. Please sign in instead.');
+        } else if (authError.message?.includes('over_email_send_rate_limit')) {
+          setError('You can only request this after 36 seconds. Please wait before trying again.');
         } else {
           setError(authError.message);
         }
