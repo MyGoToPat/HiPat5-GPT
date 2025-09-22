@@ -46,6 +46,7 @@ export const LoginPage: React.FC = () => {
         return;
       }
       
+      navigate('/', { replace: true });
     } catch (error) {
       console.error('[login] unexpected error:', error);
       setError((error as any)?.message ?? 'Unexpected error during sign in.');

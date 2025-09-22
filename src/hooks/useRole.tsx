@@ -25,7 +25,7 @@ export function useRole() {
         try {
           const { data, error } = await supabase
             .from('profiles')
-            .select('role, beta_user')
+            .select('role')
             .eq('user_id', user.id)
             .maybeSingle();
 
