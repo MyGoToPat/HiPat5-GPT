@@ -5,7 +5,7 @@ import { getSupabase } from "../../lib/supabase";
 export default function ProtectedRoute({ children }: { children: JSX.Element }) {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
-  const [allowed, setAllowed] = useState<boolean>(false);
+  const [allowed, setAllowed] = useState<boolean | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -16,7 +16,7 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
       
       if (!user) {
         if (alive) {
-          setAllowed(false);
+          setAllowed('no-user' as any);
           setLoading(false);
         }
         return;
@@ -28,7 +28,17 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
         .eq("user_id", user.id)
         .single();
 
-      const allowed = !!(prof && (prof.role === "admin" || prof.beta_user === true));
+      const allowed = prof?.role === "admin" || prof?.beta_user === true;
+      
+      // Dev logging for debugging
+      if (import.meta.env.DEV) {
+        console.log("[Gate]", { 
+          uid: user?.id, 
+          role: prof?.role, 
+          beta: prof?.beta_user, 
+          allowed 
+        });
+      }
       
       if (!allowed) {
         await supabase.auth.signOut();
@@ -50,6 +60,12 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
 
   if (loading) return null; // keep blank during auth check
 
+  // No user authenticated - redirect to login
+  if (allowed === 'no-user') {
+    return <Navigate to="/login" replace />;
+  }
+
+  // User authenticated but not authorized - redirect to beta pending
   if (!allowed) {
     return <Navigate to="/beta-pending" replace />;
   }
