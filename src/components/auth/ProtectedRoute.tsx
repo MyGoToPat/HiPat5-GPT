@@ -22,7 +22,7 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
         .single();
 
       const ok = !!(prof && (prof.role === "admin" || prof.beta_user === true));
-      if (import.meta.env.DEV) console.log("[Gate]", { uid: user.id, role: prof?.role, beta: prof?.beta_user, allowed: ok });
+      if (import.meta.env.DEV) console.log("[Gate:ProtectedRoute]", { uid: user.id, role: prof?.role, beta: prof?.beta_user, allowed: ok });
       if (alive) { setAllowed(ok); setLoading(false); }
     })();
     return () => { alive = false; };
