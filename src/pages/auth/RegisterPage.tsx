@@ -107,8 +107,13 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
         if (data?.session) {
           await supabase.auth.signOut();
         }
-        toast.success("Signed up. You're being considered for beta.");
-        navigate("/beta-pending");
+        
+        setSuccess('Account created successfully! You\'re being considered for beta access.');
+        
+        // Navigate to beta pending page after brief delay
+        setTimeout(() => {
+          navigate("/beta-pending");
+        }, 1500);
       }
     } catch (error) {
       console.error('Registration error:', error);
