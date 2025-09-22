@@ -10,25 +10,18 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
   useEffect(() => {
     let alive = true;
     (async () => {
-      try {
-        const supabase = getSupabase();
-        const { data: { user } } = await supabase.auth.getUser();
-        setHasUser(!!user);
-        if (!user) { 
-          if (alive) setLoading(false); 
-          return; 
-        }
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      setHasUser(!!user);
+      if (!user) { if (alive) setLoading(false); return; }
 
-        // Server decides: ALLOW if role==='admin' OR beta_user===true
-        const { data, error } = await supabase.rpc("has_app_access", { uid: user.id });
-        const ok = !!data && !error;
+      // SINGLE SOURCE OF TRUTH: server RPC
+      const { data, error } = await supabase.rpc("has_app_access", { uid: user.id });
+      const ok = !!data && !error;
 
-        if (import.meta.env.DEV) console.log("[Gate:RPC]", { uid: user.id, ok, error: error?.message });
-        if (alive) { setAllowed(ok); setLoading(false); }
-      } catch (e: any) {
-        console.error("[Gate:RPC] Unexpected error:", e);
-        if (alive) { setAllowed(false); setLoading(false); }
-      }
+      if (import.meta.env.DEV) console.log("[Gate:RPC]", { uid: user.id, ok, err: error?.message || null });
+
+      if (alive) { setAllowed(ok); setLoading(false); }
     })();
     return () => { alive = false; };
   }, []);
@@ -36,17 +29,8 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
   if (loading) return null;
   if (!hasUser) return <Navigate to="/login" replace />;
 
-  if (!allowed) {
-    (async () => { 
-      try { 
-        const supabase = getSupabase();
-        await supabase.auth.signOut(); 
-      } catch (error) {
-        console.error("[Gate:RPC] SignOut error:", error);
-      }
-    })();
-    return <Navigate to="/beta-pending" replace />;
-  }
-  
+  // Only redirect; do NOT signOut here
+  if (!allowed) return <Navigate to="/beta-pending" replace />;
+
   return children;
 }
