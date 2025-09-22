@@ -107,7 +107,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
         if (data?.session) {
           await supabase.auth.signOut();
         }
-        // Optional toast: "Signed up. You're being considered for beta."
+        toast.success("Signed up. You're being considered for beta.");
         navigate("/beta-pending");
       }
     } catch (error) {

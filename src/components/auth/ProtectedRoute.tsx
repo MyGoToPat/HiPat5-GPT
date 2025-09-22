@@ -15,9 +15,9 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        if (alive) {
-          setAllowed(false);
-          setLoading(false);
+        if (alive) { 
+          setAllowed(false); 
+          setLoading(false); 
         }
         return;
       }
@@ -28,19 +28,11 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
         .eq("user_id", user.id)
         .single();
 
-      const allowed = !!(prof && (prof.role === "admin" || prof.beta_user === true));
-      
-      if (!allowed) {
-        await supabase.auth.signOut();
-        if (alive) {
-          setAllowed(false);
-          setLoading(false);
-        }
-        return;
-      }
+      const ok = !error && (prof?.role === "admin" || prof?.beta_user === true);
+
 
       if (alive) {
-        setAllowed(true);
+        setAllowed(ok);
         setLoading(false);
       }
     })();
@@ -50,9 +42,18 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
 
   if (loading) return null; // keep blank during auth check
 
-  if (!allowed) {
+  if (allowed) return children;
+
+  // Not allowed → sign out and bounce to beta-pending
+  (async () => { 
+    try { 
+      const supabase = getSupabase();
+      await supabase.auth.signOut(); 
+    } catch {} 
+  })();
+  
+  if (location.pathname !== "/beta-pending") {
     return <Navigate to="/beta-pending" replace />;
   }
-  
-  return children;
+  return null;
 }
