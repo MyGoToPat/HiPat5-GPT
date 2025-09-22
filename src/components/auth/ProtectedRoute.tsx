@@ -30,14 +30,6 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
 
       const ok = !error && (prof?.role === "admin" || prof?.beta_user === true);
 
-      // DEV: diagnostics — remove in production commits
-      if (!import.meta.env.PROD) {
-        console.warn("[ProtectedRoute] supabase.url", supabase.supabaseUrl);
-        console.warn("[ProtectedRoute] user", user?.id, user?.email);
-        console.warn("[ProtectedRoute] prof", prof, "error:", error);
-        console.warn("[ProtectedRoute] allowed", ok);
-        if (!ok) console.warn("[ProtectedRoute] redirect -> /beta-pending");
-      }
 
       if (alive) {
         setAllowed(ok);
