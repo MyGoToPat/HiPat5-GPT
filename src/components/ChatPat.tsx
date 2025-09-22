@@ -602,6 +602,77 @@ export const ChatPat: React.FC = () => {
     setMessages(prev => [...prev, foodMessage]);
   };
 
+  // Show loading state while determining user role
+  if (roleLoading) {
+    return (
+      <div className="h-screen bg-pat-gradient text-white flex items-center justify-center pt-[44px]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white">Loading chat permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Gate chat access for non-privileged users
+  if (!isPrivileged(currentUserRole)) {
+    return (
+      <div className="h-screen bg-pat-gradient text-white flex items-center justify-center pt-[44px]">
+        <div className="max-w-md mx-auto text-center p-6">
+          <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-lg">!</span>
+            </div>
+          </div>
+          <h2 className="text-xl font-semibold text-white mb-4">Chat Access Restricted</h2>
+          <p className="text-white/80 leading-relaxed">
+            Chat limited to Admins and Beta users during testing.
+          </p>
+          <div className="mt-6 p-4 bg-white/10 rounded-lg backdrop-blur-sm">
+            <p className="text-white/70 text-sm">
+              Contact your administrator for access or wait for general availability.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  // Show loading state while determining user role
+  if (roleLoading) {
+    return (
+      <div className="h-screen bg-pat-gradient text-white flex items-center justify-center pt-[44px]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white">Loading chat permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Gate chat access for non-privileged users
+  if (!isPrivileged(currentUserRole)) {
+    return (
+      <div className="h-screen bg-pat-gradient text-white flex items-center justify-center pt-[44px]">
+        <div className="max-w-md mx-auto text-center p-6">
+          <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-lg">!</span>
+            </div>
+          </div>
+          <h2 className="text-xl font-semibold text-white mb-4">Chat Access Restricted</h2>
+          <p className="text-white/80 leading-relaxed">
+            Chat limited to Admins and Beta users during testing.
+          </p>
+          <div className="mt-6 p-4 bg-white/10 rounded-lg backdrop-blur-sm">
+            <p className="text-white/70 text-sm">
+              Contact your administrator for access or wait for general availability.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoadingChat) {
     return (
       <div className="h-screen bg-pat-gradient text-white flex items-center justify-center pt-[44px]">
