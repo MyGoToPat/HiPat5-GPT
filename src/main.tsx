@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import BetaHoldGuard from './components/BetaHoldGuard';
 import App from './App.tsx';
 import './index.css';
 
@@ -22,10 +23,12 @@ try {
   createRoot(rootElement).render(
     <StrictMode>
       <ErrorBoundary>
-        <BrowserRouter>
-          <Toaster position="top-right" />
-          <App />
-        </BrowserRouter>
+        <BetaHoldGuard>
+          <BrowserRouter>
+            <Toaster position="top-right" />
+            <App />
+          </BrowserRouter>
+        </BetaHoldGuard>
       </ErrorBoundary>
     </StrictMode>
   );
