@@ -4,7 +4,6 @@ import { getSupabase } from "../../lib/supabase";
 
 export default function ProtectedRoute({ children }: { children: JSX.Element }) {
   const [loading, setLoading] = useState(true);
-  const [allowed, setAllowed] = useState(false);
   const [hasUser, setHasUser] = useState(false);
 
   useEffect(() => {
@@ -12,25 +11,18 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
     (async () => {
       const supabase = getSupabase();
       const { data: { user } } = await supabase.auth.getUser();
-      setHasUser(!!user);
-      if (!user) { if (alive) setLoading(false); return; }
-
-      // SINGLE SOURCE OF TRUTH: server RPC
-      const { data, error } = await supabase.rpc("has_app_access", { uid: user.id });
-      const ok = !!data && !error;
-
-      if (import.meta.env.DEV) console.log("[Gate:RPC]", { uid: user.id, ok, err: error?.message || null });
-
-      if (alive) { setAllowed(ok); setLoading(false); }
+      if (import.meta.env.DEV) console.log("[Gate:DISABLED]", { uid: user?.id || null });
+      if (alive) {
+        setHasUser(!!user);
+        setLoading(false);
+      }
     })();
     return () => { alive = false; };
   }, []);
 
-  if (loading) return null;
+  if (loading) return null;           // tiny blank while checking
   if (!hasUser) return <Navigate to="/login" replace />;
 
-  // Only redirect; do NOT signOut here
-  if (!allowed) return <Navigate to="/beta-pending" replace />;
-
+  // EMERGENCY: gate disabled — allow all authenticated users
   return children;
 }
