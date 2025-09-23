@@ -207,98 +207,6 @@ export const ProfilePage: React.FC = () => {
     loadUserProfile();
   }, []);
 
-  // Mock achievements data
-  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
-  const achievements: Achievement[] = [
-    {
-      id: '1',
-      title: 'Consistency Champion',
-      description: 'Worked out 5 days in a row',
-      icon: Trophy,
-      earned: true,
-      earnedDate: new Date('2024-01-15'),
-      category: 'consistency'
-    },
-    {
-      id: '2',
-      title: 'PR Crusher',
-      description: 'Set 3 personal records this month',
-      icon: Award,
-      earned: true,
-      earnedDate: new Date('2024-01-18'),
-      category: 'fitness'
-    },
-    {
-      id: '3',
-      title: 'Sleep Master',
-      description: 'Maintain 8+ hours sleep for 7 days',
-      icon: Moon,
-      earned: false,
-      progress: 5,
-      maxProgress: 7,
-      category: 'sleep'
-    },
-    {
-      id: '4',
-      title: 'Protein Pro',
-      description: 'Hit protein target 30 days straight',
-      icon: Target,
-      earned: false,
-      progress: 23,
-      maxProgress: 30,
-      category: 'nutrition'
-    },
-    {
-      id: '5',
-      title: 'Volume Victor',
-      description: 'Reach 50k lbs weekly volume',
-      icon: Flame,
-      earned: true,
-      earnedDate: new Date('2024-01-20'),
-      category: 'fitness'
-    }
-  ];
-
-  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
-  const aiInsights: AIInsight[] = [
-    {
-      id: '1',
-      type: 'recommendation',
-      title: 'Optimize Your Recovery',
-      description: 'Based on your recent workouts, I recommend adding 15 minutes of stretching after your sessions. Your muscle tension indicators suggest this could improve your next-day performance by 12%.',
-      actionable: true,
-      priority: 'high',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000)
-    },
-    {
-      id: '2',
-      type: 'achievement',
-      title: 'Protein Intake Improvement',
-      description: 'Great job! Your protein consistency has improved 40% this month. You\'re now hitting your target 85% of the time, up from 60%.',
-      actionable: false,
-      priority: 'medium',
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000)
-    },
-    {
-      id: '3',
-      type: 'tip',
-      title: 'Sleep Optimization Window',
-      description: 'I\'ve noticed you perform best when you sleep between 10:30 PM - 6:30 AM. Consider adjusting your bedtime by 30 minutes earlier for optimal recovery.',
-      actionable: true,
-      priority: 'medium',
-      timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000)
-    },
-    {
-      id: '4',
-      type: 'warning',
-      title: 'Potential Overreaching',
-      description: 'Your training volume has increased 25% this week while sleep quality decreased. Consider a deload or extra rest day to prevent burnout.',
-      actionable: true,
-      priority: 'high',
-      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000)
-    }
-  ];
-
   const handleSaveProfile = () => {
     if (!editedProfile || !dbProfile) return;
 
@@ -363,7 +271,7 @@ export const ProfilePage: React.FC = () => {
       />
 
       {/* Achievement Badges */}
-      <AchievementBadges achievements={achievements} />
+      <AchievementBadges achievements={[]} />
 
 
       {/* Contact Support */}
@@ -625,10 +533,10 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       {/* Progress Overview */}
-      <ProgressVisualizations />
+      <ProgressVisualizations weightData={[]} progressMetrics={[]} />
 
       {/* AI Insights */}
-      <AIInsights insights={aiInsights} />
+      <AIInsights insights={[]} />
 
       {/* Quick Actions */}
        <QuickActions />

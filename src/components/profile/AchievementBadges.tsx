@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, Target, Award, Star, Clock, Zap } from 'lucide-react';
+import { Trophy, Target, Award, Star, Clock, Zap, Plus } from 'lucide-react';
 import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface Achievement {
@@ -20,8 +20,10 @@ interface AchievementBadgesProps {
 }
 
 export const AchievementBadges: React.FC<AchievementBadgesProps> = ({ achievements, className = '' }) => {
-  const earnedAchievements = achievements.filter(a => a.earned);
-  const progressAchievements = achievements.filter(a => !a.earned && a.progress !== undefined);
+  // Use provided achievements or empty array if none provided
+  const validAchievements = achievements || [];
+  const earnedAchievements = validAchievements.filter(a => a.earned);
+  const progressAchievements = validAchievements.filter(a => !a.earned && a.progress !== undefined);
 
   const getCategoryColor = (category: Achievement['category']) => {
     switch (category) {
@@ -47,7 +49,7 @@ export const AchievementBadges: React.FC<AchievementBadgesProps> = ({ achievemen
 
   return (
     <div className={`bg-gray-900 rounded-2xl p-6 border border-gray-800 ${className}`} style={{ position: 'relative' }}>
-      <DataSourceBadge source="mock" />
+      <DataSourceBadge source="live" />
       <div className="flex items-center gap-2 mb-6">
         <Trophy size={20} className="text-yellow-400" />
         <h3 className="text-lg font-semibold text-white">Achievements</h3>
@@ -140,11 +142,15 @@ export const AchievementBadges: React.FC<AchievementBadgesProps> = ({ achievemen
       )}
 
       {/* Empty State */}
-      {earnedAchievements.length === 0 && progressAchievements.length === 0 && (
+      {validAchievements.length === 0 && (
         <div className="text-center py-8">
-          <Trophy size={32} className="text-gray-600 mx-auto mb-2" />
-          <p className="text-gray-400">No achievements yet</p>
-          <p className="text-gray-500 text-sm">Keep working toward your goals!</p>
+          <Trophy size={48} className="text-gray-600 mx-auto mb-4" />
+          <h4 className="text-lg font-medium text-gray-400 mb-2">Start Your Achievement Journey</h4>
+          <p className="text-gray-500 text-sm mb-4">Earn your first achievement by completing your onboarding and logging your first workout or meal!</p>
+          <div className="flex items-center justify-center gap-2 text-blue-400 text-sm">
+            <Plus size={16} />
+            <span>Complete onboarding to unlock achievements</span>
+          </div>
         </div>
       )}
     </div>
