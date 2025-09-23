@@ -143,31 +143,3 @@ export const ProgressVisualizations: React.FC<ProgressVisualizationsProps> = ({
     </div>
   );
 };
-            
-            return (
-              <div key={index} className="flex-1 flex flex-col items-center group">
-                <div className="relative w-full">
-                  <div 
-                    className="w-full bg-blue-500 rounded-t-sm transition-all duration-300 hover:bg-blue-400 cursor-pointer"
-                    style={{ height: `${height + 20}px` }}
-                  >
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-700 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-                      {new Date(data.date).toLocaleDateString()}<br />
-                      {data.weight} lbs
-                      {data.bodyFat && <br />}
-                      {data.bodyFat && `${data.bodyFat}% BF`}
-                    </div>
-                  </div>
-                </div>
-                <span className="text-xs text-gray-400 mt-2 transform -rotate-45 origin-left">
-                  {new Date(data.date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-};
