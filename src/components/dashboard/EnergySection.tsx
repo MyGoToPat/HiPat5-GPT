@@ -31,6 +31,13 @@ export const EnergySection: React.FC<EnergySectionProps> = ({ energyData }) => {
     const fetchOverrides = async () => {
       try {
         const supabase = getSupabase();
+        
+        // Check if Supabase client is properly initialized
+        if (!supabase) {
+          console.warn('Supabase client not available');
+          return;
+        }
+        
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
@@ -53,7 +60,9 @@ export const EnergySection: React.FC<EnergySectionProps> = ({ energyData }) => {
           });
         }
       } catch (error) {
-        console.error('Error in fetchOverrides:', error);
+        // Handle network errors, auth errors, and other fetch failures gracefully
+        console.warn('Unable to fetch macro overrides:', error);
+        // Component will continue to work with default values
       }
     };
 
