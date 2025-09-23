@@ -151,6 +151,10 @@ export const ProfilePage: React.FC = () => {
   const [editedProfile, setEditedProfile] = useState<UserProfile | null>(null);
   const [editedPreferences, setEditedPreferences] = useState<UserPreferences>(preferences);
 
+  // Initialize empty state for achievements and AI insights (will be populated with live data later)
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [aiInsights, setAiInsights] = useState<AIInsight[]>([]);
+
   // Load user profile on mount
   useEffect(() => {
     const loadUserProfile = async () => {
