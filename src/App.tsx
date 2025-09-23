@@ -12,6 +12,7 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import Health from './pages/Health';
+import BetaPendingPage from './pages/auth/BetaPendingPage';
 
 // App pages
 import DashboardPage from './pages/DashboardPage';
@@ -44,6 +45,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={() => {}} />} />
         <Route path="/health" element={<Health />} />
         <Route path="/welcome-beta" element={<WelcomeBetaPage />} />
+        <Route path="/beta-pending" element={<BetaPendingPage />} />
 
         {/* PROTECTED APP LAYOUT */}
         <Route
