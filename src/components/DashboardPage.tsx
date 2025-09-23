@@ -12,7 +12,6 @@ import { getSupabase } from '../lib/supabase';
 import type { FoodEntry } from '../types/food';
 import { useNavigate } from 'react-router-dom';
 
-
 interface UserMetricsData {
   tdee?: number;
   protein_g?: number;
@@ -29,70 +28,13 @@ export const DashboardPage: React.FC = () => {
     totalMacros: { protein: number; carbs: number; fat: number };
   } | null>(null);
   
-  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
-  // Mock alerts data
   const [alerts, setAlerts] = useState<MetricAlert[]>([
-    {
-      id: '1',
-      type: 'pr_achieved',
-      message: 'New PR achieved! Bench Press: 185 lbs × 8 reps',
-      severity: 'info',
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      dismissed: false
-    },
-    {
-      id: '2',
-      type: 'consistency_nudge',
-      message: 'You missed 2 scheduled workouts this week. Stay consistent!',
-      severity: 'warning',
-      timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-      dismissed: false
-    },
-    {
-      id: '3',
-      type: 'sleep_debt',
-      message: 'Sleep debt detected: Average 5.8h for last 3 nights',
-      severity: 'warning',
-      timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000),
-      dismissed: false
-    },
-    {
-      id: '4',
-      type: 'protein_insufficient',
-      message: 'Protein intake below target: 1.2g/kg vs 1.6g/kg goal',
-      severity: 'info',
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-      dismissed: true
-    }
+    // Alerts will be loaded from backend in future
   ]);
 
-  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
-  // Mock insights data
+  // Cross-metric insights will be loaded from backend in future
   const insights: CrossMetricInsight[] = [
-    {
-      id: '1',
-      title: 'Sleep Quality vs Workout Performance',
-      description: 'Better sleep quality correlates with 15% higher training volume',
-      correlation: 73,
-      trend: 'positive',
-      actionable: true
-    },
-    {
-      id: '2',
-      title: 'Protein Intake vs Recovery',
-      description: 'Higher protein days show 20% faster recovery metrics',
-      correlation: 68,
-      trend: 'positive',
-      actionable: true
-    },
-    {
-      id: '3',
-      title: 'Training Frequency vs Sleep Consistency',
-      description: 'More frequent training improves sleep schedule regularity',
-      correlation: 45,
-      trend: 'positive',
-      actionable: false
-    }
+    // Cross-metric insights to be loaded from backend
   ];
 
   // Load dashboard data
@@ -150,13 +92,13 @@ export const DashboardPage: React.FC = () => {
 
   // Mock user metrics for mood calculation
   const userMetrics: UserMetrics = {
-    workoutStreak: 5,
-    sleepQuality: 82,
-    proteinTarget: 85,
-    lastWorkout: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+    workoutStreak: 0,
+    sleepQuality: 0,
+    proteinTarget: 0,
+    lastWorkout: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 1 week ago (no recent workouts)
     missedWorkouts: 0,
-    recentPRs: 1,
-    consistencyScore: 88
+    recentPRs: 0,
+    consistencyScore: 0
   };
 
   // Calculate Pat's current mood
@@ -215,8 +157,8 @@ export const DashboardPage: React.FC = () => {
           <div className="px-4 sm:px-6">
             {/* Minimalist Dashboard Grid - Mobile-First Responsive Layout */}
             <div className="grid gap-4 mb-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              <FrequencySection />
-              <RestSection />
+              <FrequencySection frequencyData={[]} />
+              <RestSection restData={[]} />
               <EnergySection 
                 energyData={dashboardData ? {
                   date: new Date().toISOString().split('T')[0],
@@ -232,7 +174,7 @@ export const DashboardPage: React.FC = () => {
                   bmr: dashboardData.userMetrics?.bmr || 1800
                 } : undefined}
               />
-              <EffortSection />
+              <EffortSection effortData={[]} />
             </div>
             
             {/* Essential Actions - Restored CTAs */}

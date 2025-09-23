@@ -5,49 +5,35 @@ import { EffortData } from '../../types/metrics';
 import { CollapsibleTile } from './CollapsibleTile';
 import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
-export const EffortSection: React.FC = () => {
-  const weeklyVolume = 45250; // lbs
-  const lastWeekVolume = 42100;
-  const volumeIncrease = ((weeklyVolume - lastWeekVolume) / lastWeekVolume) * 100;
-  const recentPRs = 3;
+interface EffortSectionProps {
+  effortData?: EffortData[];
+}
 
-  // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
-  // Mock effort data
-  const mockEffortData: EffortData[] = [
-    {
-      session_id: '1',
-      exercise: 'Bench Press',
-      sets: 4,
-      reps: 8,
-      weight_lbs: 185,
-      rpe: 8.5,
-      rest_sec: 180,
-      muscle_group: 'Chest'
-    },
-    {
-      session_id: '1',
-      exercise: 'Squat',
-      sets: 4,
-      reps: 6,
-      weight_lbs: 225,
-      rpe: 9,
-      rest_sec: 240,
-      muscle_group: 'Legs'
-    },
-  ];
+export const EffortSection: React.FC<EffortSectionProps> = ({ effortData = [] }) => {
+  // Calculate actual metrics from data
+  const weeklyVolume = effortData.reduce((total, exercise) => {
+    return total + (exercise.sets * exercise.reps * exercise.weight_lbs);
+  }, 0);
+  
+  const recentPRs = 0; // Would need PR tracking system
+  const avgRPE = effortData.length > 0 
+    ? effortData.reduce((sum, e) => sum + e.rpe, 0) / effortData.length 
+    : 0;
 
   const condensedContent = (
     <div className="text-center p-2">
       {/* Weekly Volume */}
       <div className="mb-3 sm:mb-4">
         <div className="text-xl sm:text-2xl font-bold text-white mb-1">
-          {(weeklyVolume / 1000).toFixed(1)}<span className="text-sm sm:text-lg text-gray-400">k</span>
+          {weeklyVolume > 0 ? (weeklyVolume / 1000).toFixed(1) : '0'}<span className="text-sm sm:text-lg text-gray-400">k</span>
         </div>
         <p className="text-xs sm:text-sm text-gray-400">lbs this week</p>
-        <div className="flex items-center justify-center gap-1 text-xs text-orange-400 mt-1">
-          <TrendingUp size={12} />
-          <span>+{volumeIncrease.toFixed(1)}% vs last week</span>
-        </div>
+        {weeklyVolume > 0 && (
+          <div className="flex items-center justify-center gap-1 text-xs text-orange-400 mt-1">
+            <TrendingUp size={12} />
+            <span>Track more to see trends</span>
+          </div>
+        )}
       </div>
       
       {/* PRs and Stats */}
@@ -62,7 +48,7 @@ export const EffortSection: React.FC = () => {
           <div className="w-6 h-6 sm:w-8 sm:h-8 bg-orange-500/20 rounded-full flex items-center justify-center mb-1">
             <TrendingUp size={12} className="text-orange-400" />
           </div>
-          <span className="text-gray-400">RPE 7.5</span>
+          <span className="text-gray-400">RPE {avgRPE > 0 ? avgRPE.toFixed(1) : '0'}</span>
         </div>
       </div>
     </div>
@@ -72,38 +58,50 @@ export const EffortSection: React.FC = () => {
     <>
       {condensedContent}
       
-      {/* Volume Progress Bar */}
-      <div className="mb-4 mt-4">
-        <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
-          <span>Weekly Progress</span>
-          <span>85%</span>
-        </div>
-        <div className="w-full bg-gray-700 rounded-full h-2">
-          <div 
-            className="bg-orange-500 h-2 rounded-full transition-all duration-500"
-            style={{ width: '85%' }}
-          />
-        </div>
-      </div>
+      {effortData.length > 0 ? (
+        <>
+          {/* Volume Progress Bar */}
+          <div className="mb-4 mt-4">
+            <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+              <span>Weekly Progress</span>
+              <span>Building data</span>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-2">
+              <div 
+                className="bg-orange-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: '25%' }}
+              />
+            </div>
+          </div>
 
-      {/* Volume Progress Chart */}
-      <VolumeProgressChart data={mockEffortData} />
-      
-      {/* Recent PR */}
-      <div className="mt-4 p-3 bg-gradient-to-r from-orange-500/20 to-yellow-500/20 rounded-lg border border-orange-500/30">
-        <div className="flex items-center gap-2 mb-1">
-          <Award size={14} className="text-orange-400" />
-          <span className="text-orange-300 text-sm font-medium">New PR!</span>
+          {/* Volume Progress Chart */}
+          <VolumeProgressChart data={effortData} />
+          
+          {/* Recent workout summary */}
+          <div className="mt-4 p-3 bg-gray-800 rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <Activity size={14} className="text-orange-400" />
+              <span className="text-orange-300 text-sm font-medium">Latest Session</span>
+            </div>
+            <p className="text-white text-sm">
+              {effortData.length} exercises logged
+            </p>
+            <p className="text-gray-400 text-xs">Keep tracking for insights</p>
+          </div>
+        </>
+      ) : (
+        <div className="mt-4 text-center py-8">
+          <Dumbbell size={32} className="text-gray-600 mx-auto mb-3" />
+          <p className="text-gray-400 text-sm mb-2">No workout data yet</p>
+          <p className="text-gray-500 text-xs">Start logging workouts to track your effort</p>
         </div>
-        <p className="text-white text-sm">Bench Press: 185 lbs × 8</p>
-        <p className="text-gray-400 text-xs">2 days ago</p>
-      </div>
+      )}
     </>
   );
 
   return (
     <div style={{ position: 'relative' }}>
-      <DataSourceBadge source="mock" />
+      <DataSourceBadge source="live" />
       <CollapsibleTile
         title="Effort"
         icon={Dumbbell}
