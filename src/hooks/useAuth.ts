@@ -10,10 +10,20 @@ export function useAuth() {
     const supabase = getSupabase();
 
     // Prime with current session to avoid redirect "flicker"
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session ?? null);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        setSession(data.session ?? null);
+        setLoading(false);
+      })
+      .catch((error) => {
+        // Handle case where JWT contains invalid user reference
+        if (error.message && error.message.includes('User from sub claim in JWT does not exist')) {
+          // Clear the invalid session data
+          supabase.auth.signOut();
+          setSession(null);
+        }
+        setLoading(false);
+      });
 
     // Subscribe to changes
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
