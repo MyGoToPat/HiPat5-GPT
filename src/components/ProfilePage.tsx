@@ -484,58 +484,6 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Monthly Consistency Score */}
-      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-        <div className="flex items-center gap-2 mb-4">
-          <Award size={20} className="text-purple-400" />
-          <h3 className="text-lg font-semibold text-white">Monthly Consistency Score</h3>
-        </div>
-        <div className="text-center">
-          <div className="relative w-24 h-24 mx-auto mb-4">
-            <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 96 96">
-              <circle
-                cx="48"
-                cy="48"
-                r="40"
-                stroke="currentColor"
-                strokeWidth="6"
-                fill="none"
-                className="text-gray-700"
-              />
-              <circle
-                cx="48"
-                cy="48"
-                r="40"
-                stroke="currentColor"
-                strokeWidth="6"
-                fill="none"
-                strokeDasharray={`${88 * 2.51} 251`}
-                className="text-purple-500 transition-all duration-500"
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-2xl font-bold text-white">88%</span>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-white font-bold">92%</div>
-              <div className="text-gray-400 text-xs">Workouts</div>
-            </div>
-            <div>
-              <div className="text-white font-bold">85%</div>
-              <div className="text-gray-400 text-xs">Nutrition</div>
-            </div>
-            <div>
-              <div className="text-white font-bold">87%</div>
-              <div className="text-gray-400 text-xs">Sleep</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Progress Overview */}
       <ProgressVisualizations weightData={[]} progressMetrics={[]} />
 
