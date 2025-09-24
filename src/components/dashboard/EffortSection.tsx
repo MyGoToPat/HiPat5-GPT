@@ -6,23 +6,32 @@ import { CollapsibleTile } from './CollapsibleTile';
 import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface EffortSectionProps {
-  effortData?: Array<{
+  workouts?: Array<{
     workout_date: string;
     duration_minutes: number;
     workout_type: string;
     volume_lbs?: number;
     avg_rpe?: number;
   }>;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
-export const EffortSection: React.FC<EffortSectionProps> = ({ effortData = [] }) => {
+export const EffortSection: React.FC<EffortSectionProps> = ({ 
+  workouts = [], 
+  isLoading = false, 
+  error = null 
+}) => {
+  // Process live workout data
+  const data = Array.isArray(workouts) ? workouts : [];
+  
   // Calculate actual metrics from data
   const today = new Date();
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
   const startOfWeekStr = startOfWeek.toISOString().slice(0, 10);
   
-  const thisWeekWorkouts = effortData.filter(workout => 
+  const thisWeekWorkouts = data.filter(workout => 
     workout.workout_date >= startOfWeekStr
   );
   
@@ -36,7 +45,7 @@ export const EffortSection: React.FC<EffortSectionProps> = ({ effortData = [] })
     : 0;
 
   // Transform data for VolumeProgressChart component
-  const transformedData: EffortData[] = effortData.map(workout => ({
+  const transformedData: EffortData[] = data.map(workout => ({
     session_id: `${workout.workout_date}-session`,
     exercise: workout.workout_type,
     sets: 1, // Aggregated per workout
@@ -46,6 +55,58 @@ export const EffortSection: React.FC<EffortSectionProps> = ({ effortData = [] })
     rest_sec: 0,
     muscle_group: 'mixed'
   }));
+
+  // Guard against loading and error states
+  if (isLoading) {
+    return (
+      <div style={{ position: 'relative' }}>
+        <DataSourceBadge source="live" />
+        <CollapsibleTile
+          title="Effort"
+          icon={Dumbbell}
+          iconColor="text-orange-400"
+          hoverColor="border-orange-600"
+          condensedContent={
+            <div className="text-center p-2">
+              <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+              <p className="text-xs text-gray-400">Loading effort...</p>
+            </div>
+          }
+          className=""
+        >
+          <div className="text-center py-8">
+            <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading effort data...</p>
+          </div>
+        </CollapsibleTile>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ position: 'relative' }}>
+        <DataSourceBadge source="live" />
+        <CollapsibleTile
+          title="Effort"
+          icon={Dumbbell}
+          iconColor="text-orange-400"
+          hoverColor="border-orange-600"
+          condensedContent={
+            <div className="text-center p-2">
+              <p className="text-xs text-red-400">Error loading data</p>
+            </div>
+          }
+          className=""
+        >
+          <div className="text-center py-8">
+            <p className="text-red-400 text-sm">Error: {error}</p>
+          </div>
+        </CollapsibleTile>
+      </div>
+    );
+  }
+
   const condensedContent = (
     <div className="text-center p-2">
       {/* Weekly Volume */}
@@ -85,6 +146,7 @@ export const EffortSection: React.FC<EffortSectionProps> = ({ effortData = [] })
       {condensedContent}
       
       {effortData.length > 0 ? (
+      {data.length > 0 ? (
         <>
           {/* Volume Progress Bar */}
           <div className="mb-4 mt-4">

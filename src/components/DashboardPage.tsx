@@ -8,7 +8,7 @@ import { EffortSection } from './dashboard/EffortSection';
 import { DailySummary } from './dashboard/DailySummary';
 import { MetricAlert, CrossMetricInsight } from '../types/metrics';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
-import { getSupabase } from '../lib/supabase';
+import { getSupabase, getDashboardMetrics, updateDailyActivitySummary } from '../lib/supabase';
 import type { FoodEntry } from '../types/food';
 import { useNavigate } from 'react-router-dom';
 
@@ -64,10 +64,7 @@ export const DashboardPage: React.FC = () => {
         if (!user.data.user) return;
 
         // Update daily activity summary first (idempotent)
-        await supabase.rpc('update_daily_activity_summary', {
-          p_user_id: user.data.user.id,
-          p_activity_date: new Date().toISOString().slice(0, 10)
-        });
+        await updateDailyActivitySummary(user.data.user.id);
 
         // Prepare date ranges
         const today = new Date().toISOString().split('T')[0];
@@ -216,8 +213,8 @@ export const DashboardPage: React.FC = () => {
           <div className="px-4 sm:px-6">
             {/* Minimalist Dashboard Grid - Mobile-First Responsive Layout */}
             <div className="grid gap-4 mb-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              <FrequencySection frequencyData={dashboardData?.workoutLogs || []} />
-              <RestSection restData={dashboardData?.sleepLogs || []} />
+              <FrequencySection workouts={dashboardData?.workoutLogs || []} />
+              <RestSection sleepLogs={dashboardData?.sleepLogs || []} />
               <EnergySection 
                 energyData={dashboardData ? {
                   date: new Date().toISOString().split('T')[0],
@@ -233,7 +230,7 @@ export const DashboardPage: React.FC = () => {
                   bmr: dashboardData.userMetrics?.bmr || 1800
                 } : undefined}
               />
-              <EffortSection effortData={dashboardData?.workoutLogs || []} />
+              <EffortSection workouts={dashboardData?.workoutLogs || []} />
             </div>
             
             {/* Essential Actions - Restored CTAs */}

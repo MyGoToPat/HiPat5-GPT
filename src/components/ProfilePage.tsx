@@ -6,6 +6,7 @@ import { ProgressVisualizations } from './profile/ProgressVisualizations';
 import { AIInsights } from './profile/AIInsights';
 import { CustomizableHeader } from './profile/CustomizableHeader';
 import { getSupabase, getUserProfile, upsertUserProfile } from '../lib/supabase';
+import { getDashboardMetrics } from '../lib/supabase';
 import RequestRoleUpgrade from './settings/RequestRoleUpgrade';
 import { useNavigate } from 'react-router-dom';
 
@@ -176,7 +177,7 @@ export const ProfilePage: React.FC = () => {
         // Load profile data and dashboard metrics in parallel
         const [profileResult, metricsResult] = await Promise.all([
           getUserProfile(user.data.user.id),
-          supabase.rpc('get_dashboard_metrics', { user_id: user.data.user.id })
+          getDashboardMetrics(user.data.user.id)
         ]);
         const profile = profileResult;
         
@@ -215,11 +216,11 @@ export const ProfilePage: React.FC = () => {
         }
 
         // Set header metrics from RPC result
-        if (metricsResult.data) {
+        if (metricsResult) {
           setHeaderMetrics({
-            workouts: metricsResult.data[0]?.workouts || 0,
-            day_streak: metricsResult.data[0]?.day_streak || 0,
-            achievements: metricsResult.data[0]?.achievements || 0
+            workouts: metricsResult.workouts || 0,
+            day_streak: metricsResult.day_streak || 0,
+            achievements: metricsResult.achievements || 0
           });
         } else {
           // Fallback to defaults if RPC fails
@@ -229,12 +230,14 @@ export const ProfilePage: React.FC = () => {
             achievements: 0
           });
         }
-
-        if (metricsResult.error) {
-          console.error('Error loading dashboard metrics:', metricsResult.error);
-        }
       } catch (error) {
-        console.error('Error loading user profile:', error);
+        console.error('Error loading user profile or metrics:', error);
+        // Set fallback values
+        setHeaderMetrics({
+          workouts: 0,
+          day_streak: 0,
+          achievements: 0
+        });
       } finally {
         setIsLoading(false);
         setMetricsLoading(false);

@@ -6,7 +6,7 @@ import { CollapsibleTile } from './CollapsibleTile';
 import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface RestSectionProps {
-  restData?: Array<{
+  sleepLogs?: Array<{
     sleep_date: string;
     duration_minutes: number;
     quality_score?: number;
@@ -14,26 +14,35 @@ interface RestSectionProps {
     rem_sleep_minutes: number;
     light_sleep_minutes: number;
   }>;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
-export const RestSection: React.FC<RestSectionProps> = ({ restData = [] }) => {
+export const RestSection: React.FC<RestSectionProps> = ({ 
+  sleepLogs = [], 
+  isLoading = false, 
+  error = null 
+}) => {
+  // Process live sleep data
+  const data = Array.isArray(sleepLogs) ? sleepLogs : [];
+  
   // Calculate actual metrics from data
-  const avgSleep = restData.length > 0 
-    ? restData.reduce((sum, d) => sum + (d.duration_minutes / 60), 0) / restData.length
+  const avgSleep = data.length > 0 
+    ? data.reduce((sum, d) => sum + (d.duration_minutes / 60), 0) / data.length
     : 0;
   const sleepGoal = 8;
-  const sleepQuality = restData.length > 0 
-    ? restData.reduce((sum, d) => {
+  const sleepQuality = data.length > 0 
+    ? data.reduce((sum, d) => {
         const totalSleep = d.rem_sleep_minutes + d.deep_sleep_minutes + d.light_sleep_minutes;
         const qualityScore = totalSleep > 0 ? 
           ((d.deep_sleep_minutes + d.rem_sleep_minutes) / totalSleep) * 100 : 
           (d.quality_score || 0);
         return sum + qualityScore;
-      }, 0) / restData.length
+      }, 0) / data.length
     : 0;
 
   // Transform data for SleepStackedBar component  
-  const transformedData: RestData[] = restData.map(sleep => ({
+  const transformedData: RestData[] = data.map(sleep => ({
     date: sleep.sleep_date,
     sleep_duration_min: sleep.duration_minutes,
     bed_time: '23:00', // Default for now, could be extracted from sleep_date logic
@@ -45,6 +54,58 @@ export const RestSection: React.FC<RestSectionProps> = ({ restData = [] }) => {
     sex_flag: false,
     supplement_stack: []
   }));
+
+  // Guard against loading and error states
+  if (isLoading) {
+    return (
+      <div style={{ position: 'relative' }}>
+        <DataSourceBadge source="live" />
+        <CollapsibleTile
+          title="Rest"
+          icon={Moon}
+          iconColor="text-pat-blue-400"
+          hoverColor="border-pat-blue-600"
+          condensedContent={
+            <div className="text-center p-2">
+              <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+              <p className="text-xs text-gray-400">Loading sleep...</p>
+            </div>
+          }
+          className=""
+        >
+          <div className="text-center py-8">
+            <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading sleep data...</p>
+          </div>
+        </CollapsibleTile>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ position: 'relative' }}>
+        <DataSourceBadge source="live" />
+        <CollapsibleTile
+          title="Rest"
+          icon={Moon}
+          iconColor="text-pat-blue-400"
+          hoverColor="border-pat-blue-600"
+          condensedContent={
+            <div className="text-center p-2">
+              <p className="text-xs text-red-400">Error loading data</p>
+            </div>
+          }
+          className=""
+        >
+          <div className="text-center py-8">
+            <p className="text-red-400 text-sm">Error: {error}</p>
+          </div>
+        </CollapsibleTile>
+      </div>
+    );
+  }
+
   const condensedContent = (
     <div className="text-center p-2">
       {/* Sleep Duration */}
@@ -76,6 +137,7 @@ export const RestSection: React.FC<RestSectionProps> = ({ restData = [] }) => {
       {condensedContent}
       
       {restData.length > 0 ? (
+      {data.length > 0 ? (
         <>
           {/* Sleep Cycles */}
           <div className="flex justify-between items-center text-xs mb-4">
@@ -91,6 +153,7 @@ export const RestSection: React.FC<RestSectionProps> = ({ restData = [] }) => {
               </div>
               <span className="text-gray-400">
                 Deep: {restData.length > 0 ? Math.round((restData[restData.length - 1].deep_sleep_minutes / (restData[restData.length - 1].deep_sleep_minutes + restData[restData.length - 1].rem_sleep_minutes + restData[restData.length - 1].light_sleep_minutes)) * 100) : 0}%
+                Deep: {data.length > 0 ? Math.round((data[data.length - 1].deep_sleep_minutes / (data[data.length - 1].deep_sleep_minutes + data[data.length - 1].rem_sleep_minutes + data[data.length - 1].light_sleep_minutes)) * 100) : 0}%
               </span>
             </div>
           </div>

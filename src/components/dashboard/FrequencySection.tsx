@@ -6,21 +6,30 @@ import { CollapsibleTile } from './CollapsibleTile';
 import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface FrequencySectionProps {
-  frequencyData?: Array<{
+  workouts?: Array<{
     workout_date: string;
     duration_minutes: number;
     workout_type: string;
   }>;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
-export const FrequencySection: React.FC<FrequencySectionProps> = ({ frequencyData = [] }) => {
+export const FrequencySection: React.FC<FrequencySectionProps> = ({ 
+  workouts = [], 
+  isLoading = false, 
+  error = null 
+}) => {
+  // Compute workout days from live data
+  const data = Array.isArray(workouts) ? workouts : [];
+  
   // Calculate workout days this week
   const today = new Date();
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
   const startOfWeekStr = startOfWeek.toISOString().slice(0, 10);
   
-  const thisWeekWorkouts = frequencyData.filter(workout => 
+  const thisWeekWorkouts = data.filter(workout => 
     workout.workout_date >= startOfWeekStr
   );
   const workoutDays = thisWeekWorkouts.length;
@@ -28,7 +37,7 @@ export const FrequencySection: React.FC<FrequencySectionProps> = ({ frequencyDat
   const actualProgress = (workoutDays / weeklyGoal) * 100;
 
   // Transform data for HeatmapCalendar component
-  const transformedData: FrequencyData[] = frequencyData.map(workout => ({
+  const transformedData: FrequencyData[] = data.map(workout => ({
     date: workout.workout_date,
     workout_type: workout.workout_type as FrequencyData['workout_type'],
     duration_min: workout.duration_minutes,
@@ -36,6 +45,57 @@ export const FrequencySection: React.FC<FrequencySectionProps> = ({ frequencyDat
     scheduled: true,
     missed_reason: undefined
   }));
+
+  // Guard against loading and error states
+  if (isLoading) {
+    return (
+      <div style={{ position: 'relative' }}>
+        <DataSourceBadge source="live" />
+        <CollapsibleTile
+          title="Frequency"
+          icon={Calendar}
+          iconColor="text-pat-purple-400"
+          hoverColor="border-pat-purple-600"
+          condensedContent={
+            <div className="text-center p-2">
+              <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+              <p className="text-xs text-gray-400">Loading workouts...</p>
+            </div>
+          }
+          className=""
+        >
+          <div className="text-center py-8">
+            <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading workout data...</p>
+          </div>
+        </CollapsibleTile>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ position: 'relative' }}>
+        <DataSourceBadge source="live" />
+        <CollapsibleTile
+          title="Frequency"
+          icon={Calendar}
+          iconColor="text-pat-purple-400"
+          hoverColor="border-pat-purple-600"
+          condensedContent={
+            <div className="text-center p-2">
+              <p className="text-xs text-red-400">Error loading data</p>
+            </div>
+          }
+          className=""
+        >
+          <div className="text-center py-8">
+            <p className="text-red-400 text-sm">Error: {error}</p>
+          </div>
+        </CollapsibleTile>
+      </div>
+    );
+  }
 
   const condensedContent = (
     <div className="text-center p-2">
@@ -89,7 +149,7 @@ export const FrequencySection: React.FC<FrequencySectionProps> = ({ frequencyDat
               <div
                 key={i}
                 className={`w-3 h-3 rounded-sm ${
-                  i < actualWorkoutDays ? 'bg-pat-purple-500' : 'bg-gray-700'
+                    i < workoutDays ? 'bg-pat-purple-500' : 'bg-gray-700'
                 }`}
               />
             ))}
@@ -116,7 +176,7 @@ export const FrequencySection: React.FC<FrequencySectionProps> = ({ frequencyDat
           </div>
         </>
       ) : (
-        <div className="mt-4 text-center py-8">
+        <div className="text-center py-8">
           <Calendar size={32} className="text-gray-600 mx-auto mb-3" />
           <p className="text-gray-400 text-sm mb-2">No workout data yet</p>
           <p className="text-gray-500 text-xs">Start logging workouts to see your frequency patterns</p>

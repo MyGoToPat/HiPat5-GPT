@@ -14,6 +14,7 @@ import { ChatHistory, ChatMessage, ChatState } from '../types/chat';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { callChat } from '../lib/chat';
 import { trackFirstChatMessage } from '../lib/analytics';
+import { updateDailyActivitySummary, checkAndAwardAchievements } from '../lib/supabase';
 import { 
   getThread, 
   upsertThread, 
@@ -642,12 +643,16 @@ export const ChatPat: React.FC = () => {
         return;
       }
 
+      const supabase = getSupabase();
+      const userId = user.data.user.id;
+      const activityDate = new Date().toISOString().slice(0, 10);
+
       // Step 1: Insert workout log
-      const { error } = await getSupabase()
+      const { error: insertError } = await supabase
         .from('workout_logs')
         .insert({
-          user_id: user.data.user.id,
-          workout_date: new Date().toISOString().slice(0, 10),
+          user_id: userId,
+          workout_date: activityDate,
           duration_minutes: workoutData.duration,
           workout_type: workoutData.type,
           volume_lbs: workoutData.volume,
@@ -655,26 +660,25 @@ export const ChatPat: React.FC = () => {
           notes: workoutData.notes
         });
 
-      if (error) {
-        console.error('Error saving workout:', error);
+      if (insertError) {
+        console.error('Error saving workout:', insertError);
         toast.error('Failed to save workout');
         return;
       }
 
       // Step 2: Update daily activity summary
-      await getSupabase().rpc('update_daily_activity_summary', {
-        p_user_id: user.data.user.id,
-        p_activity_date: new Date().toISOString().slice(0, 10)
-      });
+      await updateDailyActivitySummary(userId, activityDate);
 
       // Step 3: Check and award achievements
-      const { data: newAchievements } = await getSupabase().rpc('check_and_award_achievements', {
-        user_id: user.data.user.id
-      });
+      const newAchievements = await checkAndAwardAchievements(userId);
 
-      if (newAchievements && newAchievements > 0) {
+      if (newAchievements > 0) {
         toast.success(`🏆 ${newAchievements} new achievement${newAchievements > 1 ? 's' : ''} earned!`);
       }
+
+      // Step 4: Refresh header metrics would happen here if ProfilePage was mounted
+      // For now, just log the successful workflow
+      console.log('Workout logged successfully - metrics will refresh on next page load');
 
       // Add success message to chat
       const workoutMessage: ChatMessage = {
@@ -685,7 +689,6 @@ export const ChatPat: React.FC = () => {
       };
       
       setMessages(prev => [...prev, workoutMessage]);
-      console.log('Workout logged successfully:', workoutData);
 
     } catch (error) {
       console.error('Error logging workout:', error);
