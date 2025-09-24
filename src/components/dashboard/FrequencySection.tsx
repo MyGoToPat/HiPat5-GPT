@@ -141,7 +141,7 @@ export const FrequencySection: React.FC<FrequencySectionProps> = ({
     <>
       {condensedContent}
       
-      {frequencyData.length > 0 ? (
+      {transformedData.length > 0 ? (
         <>
           {/* Mini heatmap */}
           <div key="mini-heatmap" className="flex justify-center gap-1 mb-4 mt-4">
