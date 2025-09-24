@@ -53,6 +53,7 @@ export const ChatPat: React.FC = () => {
   const [isDictating, setIsDictating] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isLoggingActivity, setIsLoggingActivity] = useState(false);
   const [activeAgentSession, setActiveAgentSession] = useState<AgentSession | null>(null);
   const [silentMode, setSilentMode] = useState(false);
 
@@ -275,6 +276,9 @@ export const ChatPat: React.FC = () => {
             // Track first chat message
             if (messages.length === 1) { // Only initial greeting before this
               try {
+                // Check if message indicates workout or activity logging
+                detectAndLogWorkout(inputText);
+
                 const supabase = getSupabase();
                 const user = await supabase.auth.getUser();
                 if (user.data.user) {
@@ -550,12 +554,14 @@ export const ChatPat: React.FC = () => {
   const handleSaveFoodEntry = (entry: FoodEntry) => {
     const saveFoodEntry = async () => {
       try {
+        setIsLoggingActivity(true);
         const user = await getSupabase().auth.getUser();
         if (!user.data.user) {
           console.error('No authenticated user');
           return;
         }
 
+        // Step 1: Insert food log
         const { error } = await getSupabase()
           .from('food_logs')
           .insert({
@@ -568,8 +574,23 @@ export const ChatPat: React.FC = () => {
 
         if (error) {
           console.error('Error saving food entry:', error);
-          // TODO: Show error toast to user
+          toast.error('Failed to save food entry');
           return;
+        }
+
+        // Step 2: Update daily activity summary
+        await getSupabase().rpc('update_daily_activity_summary', {
+          p_user_id: user.data.user.id,
+          p_activity_date: new Date().toISOString().slice(0, 10)
+        });
+
+        // Step 3: Check and award achievements
+        const { data: newAchievements } = await getSupabase().rpc('check_and_award_achievements', {
+          user_id: user.data.user.id
+        });
+
+        if (newAchievements && newAchievements > 0) {
+          toast.success(`🏆 ${newAchievements} new achievement${newAchievements > 1 ? 's' : ''} earned!`);
         }
 
         // Track first food log
@@ -586,6 +607,9 @@ export const ChatPat: React.FC = () => {
         console.log('Food entry saved successfully:', entry);
       } catch (error) {
         console.error('Error in handleSaveFoodEntry:', error);
+        toast.error('Failed to process food entry');
+      } finally {
+        setIsLoggingActivity(false);
       }
     };
 
@@ -602,6 +626,98 @@ export const ChatPat: React.FC = () => {
     setMessages(prev => [...prev, foodMessage]);
   };
 
+  // Function to handle workout logging
+  const handleLogWorkout = async (workoutData: {
+    type: string;
+    duration: number;
+    volume?: number;
+    rpe?: number;
+    notes?: string;
+  }) => {
+    try {
+      setIsLoggingActivity(true);
+      const user = await getSupabase().auth.getUser();
+      if (!user.data.user) {
+        console.error('No authenticated user');
+        return;
+      }
+
+      // Step 1: Insert workout log
+      const { error } = await getSupabase()
+        .from('workout_logs')
+        .insert({
+          user_id: user.data.user.id,
+          workout_date: new Date().toISOString().slice(0, 10),
+          duration_minutes: workoutData.duration,
+          workout_type: workoutData.type,
+          volume_lbs: workoutData.volume,
+          avg_rpe: workoutData.rpe,
+          notes: workoutData.notes
+        });
+
+      if (error) {
+        console.error('Error saving workout:', error);
+        toast.error('Failed to save workout');
+        return;
+      }
+
+      // Step 2: Update daily activity summary
+      await getSupabase().rpc('update_daily_activity_summary', {
+        p_user_id: user.data.user.id,
+        p_activity_date: new Date().toISOString().slice(0, 10)
+      });
+
+      // Step 3: Check and award achievements
+      const { data: newAchievements } = await getSupabase().rpc('check_and_award_achievements', {
+        user_id: user.data.user.id
+      });
+
+      if (newAchievements && newAchievements > 0) {
+        toast.success(`🏆 ${newAchievements} new achievement${newAchievements > 1 ? 's' : ''} earned!`);
+      }
+
+      // Add success message to chat
+      const workoutMessage: ChatMessage = {
+        id: Date.now().toString(),
+        text: `Workout logged: ${workoutData.type} for ${workoutData.duration} minutes${workoutData.volume ? `, ${workoutData.volume} lbs volume` : ''}${workoutData.rpe ? `, RPE ${workoutData.rpe}` : ''}`,
+        timestamp: new Date(),
+        isUser: false
+      };
+      
+      setMessages(prev => [...prev, workoutMessage]);
+      console.log('Workout logged successfully:', workoutData);
+
+    } catch (error) {
+      console.error('Error logging workout:', error);
+      toast.error('Failed to process workout entry');
+    } finally {
+      setIsLoggingActivity(false);
+    }
+  };
+
+  // Example usage in handleSendMessage for workout detection
+  const detectAndLogWorkout = (message: string) => {
+    const workoutKeywords = ['workout', 'exercise', 'gym', 'training', 'lifted', 'ran', 'cardio'];
+    const hasWorkoutKeyword = workoutKeywords.some(keyword => 
+      message.toLowerCase().includes(keyword)
+    );
+
+    if (hasWorkoutKeyword) {
+      // Simple pattern matching for demonstration
+      // In production, you'd use more sophisticated NLP
+      const durationMatch = message.match(/(\d+)\s*(minutes?|mins?|hours?)/i);
+      const duration = durationMatch ? parseInt(durationMatch[1]) * (durationMatch[2].toLowerCase().includes('hour') ? 60 : 1) : 30;
+      
+      const typeMatch = message.match(/(cardio|strength|resistance|running|lifting|weights)/i);
+      const type = typeMatch ? typeMatch[1].toLowerCase() : 'resistance';
+
+      handleLogWorkout({
+        type,
+        duration,
+        notes: message
+      });
+    }
+  };
   // Show loading state while determining user role
   if (roleLoading) {
     return (

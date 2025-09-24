@@ -15,6 +15,7 @@ interface CustomizableHeaderProps {
   achievements: number;
   totalWorkouts: number;
   currentStreak: number;
+  isLoading?: boolean;
 }
 
 export const CustomizableHeader: React.FC<CustomizableHeaderProps> = ({
@@ -23,6 +24,7 @@ export const CustomizableHeader: React.FC<CustomizableHeaderProps> = ({
   achievements,
   totalWorkouts,
   currentStreak
+  isLoading = false
 }) => {
   const [isCustomizing, setIsCustomizing] = useState(false);
 
@@ -107,7 +109,13 @@ export const CustomizableHeader: React.FC<CustomizableHeaderProps> = ({
             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2 backdrop-blur-sm">
               <Trophy size={20} className="text-white" />
             </div>
-            <div className="text-xl font-bold text-white">{achievements}</div>
+            <div className="text-xl font-bold text-white">
+              {isLoading ? (
+                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
+              ) : (
+                achievements
+              )}
+            </div>
             <div className="text-white/80 text-xs">Achievements</div>
           </div>
           
@@ -115,7 +123,13 @@ export const CustomizableHeader: React.FC<CustomizableHeaderProps> = ({
             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2 backdrop-blur-sm">
               <Target size={20} className="text-white" />
             </div>
-            <div className="text-xl font-bold text-white">{totalWorkouts}</div>
+            <div className="text-xl font-bold text-white">
+              {isLoading ? (
+                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
+              ) : (
+                totalWorkouts
+              )}
+            </div>
             <div className="text-white/80 text-xs">Workouts</div>
           </div>
           
@@ -123,7 +137,13 @@ export const CustomizableHeader: React.FC<CustomizableHeaderProps> = ({
             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2 backdrop-blur-sm">
               <Fire size={20} className="text-white" />
             </div>
-            <div className="text-xl font-bold text-white">{currentStreak}</div>
+            <div className="text-xl font-bold text-white">
+              {isLoading ? (
+                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
+              ) : (
+                currentStreak
+              )}
+            </div>
             <div className="text-white/80 text-xs">Day Streak</div>
           </div>
         </div>

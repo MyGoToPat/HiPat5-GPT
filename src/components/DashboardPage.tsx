@@ -18,6 +18,22 @@ interface UserMetricsData {
   bmr?: number;
 }
 
+interface WorkoutLogData {
+  workout_date: string;
+  duration_minutes: number;
+  workout_type: string;
+  volume_lbs?: number;
+  avg_rpe?: number;
+}
+
+interface SleepLogData {
+  sleep_date: string;
+  duration_minutes: number;
+  quality_score?: number;
+  deep_sleep_minutes: number;
+  rem_sleep_minutes: number;
+  light_sleep_minutes: number;
+}
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
@@ -26,6 +42,8 @@ export const DashboardPage: React.FC = () => {
     todaysFoodLogs: FoodEntry[];
     totalCalories: number;
     totalMacros: { protein: number; carbs: number; fat: number };
+    workoutLogs: WorkoutLogData[];
+    sleepLogs: SleepLogData[];
   } | null>(null);
   
   const [alerts, setAlerts] = useState<MetricAlert[]>([
@@ -45,26 +63,63 @@ export const DashboardPage: React.FC = () => {
         const user = await supabase.auth.getUser();
         if (!user.data.user) return;
 
-        // Get user metrics
-        const { data: metrics } = await supabase
-          .from('user_metrics')
-          .select('*')
-          .eq('user_id', user.data.user.id)
-          .maybeSingle();
+        // Update daily activity summary first (idempotent)
+        await supabase.rpc('update_daily_activity_summary', {
+          p_user_id: user.data.user.id,
+          p_activity_date: new Date().toISOString().slice(0, 10)
+        });
 
-        // Get today's food logs
+        // Prepare date ranges
         const today = new Date().toISOString().split('T')[0];
-        const { data: foodLogs } = await supabase
-          .from('food_logs')
-          .select('*')
-          .eq('user_id', user.data.user.id)
-          .gte('created_at', `${today}T00:00:00.000Z`)
-          .lt('created_at', `${today}T23:59:59.999Z`)
-          .order('created_at', { ascending: false });
+        const workoutStartDate = new Date();
+        workoutStartDate.setDate(workoutStartDate.getDate() - 48); // Last 49 days for heatmap
+        const sleepStartDate = new Date();
+        sleepStartDate.setDate(sleepStartDate.getDate() - 13); // Last 14 days for sleep
+
+        // Fetch all data in parallel
+        const [
+          metricsResult,
+          foodLogsResult,
+          workoutLogsResult,
+          sleepLogsResult
+        ] = await Promise.all([
+          // User metrics
+          supabase
+            .from('user_metrics')
+            .select('*')
+            .eq('user_id', user.data.user.id)
+            .maybeSingle(),
+          
+          // Today's food logs
+          supabase
+            .from('food_logs')
+            .select('*')
+            .eq('user_id', user.data.user.id)
+            .gte('created_at', `${today}T00:00:00.000Z`)
+            .lt('created_at', `${today}T23:59:59.999Z`)
+            .order('created_at', { ascending: false }),
+          
+          // Workout logs for dashboard
+          supabase
+            .from('workout_logs')
+            .select('workout_date, duration_minutes, workout_type, volume_lbs, avg_rpe')
+            .eq('user_id', user.data.user.id)
+            .gte('workout_date', workoutStartDate.toISOString().slice(0, 10))
+            .order('workout_date', { ascending: true }),
+          
+          // Sleep logs for dashboard
+          supabase
+            .from('sleep_logs')
+            .select('sleep_date, duration_minutes, quality_score, deep_sleep_minutes, rem_sleep_minutes, light_sleep_minutes')
+            .eq('user_id', user.data.user.id)
+            .gte('sleep_date', sleepStartDate.toISOString().slice(0, 10))
+            .order('sleep_date', { ascending: true })
+        ]);
 
         // Calculate totals
-        const totalCalories = (foodLogs || []).reduce((sum, log) => sum + (log.macros?.kcal || 0), 0);
-        const totalMacros = (foodLogs || []).reduce(
+        const foodLogs = foodLogsResult.data || [];
+        const totalCalories = foodLogs.reduce((sum, log) => sum + (log.macros?.kcal || 0), 0);
+        const totalMacros = foodLogs.reduce(
           (totals, log) => ({
             protein: totals.protein + (log.macros?.protein_g || 0),
             carbs: totals.carbs + (log.macros?.carbs_g || 0),
@@ -74,11 +129,15 @@ export const DashboardPage: React.FC = () => {
         );
 
         setDashboardData({
-          userMetrics: metrics,
-          todaysFoodLogs: foodLogs || [],
+          userMetrics: metricsResult.data,
+          todaysFoodLogs: foodLogs,
           totalCalories,
-          totalMacros
+          totalMacros,
+          workoutLogs: workoutLogsResult.data || [],
+          sleepLogs: sleepLogsResult.data || []
         });
+
+        console.log('Dashboard data loaded:', { workouts: workoutLogsResult.data?.length, sleep: sleepLogsResult.data?.length });
 
       } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -157,8 +216,8 @@ export const DashboardPage: React.FC = () => {
           <div className="px-4 sm:px-6">
             {/* Minimalist Dashboard Grid - Mobile-First Responsive Layout */}
             <div className="grid gap-4 mb-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              <FrequencySection frequencyData={[]} />
-              <RestSection restData={[]} />
+              <FrequencySection frequencyData={dashboardData?.workoutLogs || []} />
+              <RestSection restData={dashboardData?.sleepLogs || []} />
               <EnergySection 
                 energyData={dashboardData ? {
                   date: new Date().toISOString().split('T')[0],
@@ -174,7 +233,7 @@ export const DashboardPage: React.FC = () => {
                   bmr: dashboardData.userMetrics?.bmr || 1800
                 } : undefined}
               />
-              <EffortSection effortData={[]} />
+              <EffortSection effortData={dashboardData?.workoutLogs || []} />
             </div>
             
             {/* Essential Actions - Restored CTAs */}

@@ -6,20 +6,46 @@ import { CollapsibleTile } from './CollapsibleTile';
 import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface EffortSectionProps {
-  effortData?: EffortData[];
+  effortData?: Array<{
+    workout_date: string;
+    duration_minutes: number;
+    workout_type: string;
+    volume_lbs?: number;
+    avg_rpe?: number;
+  }>;
 }
 
 export const EffortSection: React.FC<EffortSectionProps> = ({ effortData = [] }) => {
   // Calculate actual metrics from data
-  const weeklyVolume = effortData.reduce((total, exercise) => {
-    return total + (exercise.sets * exercise.reps * exercise.weight_lbs);
+  const today = new Date();
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
+  const startOfWeekStr = startOfWeek.toISOString().slice(0, 10);
+  
+  const thisWeekWorkouts = effortData.filter(workout => 
+    workout.workout_date >= startOfWeekStr
+  );
+  
+  const weeklyVolume = thisWeekWorkouts.reduce((total, workout) => {
+    return total + (workout.volume_lbs || 0);
   }, 0);
   
   const recentPRs = 0; // Would need PR tracking system
-  const avgRPE = effortData.length > 0 
-    ? effortData.reduce((sum, e) => sum + e.rpe, 0) / effortData.length 
+  const avgRPE = thisWeekWorkouts.length > 0 
+    ? thisWeekWorkouts.reduce((sum, w) => sum + (w.avg_rpe || 0), 0) / thisWeekWorkouts.length 
     : 0;
 
+  // Transform data for VolumeProgressChart component
+  const transformedData: EffortData[] = effortData.map(workout => ({
+    session_id: `${workout.workout_date}-session`,
+    exercise: workout.workout_type,
+    sets: 1, // Aggregated per workout
+    reps: 1,
+    weight_lbs: workout.volume_lbs || 0,
+    rpe: workout.avg_rpe || 0,
+    rest_sec: 0,
+    muscle_group: 'mixed'
+  }));
   const condensedContent = (
     <div className="text-center p-2">
       {/* Weekly Volume */}
@@ -75,7 +101,7 @@ export const EffortSection: React.FC<EffortSectionProps> = ({ effortData = [] })
           </div>
 
           {/* Volume Progress Chart */}
-          <VolumeProgressChart data={effortData} />
+          <VolumeProgressChart data={transformedData} />
           
           {/* Recent workout summary */}
           <div className="mt-4 p-3 bg-gray-800 rounded-lg">
@@ -84,9 +110,11 @@ export const EffortSection: React.FC<EffortSectionProps> = ({ effortData = [] })
               <span className="text-orange-300 text-sm font-medium">Latest Session</span>
             </div>
             <p className="text-white text-sm">
-              {effortData.length} exercises logged
+              {thisWeekWorkouts.length} workouts this week
             </p>
-            <p className="text-gray-400 text-xs">Keep tracking for insights</p>
+            <p className="text-gray-400 text-xs">
+              {weeklyVolume > 0 ? `${weeklyVolume.toLocaleString()} lbs total volume` : 'Keep tracking for insights'}
+            </p>
           </div>
         </>
       ) : (

@@ -131,6 +131,12 @@ export const ProfilePage: React.FC = () => {
   
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [dbProfile, setDbProfile] = useState<DatabaseProfile | null>(null);
+  const [headerMetrics, setHeaderMetrics] = useState<{
+    workouts: number;
+    day_streak: number;
+    achievements: number;
+  } | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
 
   const [preferences, setPreferences] = useState<UserPreferences>({
     // TODO: MOCK_DATA_REMOVE (HiPat cleanup)
@@ -159,6 +165,7 @@ export const ProfilePage: React.FC = () => {
   useEffect(() => {
     const loadUserProfile = async () => {
       try {
+        setMetricsLoading(true);
         const supabase = getSupabase();
         const user = await supabase.auth.getUser();
         if (!user.data.user) {
@@ -166,7 +173,12 @@ export const ProfilePage: React.FC = () => {
           return;
         }
 
-        const profile = await getUserProfile(user.data.user.id);
+        // Load profile data and dashboard metrics in parallel
+        const [profileResult, metricsResult] = await Promise.all([
+          getUserProfile(user.data.user.id),
+          supabase.rpc('get_dashboard_metrics', { user_id: user.data.user.id })
+        ]);
+        const profile = profileResult;
         
         if (profile) {
           setDbProfile(profile);
@@ -201,10 +213,31 @@ export const ProfilePage: React.FC = () => {
           setUserProfile(defaultProfile);
           setEditedProfile(defaultProfile);
         }
+
+        // Set header metrics from RPC result
+        if (metricsResult.data) {
+          setHeaderMetrics({
+            workouts: metricsResult.data[0]?.workouts || 0,
+            day_streak: metricsResult.data[0]?.day_streak || 0,
+            achievements: metricsResult.data[0]?.achievements || 0
+          });
+        } else {
+          // Fallback to defaults if RPC fails
+          setHeaderMetrics({
+            workouts: 0,
+            day_streak: 0,
+            achievements: 0
+          });
+        }
+
+        if (metricsResult.error) {
+          console.error('Error loading dashboard metrics:', metricsResult.error);
+        }
       } catch (error) {
         console.error('Error loading user profile:', error);
       } finally {
         setIsLoading(false);
+        setMetricsLoading(false);
       }
     };
 
@@ -269,9 +302,10 @@ export const ProfilePage: React.FC = () => {
             setEditedProfile(updatedProfile);
           }
         }}
-        achievements={achievements.filter(a => a.earned).length}
-        totalWorkouts={47}
-        currentStreak={12}
+        achievements={headerMetrics?.achievements || 0}
+        totalWorkouts={headerMetrics?.workouts || 0}
+        currentStreak={headerMetrics?.day_streak || 0}
+        isLoading={metricsLoading}
       />
 
       {/* Achievement Badges */}

@@ -6,24 +6,45 @@ import { CollapsibleTile } from './CollapsibleTile';
 import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface RestSectionProps {
-  restData?: RestData[];
+  restData?: Array<{
+    sleep_date: string;
+    duration_minutes: number;
+    quality_score?: number;
+    deep_sleep_minutes: number;
+    rem_sleep_minutes: number;
+    light_sleep_minutes: number;
+  }>;
 }
 
 export const RestSection: React.FC<RestSectionProps> = ({ restData = [] }) => {
   // Calculate actual metrics from data
   const avgSleep = restData.length > 0 
-    ? restData.reduce((sum, d) => sum + (d.sleep_duration_min / 60), 0) / restData.length
+    ? restData.reduce((sum, d) => sum + (d.duration_minutes / 60), 0) / restData.length
     : 0;
   const sleepGoal = 8;
   const sleepQuality = restData.length > 0 
     ? restData.reduce((sum, d) => {
-        const totalSleep = d.rem_min + d.deep_min + d.light_min;
+        const totalSleep = d.rem_sleep_minutes + d.deep_sleep_minutes + d.light_sleep_minutes;
         const qualityScore = totalSleep > 0 ? 
-          ((d.deep_min + d.rem_min) / totalSleep) * 100 : 0;
+          ((d.deep_sleep_minutes + d.rem_sleep_minutes) / totalSleep) * 100 : 
+          (d.quality_score || 0);
         return sum + qualityScore;
       }, 0) / restData.length
     : 0;
 
+  // Transform data for SleepStackedBar component  
+  const transformedData: RestData[] = restData.map(sleep => ({
+    date: sleep.sleep_date,
+    sleep_duration_min: sleep.duration_minutes,
+    bed_time: '23:00', // Default for now, could be extracted from sleep_date logic
+    wake_time: '07:00', // Default for now
+    rem_min: sleep.rem_sleep_minutes,
+    deep_min: sleep.deep_sleep_minutes,
+    light_min: sleep.light_sleep_minutes,
+    wakenings: 0, // Default for now
+    sex_flag: false,
+    supplement_stack: []
+  }));
   const condensedContent = (
     <div className="text-center p-2">
       {/* Sleep Duration */}
@@ -69,13 +90,13 @@ export const RestSection: React.FC<RestSectionProps> = ({ restData = [] }) => {
                 <BarChart3 size={12} className="text-pat-blue-400" />
               </div>
               <span className="text-gray-400">
-                Deep: {restData.length > 0 ? Math.round((restData[restData.length - 1].deep_min / (restData[restData.length - 1].deep_min + restData[restData.length - 1].rem_min + restData[restData.length - 1].light_min)) * 100) : 0}%
+                Deep: {restData.length > 0 ? Math.round((restData[restData.length - 1].deep_sleep_minutes / (restData[restData.length - 1].deep_sleep_minutes + restData[restData.length - 1].rem_sleep_minutes + restData[restData.length - 1].light_sleep_minutes)) * 100) : 0}%
               </span>
             </div>
           </div>
 
           {/* Sleep Stages Visualization */}
-          <SleepStackedBar data={restData} />
+          <SleepStackedBar data={transformedData} />
           
           {/* Sleep consistency indicator */}
           <div className="mt-4 p-3 bg-gray-800 rounded-lg">

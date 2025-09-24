@@ -6,17 +6,36 @@ import { CollapsibleTile } from './CollapsibleTile';
 import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface FrequencySectionProps {
-  frequencyData?: FrequencyData[];
+  frequencyData?: Array<{
+    workout_date: string;
+    duration_minutes: number;
+    workout_type: string;
+  }>;
 }
 
 export const FrequencySection: React.FC<FrequencySectionProps> = ({ frequencyData = [] }) => {
-  const workoutDays = 4;
+  // Calculate workout days this week
+  const today = new Date();
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
+  const startOfWeekStr = startOfWeek.toISOString().slice(0, 10);
+  
+  const thisWeekWorkouts = frequencyData.filter(workout => 
+    workout.workout_date >= startOfWeekStr
+  );
+  const workoutDays = thisWeekWorkouts.length;
   const weeklyGoal = 5;
-  const progress = (workoutDays / weeklyGoal) * 100;
+  const actualProgress = (workoutDays / weeklyGoal) * 100;
 
-  // Calculate actual metrics from data
-  const actualWorkoutDays = frequencyData.filter(d => d.duration_min > 0).length;
-  const actualProgress = frequencyData.length > 0 ? (actualWorkoutDays / weeklyGoal) * 100 : 0;
+  // Transform data for HeatmapCalendar component
+  const transformedData: FrequencyData[] = frequencyData.map(workout => ({
+    date: workout.workout_date,
+    workout_type: workout.workout_type as FrequencyData['workout_type'],
+    duration_min: workout.duration_minutes,
+    volume_lbs: 0, // Will be calculated in EffortSection
+    scheduled: true,
+    missed_reason: undefined
+  }));
 
   const condensedContent = (
     <div className="text-center p-2">
@@ -45,7 +64,7 @@ export const FrequencySection: React.FC<FrequencySectionProps> = ({ frequencyDat
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-base sm:text-lg font-bold text-white">{actualWorkoutDays}</span>
+          <span className="text-base sm:text-lg font-bold text-white">{workoutDays}</span>
         </div>
       </div>
       
@@ -77,7 +96,7 @@ export const FrequencySection: React.FC<FrequencySectionProps> = ({ frequencyDat
           </div>
 
           {/* Heatmap Calendar */}
-          <HeatmapCalendar data={frequencyData} />
+          <HeatmapCalendar data={transformedData} />
           
           {/* Weekly stats */}
           <div className="mt-4 p-3 bg-gray-800 rounded-lg">
@@ -89,9 +108,9 @@ export const FrequencySection: React.FC<FrequencySectionProps> = ({ frequencyDat
               </div>
             </div>
             <div className="flex justify-between items-center mt-1">
-              <span className="text-white font-medium">{actualWorkoutDays} workouts</span>
+              <span className="text-white font-medium">{workoutDays} workouts</span>
               <span className="text-gray-400">
-                {frequencyData.reduce((total, d) => total + d.duration_min, 0)} min total
+                {thisWeekWorkouts.reduce((total, w) => total + w.duration_minutes, 0)} min total
               </span>
             </div>
           </div>
