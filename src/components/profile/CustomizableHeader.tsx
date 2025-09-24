@@ -23,7 +23,7 @@ export const CustomizableHeader: React.FC<CustomizableHeaderProps> = ({
   onUpdate,
   achievements,
   totalWorkouts,
-  currentStreak
+  currentStreak,
   isLoading = false
 }) => {
   const [isCustomizing, setIsCustomizing] = useState(false);
