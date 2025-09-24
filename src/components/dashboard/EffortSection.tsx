@@ -145,7 +145,6 @@ export const EffortSection: React.FC<EffortSectionProps> = ({
     <>
       {condensedContent}
       
-      {effortData.length > 0 ? (
       {data.length > 0 ? (
         <>
           {/* Volume Progress Bar */}
