@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dumbbell, TrendingUp, Award } from 'lucide-react';
+import { Dumbbell, TrendingUp, Award, Activity } from 'lucide-react';
 import { VolumeProgressChart } from './VolumeProgressChart';
 import { EffortData } from '../../types/metrics';
 import { CollapsibleTile } from './CollapsibleTile';
