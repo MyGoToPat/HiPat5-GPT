@@ -136,7 +136,6 @@ export const RestSection: React.FC<RestSectionProps> = ({
     <>
       {condensedContent}
       
-      {restData.length > 0 ? (
       {data.length > 0 ? (
         <>
           {/* Sleep Cycles */}
@@ -152,7 +151,6 @@ export const RestSection: React.FC<RestSectionProps> = ({
                 <BarChart3 size={12} className="text-pat-blue-400" />
               </div>
               <span className="text-gray-400">
-                Deep: {restData.length > 0 ? Math.round((restData[restData.length - 1].deep_sleep_minutes / (restData[restData.length - 1].deep_sleep_minutes + restData[restData.length - 1].rem_sleep_minutes + restData[restData.length - 1].light_sleep_minutes)) * 100) : 0}%
                 Deep: {data.length > 0 ? Math.round((data[data.length - 1].deep_sleep_minutes / (data[data.length - 1].deep_sleep_minutes + data[data.length - 1].rem_sleep_minutes + data[data.length - 1].light_sleep_minutes)) * 100) : 0}%
               </span>
             </div>
