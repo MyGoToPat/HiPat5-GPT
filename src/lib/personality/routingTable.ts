@@ -27,7 +27,18 @@ export const ROUTE_REGISTRY: Record<string, RegistryEntry> = {
       /\b(feedback|improve|better|suggestion|enhance|make.*better)\b/i,
     ],
   },
-  // Add more roles here without touching orchestrator code
+  workout: {
+    type: "role", 
+    patterns: [
+      /\b(workout|exercise|gym|training|lifted|reps|sets|weights?)\b/i,
+    ],
+  },
+  mmb: {
+    type: "role",
+    patterns: [
+      /\b(feedback|improve|better|suggestion|enhance|make.*better)\b/i,
+    ],
+  },
 };
 
 export function fastRoute(userText: string): RouteHit {
@@ -44,6 +55,12 @@ export function fastRoute(userText: string): RouteHit {
 }
 
 export function resolveRoleTarget(slug: string): string {
-  // No-op for now, but gives us one place to normalize slugs if UI names drift
+  // Normalize role target slugs
+  const mapping: Record<string, string> = {
+    'tell-me-what-you-ate': 'tmwya',
+    'tell-me-about-your-workout': 'workout',
+    'make-me-better': 'mmb'
+  };
+  return mapping[slug] || slug;
   return slug;
 }

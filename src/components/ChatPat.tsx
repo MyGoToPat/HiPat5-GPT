@@ -240,9 +240,11 @@ export const ChatPat: React.FC = () => {
                       userId: user.data.user.id,
                       userProfile: {
                         ...userProfile,
-                        trial_ends: (userProfile as any).trial_ends // Pass trial info if available
+                        trial_ends: (userProfile as any).trial_ends, // Pass trial info if available
+                        role: userProfile.role // Ensure role is passed for permission checks
                       },
                       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                      today: new Date().toISOString().slice(0, 10),
                       freeMetrics: {
                         // Add basic metrics if available
                         frequency: "building",

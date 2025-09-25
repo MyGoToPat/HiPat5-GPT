@@ -20,7 +20,7 @@ type RunInput = {
   userMessage: string;
   context: {
     userId: string;
-    userProfile: UserProfile;
+    userProfile: UserProfile & { trial_ends?: string | null };
     timezone?: string;
     freeMetrics?: Record<string, any>;
     [key: string]: any;
@@ -67,26 +67,32 @@ async function runAgent(
   agentId: string,
   userMessage: string,
   context: Record<string, any>,
-  agentConfig?: AgentConfig
+  agentConfig?: AgentConfig,
+  draft?: string
 ): Promise<{ text: string; json?: any; error?: string }> {
   const agentsRec = getPersonalityAgents();
   const agent = agentConfig || agentsRec[agentId];
   if (!agent) return { text: "", error: `Agent ${agentId} not found` };
 
   const instructions = renderTemplate(agent.instructions, { context });
-  const prompt = renderTemplate(agent.promptTemplate, { user_message: userMessage, context });
+  
+  // For post-agents, use draft; for pre-agents, use user_message
+  const templateData = agent.phase === 'post' 
+    ? { draft: draft || '', context, user_message: userMessage }
+    : { user_message: userMessage, context };
+  
+  const prompt = renderTemplate(agent.promptTemplate, templateData);
 
   const payload = {
-    provider: agent.api.provider,
+    messages: [
+      { role: "system", content: instructions },
+      { role: "user", content: prompt }
+    ],
     model: agent.api.model,
     temperature: agent.api.temperature,
     max_output_tokens: agent.api.maxOutputTokens,
     response_format: agent.api.responseFormat,
     json_schema: agent.api.responseFormat === "json" ? agent.api.jsonSchema ?? null : null,
-    messages: [
-      { role: "system", content: instructions },
-      { role: "user", content: prompt },
-    ],
   };
 
   try {
@@ -125,7 +131,7 @@ async function runRoleSpecificLogic(
     const foodName = routerParams.foodName || routerParams.food;
     if (!foodName || typeof foodName !== 'string') {
       return { 
-        finalAnswer: "I'd love to help you log your meal! What did you eat?", 
+        finalAnswer: "I'd be delighted to assist you in logging your nutritional intake. Could you specify what you consumed?", 
         error: "Missing foodName parameter" 
       };
     }
@@ -134,11 +140,11 @@ async function runRoleSpecificLogic(
     if (macroResult.ok && macroResult.macros) {
       const macros = macroResult.macros;
       return {
-        finalAnswer: `I've noted that you ate ${foodName}. Per 100g that's approximately ${macros.kcal || macros.calories} calories, ${macros.protein_g}g protein, ${macros.carbs_g}g carbs, and ${macros.fat_g}g fat. Great choice!`,
+        finalAnswer: `I have successfully logged your consumption of ${foodName}. Per 100g, this provides approximately ${macros.kcal || macros.calories} calories, ${macros.protein_g}g protein, ${macros.carbs_g}g carbohydrates, and ${macros.fat_g}g fat. An excellent nutritional choice for your objectives.`,
       };
     } else {
       return {
-        finalAnswer: `I heard you ate ${foodName}! I couldn't get the exact nutrition details right now, but I'm glad you're tracking your intake. ${macroResult.error || ""}`,
+        finalAnswer: `I have noted your consumption of ${foodName}. While I am unable to retrieve precise nutritional data at this moment, I acknowledge your commitment to tracking your intake. ${macroResult.error || ""}`,
         error: macroResult.error,
       };
     }
@@ -147,21 +153,21 @@ async function runRoleSpecificLogic(
   if (roleTarget === "workout") {
     // Future: workout tracking logic
     return {
-      finalAnswer: "I'd love to help track your workout! Tell me about the exercises you did.",
-      error: "Workout tracking not yet implemented"
+      finalAnswer: "I am prepared to assist with your workout tracking. Please provide details regarding the exercises you completed.",
+      error: "Workout tracking module not yet implemented"
     };
   }
   
   if (roleTarget === "mmb") {
     // Future: Make Me Better logic
     return {
-      finalAnswer: "I appreciate your feedback! How can I improve to better help you?",
-      error: "Make Me Better not yet implemented"
+      finalAnswer: "I value your feedback regarding my performance optimization. How may I enhance my assistance to better serve your objectives?",
+      error: "Make Me Better module not yet implemented"
     };
   }
 
   return { 
-    finalAnswer: `I'm not sure how to handle requests for ${roleTarget} yet.`, 
+    finalAnswer: `I am currently unable to process requests for ${roleTarget}. This capability is under development.`, 
     error: "Unknown role target" 
   };
 }
@@ -180,28 +186,13 @@ async function finishWithPostAgents(
 
   for (const agent of orderedPostAgents) {
     try {
-      // Pass draft via template context, not as user message
-      const instructions = renderTemplate(agent.instructions, { context });
-      const prompt = renderTemplate(agent.promptTemplate, { draft: currentDraft, context });
+      const result = await runAgent(agent.id, '', context, agent, currentDraft);
       
-      const payload = {
-        provider: agent.api.provider,
-        model: agent.api.model,
-        temperature: agent.api.temperature,
-        max_output_tokens: agent.api.maxOutputTokens,
-        messages: [
-          { role: "system", content: instructions },
-          { role: "user", content: prompt },
-        ],
-      };
-      
-      const res = await invokeEdgeFunction("openai-chat", payload);
-      if (res.ok && res.result) {
-        const text = typeof res.result === 'string' ? res.result : JSON.stringify(res.result);
-        currentDraft = text;
-      } else {
-        console.warn(`Post-agent ${agent.id} failed: ${res.error}`);
+      if (result.error) {
+        console.warn(`Post-agent ${agent.id} failed: ${result.error}`);
         // Continue with current draft if post-agent fails
+      } else if (result.text) {
+        currentDraft = result.text;
       }
     } catch (e: any) {
       console.warn(`Post-agent ${agent.id} threw exception: ${e.message}`);
@@ -234,9 +225,9 @@ export async function runPersonalityPipeline(input: RunInput) {
       }
       const chatResult = await callChat([{ role: "user", content: currentMessage }]);
       if (chatResult.ok) {
-        return finishWithPostAgents(chatResult.content || "I'm here to help!", input.context);
+        return finishWithPostAgents(chatResult.content || "I am here to assist you with your objectives.", input.context);
       } else {
-        return { ok: false, answer: "I'm having trouble right now. Please try again.", error: chatResult.error, debug };
+        return { ok: false, answer: "I am experiencing technical difficulties. Please attempt your request again momentarily.", error: chatResult.error, debug };
       }
     }
 
@@ -247,8 +238,8 @@ export async function runPersonalityPipeline(input: RunInput) {
     
     if (redactedResult.error) {
       console.warn("Privacy redaction failed, proceeding with original message:", redactedResult.error);
-    } else if (redactedResult.text) {
-      currentMessage = redactedResult.text;
+    } else if (redactedResult.json?.sanitized) {
+      currentMessage = redactedResult.json.sanitized;
     }
 
     // 2. Deterministic Routing (fastRoute)
@@ -284,10 +275,12 @@ export async function runPersonalityPipeline(input: RunInput) {
     let permissionGranted = true;
     if (decision.route !== "pat" && decision.target) {
       const resolvedTarget = resolveRoleTarget(decision.target);
-      permissionGranted = checkPermissionsForTarget(input.context.userProfile, resolvedTarget);
+      const permissionResult = checkPermissionsForTarget(input.context.userProfile, resolvedTarget);
+      permissionGranted = permissionResult.allowed;
       debug.permission = {
         roleTarget: resolvedTarget,
         allowed: permissionGranted,
+        reason: permissionResult.reason,
         userRole: input.context.userProfile.role
       };
       
@@ -301,7 +294,7 @@ export async function runPersonalityPipeline(input: RunInput) {
     // 5. Check overall turn budget
     if (Date.now() - startTime > MAX_TURN_MS) {
       debug.chosenPath = "turn_timeout";
-      return finishWithPostAgents("I'm taking longer than expected. Let me give you a quick response instead.", input.context, "Turn timeout");
+      return finishWithPostAgents("I require additional processing time for this request. Allow me to provide a streamlined response.", input.context, "Turn timeout");
     }
 
     // 6. Delegation Logic
@@ -323,16 +316,16 @@ export async function runPersonalityPipeline(input: RunInput) {
     } else if (decision.route === "tool" && decision.target) {
       debug.chosenPath = `tool:${decision.target}`;
       // Direct tool call (future: if router suggests calling tools directly)
-      finalAnswer = `Tool calling not yet implemented for ${decision.target}`;
+      finalAnswer = `Direct tool invocation for ${decision.target} is not yet implemented.`;
       delegationError = "Direct tool calling not implemented";
     } else {
       // decision.route === "pat" or fallback
       debug.chosenPath = "pat_direct";
       const chatResult = await callChat([{ role: "user", content: currentMessage }]);
       if (chatResult.ok) {
-        finalAnswer = chatResult.content || "I'm here to help!";
+        finalAnswer = chatResult.content || "I am here to assist you with your objectives.";
       } else {
-        finalAnswer = "I'm having trouble connecting right now. Please try again.";
+        finalAnswer = "I am experiencing connectivity issues. Please retry your request.";
         delegationError = chatResult.error;
       }
     }
@@ -341,8 +334,8 @@ export async function runPersonalityPipeline(input: RunInput) {
 
     // Check delegation timeout
     if (Date.now() - delegationStart > MAX_ROUTE_MS) {
-      delegationError = "Delegated task timed out";
-      finalAnswer = `I couldn't complete that request quickly enough. ${finalAnswer}`;
+      delegationError = "Delegated task exceeded time allocation";
+      finalAnswer = `I was unable to complete that request within optimal parameters. ${finalAnswer}`;
     }
 
     // 7. Final Post-processing by Pat's agents
@@ -363,7 +356,7 @@ export async function runPersonalityPipeline(input: RunInput) {
     debug.error = e.message;
     return { 
       ok: false, 
-      answer: "I encountered an unexpected error. Please try again.", 
+      answer: "I have encountered an unexpected system error. Please retry your request.", 
       error: e.message, 
       debug 
     };

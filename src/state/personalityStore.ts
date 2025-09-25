@@ -16,14 +16,24 @@ const defaultState: PersonalityState = {
     (a, b) => (defaultPersonalityAgents[a].order ?? 0) - (defaultPersonalityAgents[b].order ?? 0)
   ),
   version: 3,
-  useRouterV1: true, // Default on for testing
+  useRouterV1: false, // Default off; enabled programmatically for Admin/Beta
 };
 
 function load(): PersonalityState {
   if (typeof window === 'undefined') return defaultState;
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const loaded = JSON.parse(raw);
+      // Auto-enable router for Admin/Beta roles
+      if (typeof window !== 'undefined') {
+        const userRole = localStorage.getItem('hipat_user_role') || 'free_user';
+        if (userRole === 'admin' || userRole === 'beta') {
+          loaded.useRouterV1 = true;
+        }
+      }
+      return loaded;
+    }
   } catch {}
   return defaultState;
 }

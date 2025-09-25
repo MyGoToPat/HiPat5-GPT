@@ -33,7 +33,8 @@ export function getRoleAccessFlags(roleTarget: string): RoleAccessFlags {
       // For now, determine role membership by checking if the agent ID contains the role target
       // or if there's explicit role assignment in the future
       a.id.includes(roleTarget) ||
-      roleTarget === "pats-personality";
+      roleTarget === "pats-personality" ||
+      roleTarget === "tmwya"; // Special case for Tell Me What You Ate
 
     if (!belongs) continue;
 
@@ -98,8 +99,8 @@ export function getPermissionDeniedMessage(roleTarget: string, userRole: string)
   const featureName = roleNames[roleTarget] || roleTarget;
   
   if (userRole === 'free_user') {
-    return `I'd love to help with ${featureName}, but that feature is available for paid users. I can still chat about general health and fitness topics!`;
+    return `I would be pleased to assist with ${featureName}, however this capability is reserved for our premium subscribers. I remain available for general health and fitness consultations.`;
   }
   
-  return `I'm sorry, but ${featureName} is not available with your current access level. Please contact support for more information.`;
+  return `Access to ${featureName} is not authorized for your current subscription tier. Please contact our support team for upgrade options.`;
 }
