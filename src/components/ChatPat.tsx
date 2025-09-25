@@ -223,6 +223,98 @@ export const ChatPat: React.FC = () => {
               content: msg.text
             }));
             
+            // Use new personality pipeline if available
+            try {
+              const { runPersonalityPipeline } = await import('../lib/personality/orchestrator');
+              const user = await getSupabase().auth.getUser();
+              
+              if (user.data.user) {
+                // Get user profile for permission checks
+                const { getUserProfile } = await import('../lib/supabase');
+                const userProfile = await getUserProfile(user.data.user.id);
+                
+                if (userProfile) {
+                  const pipelineResult = await runPersonalityPipeline({
+                    userMessage: newMessage.text,
+                    context: {
+                      userId: user.data.user.id,
+                      userProfile: {
+                        ...userProfile,
+                        trial_ends: (userProfile as any).trial_ends // Pass trial info if available
+                      },
+                      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                      freeMetrics: {
+                        // Add basic metrics if available
+                        frequency: "building",
+                        rest: "tracking",
+                        energy: "logging",
+                        effort: "measuring"
+                      }
+                    }
+                  });
+                  
+                  if (pipelineResult.ok) {
+                    const responseText = pipelineResult.answer;
+                    
+                    const patResponse: ChatMessage = {
+                      id: (Date.now() + 1).toString(),
+                      text: responseText,
+                      timestamp: new Date(),
+                      isUser: false
+                    };
+                    
+                    setMessages(prev => [...prev, patResponse]);
+                    
+                    // Continue with existing save logic...
+                    const finalMessages = [...messages, newMessage, patResponse];
+                    const messagesForSave = finalMessages.map(msg => ({
+                      role: msg.isUser ? 'user' : 'assistant',
+                      content: msg.text
+                    }));
+                    
+                    const threadToSave: ChatThread = {
+                      id: threadId,
+                      title: makeTitleFrom(messagesForSave),
+                      updatedAt: Date.now(),
+                      messages: messagesForSave
+                    };
+                    upsertThread(threadToSave);
+                    
+                    try {
+                      const newChatId = await ChatManager.saveMessage(activeChatId, patResponse);
+                      if (newChatId && !activeChatId) {
+                        setActiveChatId(newChatId);
+                      }
+                    } catch (error) {
+                      console.error('Error saving AI response:', error);
+                    }
+                    
+                    // Track first chat message if applicable
+                    if (messages.length === 1) {
+                      try {
+                        detectAndLogWorkout(inputText);
+                        if (user.data.user) {
+                          trackFirstChatMessage(user.data.user.id);
+                        }
+                      } catch (error) {
+                        console.error('Error tracking first chat:', error);
+                      }
+                    }
+                    
+                    setTimeout(() => {
+                      setIsSpeaking(false);
+                      setIsSending(false);
+                    }, responseText.length * 50);
+                    
+                    return;
+                  }
+                }
+              }
+            } catch (importError) {
+              console.warn('New personality pipeline not available, falling back to direct chat:', importError);
+            }
+            
+            // Fallback to existing chat logic
             const payload = conversationHistory.slice(-10);
             console.log("[chat:req]", { messages: payload });
             const reply = await callChat(payload);
@@ -721,41 +813,6 @@ export const ChatPat: React.FC = () => {
       });
     }
   };
-  // Show loading state while determining user role
-  if (roleLoading) {
-    return (
-      <div className="h-screen bg-pat-gradient text-white flex items-center justify-center pt-[44px]">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white">Loading chat permissions...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Gate chat access for non-privileged users
-  if (!isPrivileged(currentUserRole)) {
-    return (
-      <div className="h-screen bg-pat-gradient text-white flex items-center justify-center pt-[44px]">
-        <div className="max-w-md mx-auto text-center p-6">
-          <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-lg">!</span>
-            </div>
-          </div>
-          <h2 className="text-xl font-semibold text-white mb-4">Chat Access Restricted</h2>
-          <p className="text-white/80 leading-relaxed">
-            Chat limited to Admins and Beta users during testing.
-          </p>
-          <div className="mt-6 p-4 bg-white/10 rounded-lg backdrop-blur-sm">
-            <p className="text-white/70 text-sm">
-              Contact your administrator for access or wait for general availability.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
   // Show loading state while determining user role
   if (roleLoading) {
     return (
