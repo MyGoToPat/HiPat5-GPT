@@ -1,5 +1,13 @@
-import { getPersonalityAgents } from "@/state/personalityStore";
-import type { UserProfile } from "@/types/user";
+/* Aggregates per-role flags from child agents and checks user access (UI-only).
+   Assumes getPersonalityAgents() returns AgentConfig-like objects with fields:
+   { id, roleSlug?, enabled, enabledForPaid?, enabledForFreeTrial?, enabledForBeta? }.
+*/
+import { getPersonalityAgents } from '../../state/personalityStore';
+
+export interface UserProfileLike {
+  role: "admin" | "beta" | "paid_user" | "free_user" | string;
+  trial_ends?: string | null; // ISO8601 or null
+}
 
 export interface RoleAccessFlags {
   enabled: boolean;
@@ -8,72 +16,82 @@ export interface RoleAccessFlags {
   enabledForBeta: boolean;
 }
 
+/** Aggregate OR across agents that belong to the roleTarget. */
 export function getRoleAccessFlags(roleTarget: string): RoleAccessFlags {
-  const agentsRec = getPersonalityAgents();
-  
-  // Find all agents that belong to this role
-  const roleAgents = Object.values(agentsRec).filter(agent => {
-    // For now, we'll determine role membership by checking if the agent ID contains the role target
-    // or if there's explicit role assignment in the future
-    return agent.id.includes(roleTarget) || roleTarget === "pats-personality";
-  });
-  
-  if (roleAgents.length === 0) {
-    // If no agents found for this role, default to restrictive settings
-    return {
-      enabled: false,
-      enabledForPaid: false,
-      enabledForFreeTrial: false,
-      enabledForBeta: false
-    };
+  const agents = Object.values(getPersonalityAgents?.() ?? {});
+  let enabled = false;
+  let enabledForPaid = false;
+  let enabledForFreeTrial = false;
+  let enabledForBeta = false;
+
+  for (const a of agents) {
+    // Check if agent belongs to this role
+    const belongs =
+      (a as any).roleSlug === roleTarget ||
+      (a as any).role === roleTarget ||
+      (a as any).target === roleTarget ||
+      // For now, determine role membership by checking if the agent ID contains the role target
+      // or if there's explicit role assignment in the future
+      a.id.includes(roleTarget) ||
+      roleTarget === "pats-personality";
+
+    if (!belongs) continue;
+
+    if ((a as any).enabled) enabled = true;
+    if ((a as any).enabledForPaid ?? true) enabledForPaid = true;
+    if ((a as any).enabledForFreeTrial ?? true) enabledForFreeTrial = true;
+    if ((a as any).enabledForBeta ?? false) enabledForBeta = true;
   }
-  
-  // Aggregate using OR logic - if any agent in the role allows access, the role allows access
-  return {
-    enabled: roleAgents.some(agent => agent.enabled),
-    enabledForPaid: roleAgents.some(agent => agent.enabledForPaid ?? true),
-    enabledForFreeTrial: roleAgents.some(agent => agent.enabledForFreeTrial ?? true),
-    enabledForBeta: roleAgents.some(agent => agent.enabledForBeta ?? false) // Default to false if not set
-  };
+  return { enabled, enabledForPaid, enabledForFreeTrial, enabledForBeta };
 }
 
-export function checkPermissionsForTarget(user: UserProfile, roleTarget: string): boolean {
+function isTrialActive(trial_ends?: string | null): boolean {
+  if (!trial_ends) return false;
+  const t = Date.parse(trial_ends);
+  if (Number.isNaN(t)) return false;
+  return t > Date.now();
+}
+
+/** Decision table (exact; Beta = use-only). */
+export function checkPermissionsForTarget(
+  user: UserProfileLike,
+  roleTarget: string
+): { allowed: boolean; reason: string } {
   const flags = getRoleAccessFlags(roleTarget);
-  
-  // If the role itself is disabled, block regardless of tier
-  if (!flags.enabled) {
-    return false;
-  }
-  
-  // Permission decision table
-  if (user.role === 'admin') return true;
-  if (user.role === 'beta') return flags.enabledForBeta;
-  if (user.role === 'paid_user') return flags.enabledForPaid;
-  if (user.role === 'free_user') {
-    // Check if user has active trial (≤3 days)
-    const trialEnds = (user as any).trial_ends; // Assuming this field exists
-    if (trialEnds) {
-      const trialEndDate = new Date(trialEnds);
-      const now = new Date();
-      const inTrial = trialEndDate > now;
-      
-      if (inTrial) {
-        // Trial behaves as Paid
-        return flags.enabledForPaid;
+
+  if (!flags.enabled) return { allowed: false, reason: "role disabled" };
+
+  switch (user.role) {
+    case "admin":
+      return { allowed: true, reason: "admin" };
+    case "beta":
+      return flags.enabledForBeta
+        ? { allowed: true, reason: "beta enabled" }
+        : { allowed: false, reason: "beta disabled for role" };
+    case "paid_user":
+      return flags.enabledForPaid
+        ? { allowed: true, reason: "paid allowed" }
+        : { allowed: false, reason: "paid disabled for role" };
+    case "free_user": {
+      const trial = isTrialActive(user.trial_ends);
+      if (trial) {
+        return flags.enabledForPaid
+          ? { allowed: true, reason: "trial behaves as paid" }
+          : { allowed: false, reason: "trial but paid disabled for role" };
       }
+      return flags.enabledForFreeTrial
+        ? { allowed: true, reason: "free trial flag enabled" }
+        : { allowed: false, reason: "free trial flag disabled" };
     }
-    
-    // No trial or expired trial - check free tier access
-    return flags.enabledForFreeTrial;
+    default:
+      return { allowed: false, reason: "unknown role" };
   }
-  
-  return false; // Default deny for unknown roles
 }
 
 export function getPermissionDeniedMessage(roleTarget: string, userRole: string): string {
   const roleNames: Record<string, string> = {
     tmwya: "meal logging",
-    workout: "workout tracking",
+    workout: "workout tracking", 
     mmb: "feedback and improvement suggestions"
   };
   

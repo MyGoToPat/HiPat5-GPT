@@ -1,54 +1,51 @@
-import { getSupabase } from "@/lib/supabase";
+/* Unified tool invocation via Supabase functions to ensure auth headers (UI-only). */
+import { getSupabase } from '../supabase';
 
-export interface ToolResult {
+export interface InvokeResult<T = any> {
   ok: boolean;
-  result?: any;
+  data?: T;
   error?: string;
-  tried: string[];
+  status?: number;
 }
 
-export async function invokeEdgeFunction(
-  functionName: string, 
-  payload: any
-): Promise<ToolResult> {
-  const tried = [`/functions/v1/${functionName}`];
-  
+export async function invokeEdgeFunction<T = any>(
+  name: string,
+  payload: Record<string, any>
+): Promise<InvokeResult<T>> {
   try {
-    const supabase = getSupabase();
-    const { data, error } = await supabase.functions.invoke(functionName, {
-      body: payload,
-    });
-    
-    if (error) {
-      return { 
-        ok: false, 
-        error: error.message || "Edge function failed", 
-        tried 
-      };
+    const supabase = getSupabase?.();
+    if (!supabase?.functions) {
+      return { ok: false, error: "Supabase client not available" };
     }
-    
-    return { 
-      ok: true, 
-      result: data, 
-      tried 
-    };
+    const { data, error } = await supabase.functions.invoke(name, { body: payload });
+    if (error) return { ok: false, error: error.message, status: (error as any)?.status ?? 500 };
+    return { ok: true, data: data as T, status: 200 };
   } catch (e: any) {
-    return { 
-      ok: false, 
-      error: e.message || "Network error", 
-      tried 
-    };
+    return { ok: false, error: e?.message ?? "invoke error" };
   }
 }
 
-// Re-export tool helpers with unified auth
+export async function callFoodMacros(params: { foodName: string }): Promise<InvokeResult> {
+  if (!params?.foodName) return { ok: false, error: "foodName required" };
+  return invokeEdgeFunction("openai-food-macros", { foodName: params.foodName });
+}
+
+export async function callEdgeTool(
+  toolName: string,
+  params: Record<string, any>
+): Promise<InvokeResult> {
+  if (toolName === "openai-food-macros") return callFoodMacros({ foodName: params?.foodName });
+  return { ok: false, error: `Unknown tool: ${toolName}` };
+}
+
+// Re-export food macros helper with unified auth
 export async function fetchFoodMacros(foodName: string): Promise<{ ok: boolean; macros?: any; error?: string }> {
   const result = await invokeEdgeFunction('openai-food-macros', { foodName });
   
-  if (result.ok && result.result) {
+  if (result.ok && result.data) {
     // Handle different response formats from the Edge Function
     let macros: any = undefined;
-    const data = result.result;
+    const data = result.data;
     
     if (data && typeof data === 'object') {
       // Check if data has macro properties directly
@@ -73,15 +70,4 @@ export async function fetchFoodMacros(foodName: string): Promise<{ ok: boolean; 
   }
   
   return { ok: false, error: result.error || 'Tool call failed' };
-}
-
-// Future tool wrappers can be added here following the same pattern
-export async function callWorkoutTracker(workoutData: any): Promise<ToolResult> {
-  // Placeholder for future workout tracking tool
-  return invokeEdgeFunction('workout-tracker', workoutData);
-}
-
-export async function callFeedbackAnalyzer(feedbackData: any): Promise<ToolResult> {
-  // Placeholder for future feedback analysis tool
-  return invokeEdgeFunction('feedback-analyzer', feedbackData);
 }

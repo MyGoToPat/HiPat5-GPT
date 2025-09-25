@@ -16,7 +16,7 @@ const defaultState: PersonalityState = {
     (a, b) => (defaultPersonalityAgents[a].order ?? 0) - (defaultPersonalityAgents[b].order ?? 0)
   ),
   version: 3,
-  useRouterV1: false, // Default off for staged rollout
+  useRouterV1: true, // Default on for testing
 };
 
 function load(): PersonalityState {
