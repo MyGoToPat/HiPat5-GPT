@@ -5,6 +5,7 @@ type PersonalityState = {
   agents: Record<string, AgentConfig>;
   swarm: string[]; // ordered list of agent IDs
   version: number;
+  useRouterV1: boolean; // Feature flag for new routing system
 };
 
 const KEY = "hipat.personality.v1";
@@ -14,7 +15,8 @@ const defaultState: PersonalityState = {
   swarm: Object.keys(defaultPersonalityAgents).sort(
     (a, b) => (defaultPersonalityAgents[a].order ?? 0) - (defaultPersonalityAgents[b].order ?? 0)
   ),
-  version: 2,
+  version: 3,
+  useRouterV1: false, // Default off for staged rollout
 };
 
 function load(): PersonalityState {
@@ -41,6 +43,15 @@ export function getPersonalityAgents(): Record<string, AgentConfig> {
 
 export function getPersonalitySwarm(): string[] {
   return state.swarm;
+}
+
+export function getRouterV1Enabled(): boolean {
+  return state.useRouterV1;
+}
+
+export function setRouterV1Enabled(enabled: boolean) {
+  state.useRouterV1 = enabled;
+  persist();
 }
 
 export function upsertPersonalityAgent(cfg: AgentConfig) {

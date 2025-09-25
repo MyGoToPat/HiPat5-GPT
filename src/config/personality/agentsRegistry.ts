@@ -3,6 +3,30 @@ import { AgentConfig } from "@/types/mcp";
 // Common tone note applied to all prompts:
 const TONE_NOTES = "First person 'I'. Spartan, precise, no emojis, short lines, active voice. Avoid filler. Never say 'as an AI'.";
 
+/** Intent Router (PRE) - Must be first in pre-phase for routing decisions */
+const intent_router: AgentConfig = {
+  id: "intent-router",
+  name: "Intent Router",
+  phase: "pre",
+  enabled: true,
+  order: 0, // Very first in pre-phase
+  enabledForPaid: true,
+  enabledForFreeTrial: true, // Router itself should be universally available
+  instructions:
+    "Classify the user message and decide routing. Analyze intent and determine if Pat should handle directly or delegate to a specialized role/tool. Output strict JSON only with no additional text or explanations.",
+  promptTemplate:
+    "Classify this user message for routing:\n\n{{user_message}}\n\nOutput JSON with:\n- route: pat|role|tool|none\n- target: if role/tool, specify target name (tmwya, workout, mmb, openai-food-macros)\n- params: extracted parameters (e.g. {\"foodName\":\"banana\"})\n- confidence: 0.0-1.0\n- reason: brief explanation\n\nStrict JSON only:",
+  tone: { preset: "neutral", notes: "Analytical classification only" },
+  api: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    temperature: 0.1,
+    maxOutputTokens: 200,
+    responseFormat: "json",
+    jsonSchema: '{"type":"object","properties":{"route":{"type":"string","enum":["pat","role","tool","none"]},"target":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"params":{"type":"object"},"reason":{"type":"string"}},"required":["route","confidence"],"additionalProperties":false}'
+  }
+};
+
 /** 1. Empathy Detector (PRE) */
 const empathy_detector: AgentConfig = {
   id: "empathy-detector",
@@ -260,6 +284,7 @@ const actionizer: AgentConfig = {
 };
 
 export const defaultPersonalityAgents: Record<string, AgentConfig> = {
+  "intent-router": intent_router,
   "empathy-detector": empathy_detector,
   "learning-profiler": learning_profiler,
   "privacy-redaction": privacy_redaction,
