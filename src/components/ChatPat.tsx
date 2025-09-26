@@ -27,6 +27,7 @@ import { getSupabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { useRole } from '../hooks/useRole';
 import { isPrivileged } from '../utils/rbac';
+import { setRouterV1Enabled } from '../state/personalityStore';
 
 export const ChatPat: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +35,13 @@ export const ChatPat: React.FC = () => {
   
   // Get current user role for chat access gating
   const { role: currentUserRole, loading: roleLoading } = useRole();
+  
+  // Force router ON for admin users (authoritative role source)
+  useEffect(() => {
+    if (!roleLoading && currentUserRole === 'admin') {
+      setRouterV1Enabled(true);
+    }
+  }, [roleLoading, currentUserRole]);
   
   // Thread management
   const [threadId, setThreadId] = useState<string>(() => newThreadId());
@@ -322,18 +330,52 @@ export const ChatPat: React.FC = () => {
             
             // Fallback to existing chat logic
             const payload = conversationHistory.slice(-10);
-            console.log("[chat:req]", { messages: payload });
+            console.groupCollapsed('[chat:send] Request details');
+            console.info('Payload:', { messages: payload });
+            console.info('Thread ID:', threadId);
+            console.groupEnd();
+            
             const reply = await callChat(payload);
-            console.log("[chat:res]", reply);
+            
+            console.groupCollapsed('[chat:send] Response details');
+            console.info('Status:', reply.ok ? 'Success' : 'Failed');
+            console.info('Reply:', reply);
+            console.groupEnd();
 
             if (!reply.ok) {
               const errorMsg = reply.error || 'Chat failed';
               console.error('callChat error:', errorMsg);
               
-              // Show friendly message for 429 errors
+              // Show assistant-side bubbles so users see "Pat" reacting, not just a toast
               if (errorMsg.includes('429')) {
+                const throttledMessage: ChatMessage = {
+                  id: (Date.now() + 1).toString(),
+                  text: "I'm temporarily throttled. I'll retry automatically, but you can send again in a few seconds if it persists.",
+                  timestamp: new Date(),
+                  isUser: false
+                };
+                setMessages(prev => [...prev, throttledMessage]);
+                
+                // Add second message for persistent 429
+                setTimeout(() => {
+                  const stillBusyMessage: ChatMessage = {
+                    id: (Date.now() + 2).toString(),
+                    text: "Still busy. Try again in a moment.",
+                    timestamp: new Date(),
+                    isUser: false
+                  };
+                  setMessages(prev => [...prev, stillBusyMessage]);
+                }, 1000);
+                
                 toast.error("Pat is busy right now. Please try again later.");
               } else {
+                const errorMessage: ChatMessage = {
+                  id: (Date.now() + 1).toString(),
+                  text: "I hit an error reaching the AI. Check DevTools → Network for details.",
+                  timestamp: new Date(),
+                  isUser: false
+                };
+                setMessages(prev => [...prev, errorMessage]);
                 toast.error(errorMsg);
               }
               

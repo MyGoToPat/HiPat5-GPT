@@ -25,11 +25,6 @@ function load(): PersonalityState {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const loaded = JSON.parse(raw);
-      // Auto-enable router for Admin/Beta roles
-      if (typeof window !== 'undefined') {
-        const userRole = localStorage.getItem('hipat_user_role') || 'free_user';
-        loaded.useRouterV1 = userRole === 'admin' || userRole === 'beta';
-      }
       return loaded;
     }
   } catch {}
