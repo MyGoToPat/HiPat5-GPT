@@ -408,19 +408,29 @@ export const ChatPat: React.FC = () => {
           } catch (error) {
             console.error('Error getting AI response:', error);
             
-            toast.error('Chat failed');
+            // Handle specific error types with appropriate messaging
+            const errorMessage = String(error?.message || error);
+            if (errorMessage.includes('openai-chat 429')) {
+              toast.error("Pat is busy right now. Please try again later.");
+            } else {
+              toast.error('Chat failed');
+            }
             
             const errorResponse: ChatMessage = {
               id: (Date.now() + 1).toString(),
-              text: 'I\'m a bit busy right now. Please try again in a moment.',
+              text: 'I\'m experiencing some technical difficulties. Please try your message again.',
               timestamp: new Date(),
               isUser: false
             };
             
             setMessages(prev => [...prev, errorResponse]);
-            setIsSpeaking(false);
-            setIsSending(false);
-            setIsThinking(false);
+            
+            // Ensure all loading states are cleared
+            setTimeout(() => {
+              setIsSpeaking(false);
+              setIsSending(false);
+              setIsThinking(false);
+            }, 100);
           }
         };
 
