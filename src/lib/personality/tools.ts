@@ -1,49 +1,57 @@
-/* Unified tool invocation via Supabase functions to ensure auth headers (UI-only). */
-import { getSupabase } from '../supabase';
+/* Unified tool invocation via absolute Supabase URLs with proper auth headers */
+
+const BASE = import.meta.env.VITE_SUPABASE_URL;
+const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+function authHeaders(): Record<string, string> {
+  const h: Record<string, string> = { 
+    "Content-Type": "application/json", 
+    "apikey": ANON ?? "" 
+  };
+  
+  // Attach session token if available (optional)
+  try {
+    const raw = localStorage.getItem("sb-jdtogitfqptdrxkczdbw-auth-token");
+    const token = raw ? JSON.parse(raw)?.currentSession?.access_token : null;
+    if (token) h["Authorization"] = `Bearer ${token}`;
+    else h["Authorization"] = `Bearer ${ANON}`;
+  } catch {
+    h["Authorization"] = `Bearer ${ANON}`;
+  }
+  return h;
+}
+
+export async function invokeEdgeFunction(path: string, body: any) {
+  const cleanPath = path.replace(/^\/+|functions\/v1\/+/g, "");
+  const url = `${BASE}/functions/v1/${cleanPath}`;
+  
+  const res = await fetch(url, { 
+    method: "POST", 
+    headers: authHeaders(), 
+    body: JSON.stringify(body) 
+  });
+  
+  const text = await res.text();
+  try { 
+    return { ok: res.ok, status: res.status, json: JSON.parse(text), text }; 
+  } catch { 
+    return { ok: res.ok, status: res.status, text }; 
+  }
+}
+
+export async function callOpenAIChat(payload: any) {
+  return invokeEdgeFunction("openai-chat", payload);
+}
+
+export async function callFoodMacros(params: { foodName: string }) {
+  return invokeEdgeFunction("openai-food-macros", params);
+}
 
 export interface InvokeResult<T = any> {
   ok: boolean;
   result?: T;
   error?: string;
   status?: number;
-}
-
-export async function invokeEdgeFunction<T = any>(
-  functionName: string,
-  payload: Record<string, any>
-): Promise<InvokeResult<T>> {
-  try {
-    const supabase = getSupabase();
-    if (!supabase?.functions) {
-      return { ok: false, error: "Supabase client not available" };
-    }
-
-    const { data, error } = await supabase.functions.invoke(functionName, { 
-      body: payload 
-    });
-    
-    if (error) {
-      return { 
-        ok: false, 
-        error: error.message || 'Edge function error', 
-        status: (error as any)?.status ?? 500 
-      };
-    }
-
-    return { ok: true, result: data as T, status: 200 };
-  } catch (e: any) {
-    return { 
-      ok: false, 
-      error: e?.message ?? "invoke error" 
-    };
-  }
-}
-
-export async function callFoodMacros(params: { foodName: string }): Promise<InvokeResult> {
-  if (!params?.foodName) {
-    return { ok: false, error: "foodName required" };
-  }
-  return invokeEdgeFunction("openai-food-macros", { foodName: params.foodName });
 }
 
 export async function callEdgeTool(
@@ -58,12 +66,12 @@ export async function callEdgeTool(
 
 // Re-export food macros helper with unified auth
 export async function fetchFoodMacros(foodName: string): Promise<{ ok: boolean; macros?: any; error?: string }> {
-  const result = await invokeEdgeFunction('openai-food-macros', { foodName });
+  const result = await callFoodMacros({ foodName });
   
-  if (result.ok && result.result) {
+  if (result.ok && result.json) {
     // Handle different response formats from the Edge Function
     let macros: any = undefined;
-    const data = result.result;
+    const data = result.json;
     
     if (data && typeof data === 'object') {
       // Check if data has macro properties directly
@@ -87,5 +95,5 @@ export async function fetchFoodMacros(foodName: string): Promise<{ ok: boolean; 
     return { ok: true, macros };
   }
   
-  return { ok: false, error: result.error || 'Tool call failed' };
+  return { ok: false, error: result.text || 'Tool call failed' };
 }

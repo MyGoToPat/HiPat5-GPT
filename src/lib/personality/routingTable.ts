@@ -12,31 +12,19 @@ export const ROUTE_REGISTRY: Record<string, RegistryEntry> = {
   tmwya: {
     type: "role",
     patterns: [
-      /\b(calories?|macros?|protein|carbs?|carbohydrates?|fat|ate|meal|meals|food|foods|nutrition|nutritional)\b/i,
+      /\b(ate|eaten|eating|consumed|meal|meals|food|foods|calories?|macros?|protein|carbs?|carbohydrates?|fat|nutrition|nutritional|breakfast|lunch|dinner|snack)\b/i,
     ],
   },
   workout: {
     type: "role", 
     patterns: [
-      /\b(workout|exercise|gym|training|lifted|reps|sets|weights?)\b/i,
+      /\b(workout|exercise|gym|training|lifted|reps|sets|weights?|squat|bench|deadlift|cardio|running|cycling)\b/i,
     ],
   },
   mmb: {
     type: "role",
     patterns: [
-      /\b(feedback|improve|better|suggestion|enhance|make.*better)\b/i,
-    ],
-  },
-  workout: {
-    type: "role", 
-    patterns: [
-      /\b(workout|exercise|gym|training|lifted|reps|sets|weights?)\b/i,
-    ],
-  },
-  mmb: {
-    type: "role",
-    patterns: [
-      /\b(feedback|improve|better|suggestion|enhance|make.*better)\b/i,
+      /\b(feedback|improve|better|suggestion|enhance|make.*better|optimize|fix|help.*improve)\b/i,
     ],
   },
 };

@@ -9,6 +9,7 @@ import { invokeEdgeFunction, fetchFoodMacros } from "./tools";
 import { callChat } from "@/lib/chat";
 import { getSupabase } from "@/lib/supabase";
 import type { UserProfile } from "@/types/user";
+import { callFoodMacros } from './tools';
 
 // Guardrail constants
 const MAX_TURN_MS = 5000; // Overall per-turn budget
@@ -83,11 +84,14 @@ async function runAgent(
   
   const prompt = renderTemplate(agent.promptTemplate, templateData);
 
-  const payload = {
-    messages: [
-      { role: "system", content: instructions },
-      { role: "user", content: prompt }
-    ],
+  // Build proper system + user message structure
+  const messages = [
+    { role: "system", content: instructions },
+    { role: "user", content: prompt }
+  ];
+
+  const chatOptions = {
+    provider: agent.api.provider,
     model: agent.api.model,
     temperature: agent.api.temperature,
     max_output_tokens: agent.api.maxOutputTokens,
@@ -96,19 +100,19 @@ async function runAgent(
   };
 
   try {
-    const res = await invokeEdgeFunction("openai-chat", payload);
+    const res = await callChat(messages, chatOptions);
     
     if (res.ok) {
       // Handle response based on expected format
       if (agent.api.responseFormat === "json") {
         try {
-          const parsed = typeof res.result === 'string' ? JSON.parse(res.result) : res.result;
+          const parsed = typeof res.content === 'string' ? JSON.parse(res.content) : res.content;
           return { text: "", json: parsed };
         } catch {
           return { text: "", error: `Agent ${agentId} returned invalid JSON` };
         }
       } else {
-        const text = typeof res.result === 'string' ? res.result : JSON.stringify(res.result);
+        const text = res.content || "";
         return { text };
       }
     } else {
@@ -136,16 +140,16 @@ async function runRoleSpecificLogic(
       };
     }
 
-    const macroResult = await fetchFoodMacros(foodName);
-    if (macroResult.ok && macroResult.macros) {
-      const macros = macroResult.macros;
+    const macroResult = await callFoodMacros({ foodName });
+    if (macroResult.ok && macroResult.json) {
+      const macros = macroResult.json;
       return {
-        finalAnswer: `I have successfully logged your consumption of ${foodName}. Per 100g, this provides approximately ${macros.kcal || macros.calories} calories, ${macros.protein_g}g protein, ${macros.carbs_g}g carbohydrates, and ${macros.fat_g}g fat. An excellent nutritional choice for your objectives.`,
+        finalAnswer: `I have successfully logged your consumption of ${foodName}. Per 100g, this provides approximately ${macros.kcal} calories, ${macros.protein_g}g protein, ${macros.carbs_g}g carbohydrates, and ${macros.fat_g}g fat. An excellent nutritional choice for your objectives.`,
       };
     } else {
       return {
-        finalAnswer: `I have noted your consumption of ${foodName}. While I am unable to retrieve precise nutritional data at this moment, I acknowledge your commitment to tracking your intake. ${macroResult.error || ""}`,
-        error: macroResult.error,
+        finalAnswer: `I have noted your consumption of ${foodName}. While I am unable to retrieve precise nutritional data at this moment, I acknowledge your commitment to tracking your intake. ${macroResult.text || ""}`,
+        error: macroResult.text,
       };
     }
   }

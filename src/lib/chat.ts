@@ -1,5 +1,4 @@
-import { getSupabase } from './supabase';
-import { invokeEdgeFunction } from './personality/tools';
+import { callOpenAIChat } from './personality/tools';
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
@@ -8,21 +7,25 @@ export async function callChat(
   options: any = {}
 ): Promise<{ ok: boolean; content?: string; error?: string }> {
   const payload = {
-    messages,
-    ...options
+    provider: options.provider ?? "openai",
+    model: options.model ?? "gpt-4o-mini", 
+    temperature: typeof options.temperature === "number" ? options.temperature : 0.2,
+    max_output_tokens: options.max_output_tokens ?? 700,
+    response_format: options.response_format ?? "text",
+    json_schema: options.json_schema ?? null,
+    messages
   };
   
-  const result = await invokeEdgeFunction('openai-chat', payload);
-  if (!result.ok) return { ok: false, error: result.error ?? 'Edge function failed' };
+  const result = await callOpenAIChat(payload);
+  
+  if (!result.ok) {
+    return { ok: false, error: `openai-chat ${result.status}: ${result.text}` };
+  }
 
-  let content: string | undefined = undefined;
-  const data = result.result;
-  if (typeof data === 'string') content = data;
-  else if (typeof data?.message === 'string') content = data.message;
-  else if (typeof data?.content === 'string') content = data.content;
-  else if (Array.isArray(data?.choices) && data.choices[0]?.message?.content)
-    content = data.choices[0].message.content;
-
-  if (!content) return { ok: false, error: 'No content in edge response' };
+  const content = result.json?.message ?? result.json?.content ?? result.text ?? "";
+  if (!content) {
+    return { ok: false, error: 'No content in edge response' };
+  }
+  
   return { ok: true, content };
 }

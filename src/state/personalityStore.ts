@@ -16,7 +16,7 @@ const defaultState: PersonalityState = {
     (a, b) => (defaultPersonalityAgents[a].order ?? 0) - (defaultPersonalityAgents[b].order ?? 0)
   ),
   version: 3,
-  useRouterV1: false, // Default off; enabled programmatically for Admin/Beta
+  useRouterV1: true, // Default on; can be disabled programmatically
 };
 
 function load(): PersonalityState {
@@ -28,9 +28,7 @@ function load(): PersonalityState {
       // Auto-enable router for Admin/Beta roles
       if (typeof window !== 'undefined') {
         const userRole = localStorage.getItem('hipat_user_role') || 'free_user';
-        if (userRole === 'admin' || userRole === 'beta') {
-          loaded.useRouterV1 = true;
-        }
+        loaded.useRouterV1 = userRole === 'admin' || userRole === 'beta';
       }
       return loaded;
     }
