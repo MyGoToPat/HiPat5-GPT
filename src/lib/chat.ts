@@ -1,4 +1,5 @@
 import { callOpenAIChat } from './personality/tools';
+import { withBackoff } from './personality/retry';
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
@@ -16,16 +17,20 @@ export async function callChat(
     messages
   };
   
-  const result = await callOpenAIChat(payload);
-  
-  if (!result.ok) {
-    return { ok: false, error: `openai-chat ${result.status}: ${result.text}` };
+  try {
+    const result = await withBackoff(async () => {
+      const r = await callOpenAIChat(payload);
+      if (!r.ok) throw new Error(`openai-chat ${r.status}: ${r.text ?? ""}`);
+      return r;
+    }, { tries: 3, baseMs: 600 });
+    
+    const content = result.json?.message ?? result.json?.content ?? result.text ?? "";
+    if (!content) {
+      return { ok: false, error: 'No content in edge response' };
+    }
+    
+    return { ok: true, content };
+  } catch (error: any) {
+    return { ok: false, error: error.message || 'Chat failed' };
   }
-
-  const content = result.json?.message ?? result.json?.content ?? result.text ?? "";
-  if (!content) {
-    return { ok: false, error: 'No content in edge response' };
-  }
-  
-  return { ok: true, content };
 }

@@ -199,12 +199,15 @@ export const ChatPat: React.FC = () => {
       // Save user message to database
       const saveUserMessage = async () => {
         try {
-          const newChatId = await ChatManager.saveMessage(activeChatId, newMessage);
-          if (newChatId && !activeChatId) {
-            setActiveChatId(newChatId);
-          }
+          // Fire-and-forget save - don't block UI
+          ChatManager.saveMessage({
+            thread_id: threadId,
+            role: "user",
+            content: newMessage.text
+          });
         } catch (error) {
-          console.error('Error saving user message:', error);
+          // Silently fail - persistence is optional
+          console.warn('User message save skipped:', error);
         }
       };
       saveUserMessage();
@@ -324,8 +327,16 @@ export const ChatPat: React.FC = () => {
             console.log("[chat:res]", reply);
 
             if (!reply.ok) {
-              console.error('callChat error:', reply.error);
-              toast.error(reply.error || 'Chat failed');
+              const errorMsg = reply.error || 'Chat failed';
+              console.error('callChat error:', errorMsg);
+              
+              // Show friendly message for 429 errors
+              if (errorMsg.includes('429')) {
+                toast.error("Pat is busy for a moment—retrying…");
+              } else {
+                toast.error(errorMsg);
+              }
+              
               setIsSending(false);
               setIsThinking(false);
               setIsSpeaking(false);
@@ -361,12 +372,15 @@ export const ChatPat: React.FC = () => {
             
             // Save AI response to database
             try {
-              const newChatId = await ChatManager.saveMessage(activeChatId, patResponse);
-              if (newChatId && !activeChatId) {
-                setActiveChatId(newChatId);
-              }
+              // Fire-and-forget save - don't block UI
+              ChatManager.saveMessage({
+                thread_id: threadId,
+                role: "assistant", 
+                content: patResponse.text
+              });
             } catch (error) {
-              console.error('Error saving AI response:', error);
+              // Silently fail - persistence is optional
+              console.warn('AI response save skipped:', error);
             }
 
             // Track first chat message
