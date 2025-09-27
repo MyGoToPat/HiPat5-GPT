@@ -275,10 +275,35 @@ export async function runPersonalityPipeline(input: RunInput) {
     }
     debug.routerDecision = decision;
 
+    const ALLOWED_TARGETS = new Set([
+      "tmwya",
+      "workout", 
+      "mmb",
+      "openai-food-macros",
+      "askMeAnything"
+    ]);
+
+    function chooseTarget(route?: string, target?: string, confidence?: number) {
+      let chosen = target;
+      if (
+        !chosen ||
+        !ALLOWED_TARGETS.has(chosen) ||
+        (typeof confidence === "number" && confidence < 0.5) ||
+        route === "none"
+      ) {
+        chosen = "askMeAnything";
+      }
+      console.debug("[Pat Router]", { route, target, confidence, chosen });
+      return chosen;
+    }
+
+    const chosenTarget = chooseTarget(decision.route, decision.target, decision.confidence);
+    debug.routerDecision = { ...decision, target: chosenTarget, route: "role" };
+
     // 4. Permission Check (if delegating)
     let permissionGranted = true;
-    if (decision.route !== "pat" && decision.target) {
-      const resolvedTarget = resolveRoleTarget(decision.target);
+    if (debug.routerDecision.route !== "pat" && chosenTarget) {
+      const resolvedTarget = resolveRoleTarget(chosenTarget);
       const permissionResult = checkPermissionsForTarget(input.context.userProfile, resolvedTarget);
       permissionGranted = permissionResult.allowed;
       debug.permission = {
@@ -306,24 +331,24 @@ export async function runPersonalityPipeline(input: RunInput) {
     let delegationError: string | undefined;
     const delegationStart = Date.now();
 
-    if (decision.route === "role" && decision.target) {
-      debug.chosenPath = `role:${decision.target}`;
+    if (debug.routerDecision.route === "role" && chosenTarget) {
+      debug.chosenPath = `role:${chosenTarget}`;
       const roleResult = await runRoleSpecificLogic(
-        resolveRoleTarget(decision.target), 
+        resolveRoleTarget(chosenTarget), 
         currentMessage, 
         input.context, 
-        decision.params || {}
+        debug.routerDecision.params || {}
       );
       finalAnswer = roleResult.finalAnswer;
       delegationError = roleResult.error;
-      debug.triedTools.push(`role:${decision.target}`);
-    } else if (decision.route === "tool" && decision.target) {
-      debug.chosenPath = `tool:${decision.target}`;
+      debug.triedTools.push(`role:${chosenTarget}`);
+    } else if (debug.routerDecision.route === "tool" && chosenTarget) {
+      debug.chosenPath = `tool:${chosenTarget}`;
       // Direct tool call (future: if router suggests calling tools directly)
-      finalAnswer = `Direct tool invocation for ${decision.target} is not yet implemented.`;
+      finalAnswer = `Direct tool invocation for ${chosenTarget} is not yet implemented.`;
       delegationError = "Direct tool calling not implemented";
     } else {
-      // decision.route === "pat" or fallback
+      // debug.routerDecision.route === "pat" or fallback
       debug.chosenPath = "pat_direct";
       const chatResult = await callChat([{ role: "user", content: currentMessage }]);
       if (chatResult.ok) {
