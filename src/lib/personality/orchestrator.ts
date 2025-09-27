@@ -170,6 +170,30 @@ async function runRoleSpecificLogic(
     };
   }
 
+  if (roleTarget === "askMeAnything") {
+    // General conversation mode - minimal token usage
+    const generalSystemPrompt = "You are Pat, a knowledgeable assistant. Be helpful, concise, and accurate. Use first person perspective.";
+    
+    const generalChatResult = await callChat([
+      { role: "system", content: generalSystemPrompt },
+      { role: "user", content: userMessage }
+    ], {
+      model: "gpt-4o-mini",
+      temperature: 0.3,
+      max_output_tokens: 400
+    });
+    
+    if (generalChatResult.ok) {
+      return {
+        finalAnswer: generalChatResult.content || "I'm here to help with any questions you have."
+      };
+    } else {
+      return {
+        finalAnswer: "I'm having trouble processing that request right now. Please try again.",
+        error: generalChatResult.error
+      };
+    }
+  }
   return { 
     finalAnswer: `I am currently unable to process requests for ${roleTarget}. This capability is under development.`, 
     error: "Unknown role target" 

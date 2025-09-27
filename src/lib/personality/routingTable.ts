@@ -47,8 +47,8 @@ export function resolveRoleTarget(slug: string): string {
   const mapping: Record<string, string> = {
     'tell-me-what-you-ate': 'tmwya',
     'tell-me-about-your-workout': 'workout',
-    'make-me-better': 'mmb'
+    'make-me-better': 'mmb',
+    'askMeAnything': 'askMeAnything'
   };
   return mapping[slug] || slug;
-  return slug;
 }
