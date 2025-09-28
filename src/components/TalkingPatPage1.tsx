@@ -30,7 +30,7 @@
 +    },
 +    onResult: (transcript, isFinal) => {
 +      if (isFinal && transcript.trim()) {
-        setCaption(\`You said: "${transcript.trim()}"`);
+        setCaption(`You said: "${transcript.trim()}"`);
          
          // Clear existing timeout
 @@ -40,7 +40,7 @@
@@ -38,9 +38,10 @@
          speechTimeoutRef.current = setTimeout(() => {
            handleSpeechInput(transcript.trim());
 -        }, 2000);
+        }, 1500);
 +        }, 1500); // Reduced timeout for quicker response
        } else if (!isFinal && transcript.trim()) {
-         setCaption(\`Listening: "${transcript.trim()}"`);
+        setCaption(`Listening: "${transcript.trim()}"`);
        }
 @@ -74,37 +74,49 @@
    };
