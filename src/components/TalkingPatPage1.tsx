@@ -30,7 +30,7 @@
 +    },
 +    onResult: (transcript, isFinal) => {
 +      if (isFinal && transcript.trim()) {
-         setCaption(\`You said: "${transcript.trim()}"`);
+        setCaption(`You said: "${transcript.trim()}"`);
          
          // Clear existing timeout
 @@ -40,7 +40,7 @@
