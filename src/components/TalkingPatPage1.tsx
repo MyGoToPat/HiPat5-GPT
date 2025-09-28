@@ -30,7 +30,7 @@
 +    },
 +    onResult: (transcript, isFinal) => {
 +      if (isFinal && transcript.trim()) {
-         setCaption(`You said: "${transcript.trim()}"`);
+         setCaption(\`You said: "${transcript.trim()}"`);
          
          // Clear existing timeout
 @@ -40,7 +40,7 @@
@@ -40,7 +40,7 @@
 -        }, 2000);
 +        }, 1500); // Reduced timeout for quicker response
        } else if (!isFinal && transcript.trim()) {
-         setCaption(`Listening: "${transcript.trim()}"`);
+         setCaption(\`Listening: "${transcript.trim()}"`);
        }
 @@ -74,37 +74,49 @@
    };
@@ -159,7 +159,7 @@
 -      
 -      if (triggeredAgent) {
 -        if (triggeredAgent.requiresCamera) {
--          response = `Great! I'll help you with ${triggeredAgent.title}. Let me open the camera for you.`;
+-          response = \`Great! I'll help you with ${triggeredAgent.title}. Let me open the camera for you.`;
 -          setTimeout(() => {
 -            navigate('/camera');
 -          }, 2000);
@@ -184,7 +184,7 @@
 @@ -119,7 +131,7 @@
        
        if (agent && (agentTitle.includes('Show me') || agent.requiresCamera)) {
-         const response = `Perfect! I'll help you with "${agentTitle}". Opening camera now...`;
+         const response = \`Perfect! I'll help you with "${agentTitle}". Opening camera now...`;
 -        setCaption(response);
 -        speakResponse(response);
 +        setCaption(response); // REMOVED "I'm still learning" placeholder logic
@@ -196,10 +196,10 @@
          return;
        }
        
--      const response = `Great! Let's work on "${agentTitle}". What would you like me to know?`;
+-      const response = \`Great! Let's work on "${agentTitle}". What would you like me to know?`;
 -      setCaption(response);
 -      speakResponse(response);
-+      const response = `Great! Let's work on "${agentTitle}". What would you like me to know?`; // REMOVED "I'm still learning" placeholder logic
++      const response = \`Great! Let's work on "${agentTitle}". What would you like me to know?`; // REMOVED "I'm still learning" placeholder logic
 +      setCaption(response); // REMOVED "I'm still learning" placeholder logic
 +      await speakResponse(response);
        
