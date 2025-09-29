@@ -8,7 +8,7 @@ import { ConversationAgentManager } from '../utils/conversationAgents';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useNavigate } from 'react-router-dom';
 import { runPersonalityPipeline } from '../lib/personality/orchestrator';
-import { speak } from '../lib/tts';
+import { AudioService } from '../utils/AudioService';
 
 export const TalkingPatPage1: React.FC = () => {
   const navigate = useNavigate();
@@ -83,7 +83,7 @@ export const TalkingPatPage1: React.FC = () => {
 
     setIsSpeaking(true);
     try {
-      await speak(text, { rate: 0.9, pitch: 1.1, volume: 0.8 });
+      await AudioService.speak(text, { rate: 0.9, pitch: 1.1, volume: 0.8 });
     } catch (error) {
       console.error("Error in speakResponse:", error);
     } finally {
