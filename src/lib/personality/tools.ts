@@ -1,40 +1,42 @@
 /* Unified tool invocation via absolute Supabase URLs with proper auth headers */
 
-import { getSupabase } from '../supabase';
 const BASE = import.meta.env.VITE_SUPABASE_URL;
 const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-async function buildAuthHeaders(): Promise<Record<string,string>> {
-  const sb = getSupabase();
-  const { data: { session } } = await sb.auth.getSession();
-  const jwt = session?.access_token;
-  return {
-    'Content-Type': 'application/json',
-    'apikey': ANON ?? '',
-    'Authorization': `Bearer ${jwt ?? ANON}`, // prefer session, fall back to anon
+function authHeaders(): Record<string, string> {
+  const h: Record<string, string> = { 
+    "Content-Type": "application/json", 
+    "apikey": ANON ?? "" 
   };
+  
+  // Attach session token if available (optional)
+  try {
+    const raw = localStorage.getItem("sb-jdtogitfqptdrxkczdbw-auth-token");
+    const token = raw ? JSON.parse(raw)?.currentSession?.access_token : null;
+    if (token) h["Authorization"] = `Bearer ${token}`;
+    else h["Authorization"] = `Bearer ${ANON}`;
+  } catch {
+    h["Authorization"] = `Bearer ${ANON}`;
+  }
+  return h;
 }
 
 export async function invokeEdgeFunction(path: string, body: any) {
-  const cleanPath = path.replace(/^\/+|functions\/v1\/+/g, '');
+  const cleanPath = path.replace(/^\/+|functions\/v1\/+/g, "");
   const url = `${BASE}/functions/v1/${cleanPath}`;
-  const headers = await buildAuthHeaders();
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body ?? {}),
+  
+  const res = await fetch(url, { 
+    method: "POST", 
+    headers: authHeaders(), 
+    body: JSON.stringify(body) 
   });
-
+  
   const text = await res.text();
-  let json: any = null;
-  try { json = JSON.parse(text); } catch {}
-  return {
-    ok: res.ok,
-    status: res.status,
-    text,
-    json,
-  };
+  try { 
+    return { ok: res.ok, status: res.status, json: JSON.parse(text), text }; 
+  } catch { 
+    return { ok: res.ok, status: res.status, text }; 
+  }
 }
 
 export async function callOpenAIChat(payload: any) {
