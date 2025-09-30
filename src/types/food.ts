@@ -34,6 +34,80 @@ export interface FoodAnalysisResult {
   confidence: number;
 }
 
+export interface AnalysedFoodCandidate {
+  name: string;
+  brand?: string;
+  macros: {
+    kcal: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+  };
+  confidence: number;
+}
+
+export interface AnalysedFoodItemWithCandidates {
+  name: string;
+  brand?: string;
+  candidates?: AnalysedFoodCandidate[];
+  qty?: number;
+  unit?: string;
+  grams?: number;
+  macros?: {
+    kcal: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+  };
+  confidence?: number;
+  source_hints?: any;
+}
+
+export interface AnalysisResult {
+  items: AnalysedFoodItemWithCandidates[];
+  meal_slot?: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'unknown';
+  source: 'photo' | 'barcode' | 'text';
+}
+
+export interface NormalizedMealItem {
+  position: number;
+  cache_id?: string;
+  name: string;
+  brand?: string;
+  qty?: number;
+  unit?: string;
+  grams?: number;
+  macros: {
+    kcal: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+  };
+  micros?: any;
+  confidence?: number;
+  source_hints?: any;
+}
+
+export interface NormalizedMealLog {
+  ts: string;
+  meal_slot: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'unknown';
+  source: 'photo' | 'barcode' | 'text';
+  totals: {
+    kcal: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+    tef_kcal?: number;
+  };
+  note?: string;
+  client_confidence?: number;
+}
+
+export interface NormalizedMealData {
+  mealLog: NormalizedMealLog;
+  mealItems: NormalizedMealItem[];
+}
+
 export interface NutritionDatabase {
   id: string;
   name: string;
