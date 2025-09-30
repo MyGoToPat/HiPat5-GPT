@@ -198,25 +198,6 @@ export const ChatPat: React.FC = () => {
     return 'snack';
   };
 
-  // Helper function to extract food phrase from user input
-  const extractFoodPhrase = (input: string): string => {
-    const lowerInput = input.toLowerCase();
-    
-    // Try to extract food after "i ate" or "i had"
-    const ateMatch = lowerInput.match(/i\s+(ate|had)\s+(.+)/);
-    if (ateMatch) {
-      return ateMatch[2].trim();
-    }
-    
-    // Try to extract food after meal timing
-    const mealMatch = lowerInput.match(/for\s+(breakfast|lunch|dinner)\s+(.+)/);
-    if (mealMatch) {
-      return mealMatch[2].trim();
-    }
-    
-    // Fallback to full input
-    return input.trim();
-  };
 
   // Helper function to detect meal-related text
   const isMealText = (input: string): boolean => {
