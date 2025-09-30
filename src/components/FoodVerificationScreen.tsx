@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, X, Edit3, ChevronDown, Camera, Barcode, Type, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Check, X, CreditCard as Edit3, ChevronDown, Camera, Barcode, Type, RotateCcw, AlertTriangle } from 'lucide-react';
 import { PortionControls } from './meal/PortionControls';
 import type { 
   AnalysisResult, 

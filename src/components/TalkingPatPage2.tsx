@@ -2,10 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { PatAvatar } from './PatAvatar';
 import { VoiceWaveform } from './VoiceWaveform';
 import { ConversationAgentManager } from '../utils/conversationAgents';
-import { AnalysedFoodItem } from '../types/food';
+import { AnalysedFoodItem, AnalysisResult, NormalizedMealData } from '../types/food';
 import { Folder, Video, Image, Upload, Share, Plus, Mic, X, Camera, RotateCcw, ArrowLeft } from 'lucide-react';
 import { fetchFoodMacros } from '../lib/food';
+import { FoodVerificationScreen } from './FoodVerificationScreen';
+import { saveMeal } from '../lib/meals/saveMeal';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 interface TalkingPatPage2Props {
   initialState?: {
@@ -20,9 +23,13 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ initialState }
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string>('');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<any | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [caption, setCaption] = useState("Choose how you'd like to share with me");
   const [triggeredAgent, setTriggeredAgent] = useState<string>('');
+  
+  // Food Verification Screen state
+  const [showFoodVerificationScreen, setShowFoodVerificationScreen] = useState(false);
+  const [currentAnalysisResult, setCurrentAnalysisResult] = useState<AnalysisResult | null>(null);
 
   // Phase 2: Real-time streaming states
   const [isStreaming, setIsStreaming] = useState(false);
@@ -233,27 +240,35 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ initialState }
         if (reply.ok && reply.macros) {
           const macroData = reply.macros;
           
-          // Create analysis result for the drawer
-          const analysisResult: any = {
-            foods: [{
-              id: crypto.randomUUID(),
+          // Create analysis result for verification screen
+          const verificationResult: AnalysisResult = {
+            items: [{
               name: recognizedFood,
-              confidence: 0.85,
               grams: 100,
-              macros: macroData,
-              portionSize: 'M',
-              unit: 'piece'
+              macros: {
+                kcal: macroData.kcal || macroData.calories || 0,
+                protein_g: macroData.protein_g || 0,
+                carbs_g: macroData.carbs_g || 0,
+                fat_g: macroData.fat_g || 0,
+              },
+              confidence: macroData.confidence || 0.85,
+              candidates: [{
+                name: recognizedFood,
+                macros: {
+                  kcal: macroData.kcal || macroData.calories || 0,
+                  protein_g: macroData.protein_g || 0,
+                  carbs_g: macroData.carbs_g || 0,
+                  fat_g: macroData.fat_g || 0,
+                },
+                confidence: macroData.confidence || 0.85,
+              }],
             }],
-            totalCalories: macroData.kcal,
-            macros: {
-              protein: macroData.protein_g,
-              carbs: macroData.carbs_g,
-              fat: macroData.fat_g
-            },
-            confidence: 0.85
+            source: 'photo'
           };
           
-          setAnalysisResult(analysisResult);
+          // Show verification screen instead of direct logging
+          setCurrentAnalysisResult(verificationResult);
+          setShowFoodVerificationScreen(true);
         } else {
           // Fallback to manual entry if macro lookup fails
           console.error('fetchFoodMacros error:', reply.error);
@@ -264,9 +279,6 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ initialState }
         setCaption(`I detected ${recognizedFood}, but couldn't get nutrition info. Please enter manually.`);
       }
       
-      // Stop camera and reset states
-      stopCamera();
-      
     } catch (error) {
       console.error('Analysis error:', error);
       setIsAnalyzing(false);
@@ -274,10 +286,62 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ initialState }
     }
   };
 
+  // Food verification handlers
+  const handleConfirmVerification = async (normalizedMeal: NormalizedMealData) => {
+    try {
+      const result = await saveMeal(normalizedMeal);
+      
+      if (result.ok) {
+        toast.success('Meal logged successfully!');
+        setShowFoodVerificationScreen(false);
+        setCurrentAnalysisResult(null);
+        navigate('/chat');
+      } else {
+        toast.error(result.error || 'Failed to save meal');
+      }
+    } catch (error: any) {
+      console.error('Error saving meal:', error);
+      toast.error('Failed to save meal. Please try again.');
+    }
+  };
+
+  const handleCancelVerification = () => {
+    setShowFoodVerificationScreen(false);
+    setCurrentAnalysisResult(null);
+    setCaption("Choose how you'd like to share with me");
+  };
+
+  const handleEditManually = () => {
+    setShowFoodVerificationScreen(false);
+    setCurrentAnalysisResult(null);
+    navigate('/chat');
+  };
+
+  const handleRetryAnalysis = async () => {
+    setShowFoodVerificationScreen(false);
+    setCurrentAnalysisResult(null);
+    setCameraError('');
+    setCaption('Retrying analysis...');
+    
+    // Retry the analysis with the captured image
+    if (capturedImage && canvasRef.current) {
+      // Convert data URL back to blob for re-analysis
+      try {
+        const response = await fetch(capturedImage);
+        const blob = await response.blob();
+        await sendImageForAnalysis(blob);
+      } catch (error) {
+        console.error('Error retrying analysis:', error);
+        setCaption('Failed to retry analysis. Please take a new photo.');
+      }
+    }
+  };
+
   // Reset to initial state
   const resetCapture = () => {
     setCapturedImage(null);
-    setAnalysisResult(null);
+    setShowFoodVerificationScreen(false);
+    setCurrentAnalysisResult(null);
     setCaption('Camera ready! Position your food in the frame and tap the camera button to capture.');
   };
 
@@ -335,6 +399,21 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ initialState }
     }
   }, [initialState]);
 
+  // Show Food Verification Screen
+  if (showFoodVerificationScreen && currentAnalysisResult) {
+    return (
+      <FoodVerificationScreen
+        analysisResult={currentAnalysisResult}
+        onConfirm={handleConfirmVerification}
+        onCancel={handleCancelVerification}
+        onEditManually={handleEditManually}
+        onRetryAnalysis={handleRetryAnalysis}
+        isLoading={isAnalyzing}
+        error={cameraError || undefined}
+      />
+    );
+  }
+
   return (
     <div className="h-screen bg-pat-gradient flex flex-col pt-[44px]">
       {/* In-content back button */}
@@ -379,7 +458,7 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ initialState }
                   <Camera size={24} className="text-gray-700" />
                 </button>
                 
-                {(capturedImage || analysisResult) && (
+                {(capturedImage || currentAnalysisResult) && (
                   <button
                     onClick={resetCapture}
                     className="w-12 h-12 bg-white hover:bg-gray-100 rounded-full flex items-center justify-center shadow-lg transition-colors"
@@ -405,37 +484,11 @@ export const TalkingPatPage2: React.FC<TalkingPatPage2Props> = ({ initialState }
           </div>
         )}
 
-        {/* Analysis Results */}
-        {analysisResult && (
-          <div className="w-full mb-6 p-4 bg-green-50 border border-green-200 rounded-xl max-w-md mx-auto">
-            <h3 className="font-semibold text-green-900 mb-2">Analysis Results</h3>
-            <div className="space-y-2">
-              {analysisResult.foods.map((food: any, index: number) => (
-                <div key={index} className="flex justify-between text-sm">
-                  <span className="text-green-800">{food.name}</span>
-                  <span className="text-green-600">{food.grams}g</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 pt-3 border-t border-green-200">
-              <div className="flex justify-between text-sm font-medium">
-                <span className="text-green-900">Total Calories:</span>
-                <span className="text-green-700">{analysisResult.totalCalories}</span>
-              </div>
-              <div className="flex justify-between text-xs text-green-600 mt-1">
-                <span>P: {analysisResult.macros.protein}g</span>
-                <span>C: {analysisResult.macros.carbs}g</span>
-                <span>F: {analysisResult.macros.fat}g</span>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Pat Avatar */}
-        {(!isCameraActive || isAnalyzing) && (
+        {(!isCameraActive || isAnalyzing || showFoodVerificationScreen) && (
         <PatAvatar 
           size={128} 
-          mood={analysisResult ? 'happy' : 'neutral'}
+          mood={currentAnalysisResult ? 'happy' : 'neutral'}
           isAnalyzing={isAnalyzing}
           className="mb-6"
         />
