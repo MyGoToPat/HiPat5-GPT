@@ -880,6 +880,19 @@ export const ChatPat: React.FC = () => {
     );
   }
 
+  // Show Food Verification Screen if active
+  if (showFoodVerificationScreen && currentAnalysisResult) {
+    return (
+      <FoodVerificationScreen
+        analysisResult={currentAnalysisResult}
+        onConfirm={handleConfirmVerification}
+        onCancel={handleCancelVerification}
+        onEditManually={handleEditManually}
+        isLoading={isAnalyzingFood}
+      />
+    );
+  }
+
   if (isLoadingChat) {
     return (
       <div className="h-screen bg-pat-gradient text-white flex items-center justify-center pt-[44px]">
