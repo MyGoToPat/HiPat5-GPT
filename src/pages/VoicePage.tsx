@@ -22,7 +22,7 @@ export default function VoicePage() {
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('id, role, beta_user')
-          .eq('id', authUser.id)
+          .eq('user_id', authUser.id)
           .maybeSingle();
         
         if (profileError) {
