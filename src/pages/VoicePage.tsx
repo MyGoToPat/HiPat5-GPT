@@ -1,6 +1,7 @@
 import React from 'react';
 import { TalkingPatPage1 } from '../components/TalkingPatPage1';
-import { useRole } from '../hooks/useRole';
+import { getSupabase, getUserProfile } from '../lib/supabase';
+import { hasPatAccess, type AclProfile } from '../lib/access/acl';
 import { ArrowLeft, Mic } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,8 +9,30 @@ import { useNavigate } from 'react-router-dom';
 export default function VoicePage() {
   const { can } = useRole();
   const navigate = useNavigate();
+  const [user, setUser] = React.useState<any | null>(null);
+  const [profile, setProfile] = React.useState<AclProfile | null>(null);
+  const [loading, setLoading] = React.useState(true);
   
-  if (!can('voice.use')) {
+  React.useEffect(() => {
+    const fetchAuthData = async () => {
+      const supabase = getSupabase();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      setUser(authUser);
+
+      if (authUser) {
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('id, user_id, role, beta_user, is_beta, is_paid')
+          .eq('id', authUser.id)
+          .maybeSingle();
+        setProfile(userProfile as AclProfile | null);
+      }
+      setLoading(false);
+    };
+    fetchAuthData();
+  }, []);
+
+  if (loading || !user || !profile || !hasPatAccess(user, profile)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">

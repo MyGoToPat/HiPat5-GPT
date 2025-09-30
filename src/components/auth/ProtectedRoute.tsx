@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { getSupabase } from '../../lib/supabase';
+import { hasPatAccess, type AclProfile } from '../../lib/access/acl';
 import BetaHoldGuard from '../BetaHoldGuard';
 
 interface DebugInfo {
@@ -10,9 +11,12 @@ interface DebugInfo {
   isBetaUser: boolean;
   sourceFields: {
     profilesRole: string | null;
-    profilesBetaUser: boolean | null;
+    profilesBetaUser: boolean | null; // from beta_user column
+    profilesIsBeta: boolean | null; // from is_beta column
+    profilesIsPaid: boolean | null; // from is_paid column
     appMetadataRole: any;
-    appMetadataBeta: any;
+    appMetadataBeta: any; // from app_metadata.beta
+    appMetadataPaid: any; // from app_metadata.paid
   };
 }
 
@@ -20,6 +24,7 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
   const [loading, setLoading] = useState(true);
   const [hasUser, setHasUser] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
+  const [profile, setProfile] = useState<AclProfile | null>(null);
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
 
   useEffect(() => {
@@ -40,9 +45,12 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
             isBetaUser: false,
             sourceFields: {
               profilesRole: null,
-              profilesBetaUser: null,
+              profilesBetaUser: null, // from beta_user column
+              profilesIsBeta: null, // from is_beta column
+              profilesIsPaid: null, // from is_paid column
               appMetadataRole: null,
-              appMetadataBeta: null,
+              appMetadataBeta: null, // from app_metadata.beta
+              appMetadataPaid: null, // from app_metadata.paid
             }
           });
           setLoading(false);
@@ -54,9 +62,10 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
         // Check user's role and beta status
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('id, user_id, role, beta_user')
+          .select('id, user_id, role, beta_user, is_beta, is_paid')
           .eq('id', user.id)
           .maybeSingle();
+        setProfile(profileData as AclProfile | null);
 
         console.log('[Gate:ProfileRow]', profile);
 
@@ -72,9 +81,12 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
             isBetaUser: false,
             sourceFields: {
               profilesRole: null,
-              profilesBetaUser: null,
+              profilesBetaUser: null, // from beta_user column
+              profilesIsBeta: null, // from is_beta column
+              profilesIsPaid: null, // from is_paid column
               appMetadataRole: user.app_metadata?.role || null,
-              appMetadataBeta: user.app_metadata?.beta || null,
+              appMetadataBeta: user.app_metadata?.beta || null, // from app_metadata.beta
+              appMetadataPaid: user.app_metadata?.paid || null, // from app_metadata.paid
             }
           });
           setLoading(false);
@@ -82,26 +94,22 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
         }
 
         // Access control logic:
-        // 1. Admin users have full access
-        // 2. Beta users have access during testing
-        // 3. Everyone else is blocked
-        const isAdmin = profile?.role === 'admin';
-        const isPaidUser = profile?.role === 'paid_user';
-        const isBetaUser = profile?.beta_user === true;
-        
-        const allowAccess = isAdmin || isBetaUser;
+        const allowAccess = hasPatAccess(user, profileData as AclProfile);
 
         // Capture debug information
         const debug: DebugInfo = {
           userEmail: user.email || null,
-          isAdmin,
-          isPaidUser,
-          isBetaUser,
+          isAdmin: hasPatAccess(user, profileData as AclProfile), // Re-evaluate for debug display
+          isPaidUser: (profileData?.role === 'paid_user' || (profileData as AclProfile)?.is_paid === true || user.app_metadata?.paid === true),
+          isBetaUser: ((profileData as AclProfile)?.beta_user === true || (profileData as AclProfile)?.is_beta === true || user.app_metadata?.beta === true),
           sourceFields: {
-            profilesRole: profile?.role || null,
-            profilesBetaUser: profile?.beta_user || null,
+            profilesRole: profileData?.role || null,
+            profilesBetaUser: (profileData as AclProfile)?.beta_user || null, // from beta_user column
+            profilesIsBeta: (profileData as AclProfile)?.is_beta || null, // from is_beta column
+            profilesIsPaid: (profileData as AclProfile)?.is_paid || null, // from is_paid column
             appMetadataRole: user.app_metadata?.role || null,
-            appMetadataBeta: user.app_metadata?.beta || null,
+            appMetadataBeta: user.app_metadata?.beta || null, // from app_metadata.beta
+            appMetadataPaid: user.app_metadata?.paid || null, // from app_metadata.paid
           }
         };
         
@@ -111,11 +119,13 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
         console.log('[ProtectedRoute Debug]', debug);
         if (import.meta.env.DEV) {
           console.log('[Gate:Access]', { 
-            uid: user.id, 
-            role: profile?.role, 
-            beta_user: profile?.beta_user,
-            isAdmin,
-            isBetaUser,
+            uid: user.id,
+            role: profileData?.role,
+            beta_user: (profileData as AclProfile)?.beta_user,
+            is_beta: (profileData as AclProfile)?.is_beta,
+            is_paid: (profileData as AclProfile)?.is_paid,
+            isAdmin: debug.isAdmin,
+            isBetaUser: debug.isBetaUser,
             allowAccess 
           });
         }
@@ -147,7 +157,7 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
           <p className="text-gray-500 text-sm">Contact your administrator for access or wait for general availability.</p>
           
           {/* Debug Panel - DEV ONLY */}
-          {(import.meta.env.DEV || !hasAccess) && debugInfo && (
+          {(import.meta.env.DEV || !hasAccess) && debugInfo && user && profile && (
             <div className="absolute top-4 right-4 bg-gray-900 text-white p-3 rounded-lg text-xs font-mono max-w-xs">
               <div className="text-yellow-400 font-semibold mb-2">DEBUG INFO</div>
               <div className="space-y-1">
@@ -158,9 +168,12 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
                 <div className="border-t border-gray-700 pt-2 mt-2">
                   <div className="text-gray-400 mb-1">Source Fields:</div>
                   <div>profiles.role: {debugInfo.sourceFields.profilesRole || 'null'}</div>
-                  <div>profiles.beta_user: <span className={debugInfo.sourceFields.profilesBetaUser ? 'text-green-400' : 'text-red-400'}>{debugInfo.sourceFields.profilesBetaUser?.toString() || 'null'}</span></div>
+                  <div>profiles.beta_user: <span className={debugInfo.sourceFields.profilesBetaUser === true ? 'text-green-400' : 'text-red-400'}>{debugInfo.sourceFields.profilesBetaUser?.toString() || 'null'}</span></div>
+                  <div>profiles.is_beta: <span className={debugInfo.sourceFields.profilesIsBeta === true ? 'text-green-400' : 'text-red-400'}>{debugInfo.sourceFields.profilesIsBeta?.toString() || 'null'}</span></div>
+                  <div>profiles.is_paid: <span className={debugInfo.sourceFields.profilesIsPaid === true ? 'text-green-400' : 'text-red-400'}>{debugInfo.sourceFields.profilesIsPaid?.toString() || 'null'}</span></div>
                   <div>app_metadata.role: {debugInfo.sourceFields.appMetadataRole || 'null'}</div>
-                  <div>app_metadata.beta: {debugInfo.sourceFields.appMetadataBeta || 'null'}</div>
+                  <div>app_metadata.beta: <span className={debugInfo.sourceFields.appMetadataBeta === true ? 'text-green-400' : 'text-red-400'}>{debugInfo.sourceFields.appMetadataBeta?.toString() || 'null'}</span></div>
+                  <div>app_metadata.paid: <span className={debugInfo.sourceFields.appMetadataPaid === true ? 'text-green-400' : 'text-red-400'}>{debugInfo.sourceFields.appMetadataPaid?.toString() || 'null'}</span></div>
                 </div>
               </div>
             </div>

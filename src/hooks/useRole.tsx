@@ -1,6 +1,7 @@
 import React from 'react';
 import { useEffect, useState } from 'react';
 import { getSupabase } from '../lib/supabase';
+import { hasPatAccess, type AclProfile } from '../lib/access/acl';
 import { hasPrivilege, type AppRole, type Privilege } from '../config/rbac';
 
 export function useRole() {
@@ -24,8 +25,8 @@ export function useRole() {
 
         try {
           const { data, error } = await supabase
-            .from('profiles')
-            .select('role')
+            .from('profiles') // Fetch all relevant fields for AclProfile
+            .select('role, beta_user, is_beta, is_paid')
             .eq('user_id', user.id)
             .maybeSingle();
 
@@ -36,7 +37,7 @@ export function useRole() {
             return;
           }
 
-          setRole((data?.role as AppRole) || 'free_user');
+          setRole((data?.role as AppRole) || 'free_user'); // Still return AppRole for existing 'can' checks
         } catch (profileError: any) {
           console.error('[useRole] profiles fetch error:', profileError.message);
           setRole(null);
