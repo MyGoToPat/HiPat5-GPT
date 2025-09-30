@@ -26,8 +26,6 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
   const [hasAccess, setHasAccess] = useState(false);
   const [profile, setProfile] = useState<AclProfile | null>(null);
   const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<AclProfile | null>(null);
-  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     let alive = true;
@@ -45,7 +43,13 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
         }
 
         setUser(authUser);
-        setUser(authUser);
+        setHasUser(true);
+
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('role, beta_user')
+          .eq('user_id', authUser.id)
+          .maybeSingle();
 
         if (!alive) return;
 
@@ -54,11 +58,10 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
         }
 
         setProfile(profileData as AclProfile | null);
-        
+
         // Centralized access control
         const allowAccess = hasPatAccess(authUser, profileData as AclProfile);
         setHasAccess(allowAccess);
-        setProfile(profileData as AclProfile | null);
         setLoading(false);
       } catch (error) {
         console.error('ProtectedRoute error:', error);
@@ -100,23 +103,6 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
             </div>
           )}
           
-          {/* Debug Panel - DEV ONLY */}
-          {import.meta.env.DEV && user && profile && (
-            <div className="absolute top-4 right-4 bg-gray-900 text-white p-3 rounded-lg text-xs font-mono max-w-xs">
-              <div className="text-yellow-400 font-semibold mb-2">DEBUG INFO</div>
-              <div className="space-y-1">
-                <div>email: {user?.email || 'null'}</div>
-                <div>role: {profile?.role || 'null'}</div>
-                <div>beta_user: <span className={profile?.beta_user === true ? 'text-green-400' : 'text-red-400'}>{profile?.beta_user?.toString() || 'null'}</span></div>
-                <div>is_beta: <span className={profile?.is_beta === true ? 'text-green-400' : 'text-red-400'}>{profile?.is_beta?.toString() || 'null'}</span></div>
-                <div>is_paid: <span className={profile?.is_paid === true ? 'text-green-400' : 'text-red-400'}>{profile?.is_paid?.toString() || 'null'}</span></div>
-                <div>appMeta.role: {user?.app_metadata?.role || 'null'}</div>
-                <div>appMeta.beta: <span className={user?.app_metadata?.beta === true ? 'text-green-400' : 'text-red-400'}>{user?.app_metadata?.beta?.toString() || 'null'}</span></div>
-                <div>appMeta.paid: <span className={user?.app_metadata?.paid === true ? 'text-green-400' : 'text-red-400'}>{user?.app_metadata?.paid?.toString() || 'null'}</span></div>
-                <div>allowAccess: <span className={hasAccess ? 'text-green-400' : 'text-red-400'}>{hasAccess.toString()}</span></div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     );
