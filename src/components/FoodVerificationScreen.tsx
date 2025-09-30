@@ -64,8 +64,13 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
     setMealSlot(initialSlot);
 
     const items = analysisResult.items.map((item, index) => {
-      const baseGrams = item.grams || 100; // Default to 100g if not specified
-      const baseMacros = item.macros || { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+      const baseGrams = Number(item.grams) || 100; // Default to 100g if not specified
+      const baseMacros = {
+        kcal: Number(item.macros?.kcal) || 0,
+        protein_g: Number(item.macros?.protein_g) || 0,
+        carbs_g: Number(item.macros?.carbs_g) || 0,
+        fat_g: Number(item.macros?.fat_g) || 0,
+      };
       
       return {
         include: true,
@@ -85,10 +90,10 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
     
     const totals = includedItems.reduce(
       (acc, item) => ({
-        kcal: acc.kcal + item.currentMacros.kcal,
-        protein_g: acc.protein_g + item.currentMacros.protein_g,
-        carbs_g: acc.carbs_g + item.currentMacros.carbs_g,
-        fat_g: acc.fat_g + item.currentMacros.fat_g,
+        kcal: acc.kcal + (Number(item.currentMacros.kcal) || 0),
+        protein_g: acc.protein_g + (Number(item.currentMacros.protein_g) || 0),
+        carbs_g: acc.carbs_g + (Number(item.currentMacros.carbs_g) || 0),
+        fat_g: acc.fat_g + (Number(item.currentMacros.fat_g) || 0),
       }),
       { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
     );
@@ -97,7 +102,7 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
     const proteinCal = totals.protein_g * 4;
     const carbCal = totals.carbs_g * 4;
     const fatCal = totals.fat_g * 9;
-    const tef_kcal = Math.round(0.20 * proteinCal + 0.07 * carbCal + 0.03 * fatCal);
+    const tef_kcal = Math.round((0.20 * proteinCal) + (0.07 * carbCal) + (0.03 * fatCal));
     const net_kcal = totals.kcal - tef_kcal;
 
     return { ...totals, tef_kcal, net_kcal };
@@ -120,12 +125,19 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
     setSelectedItems(prev => prev.map((item, i) => {
       if (i === itemIndex) {
         // Reset to candidate's base grams and macros
-        const candidateGrams = originalItem.grams || 100;
+        const candidateGrams = Number(originalItem.grams) || 100;
+        const candidateMacros = {
+          kcal: Number(selectedCandidate.macros.kcal) || 0,
+          protein_g: Number(selectedCandidate.macros.protein_g) || 0,
+          carbs_g: Number(selectedCandidate.macros.carbs_g) || 0,
+          fat_g: Number(selectedCandidate.macros.fat_g) || 0,
+        };
+        
         return {
           ...item,
           chosenCandidateIndex: candidateIndex,
           currentGrams: candidateGrams,
-          currentMacros: selectedCandidate.macros,
+          currentMacros: candidateMacros,
         };
       }
       return item;
@@ -135,7 +147,16 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
   const handlePortionChange = (itemIndex: number, portion: { grams: number; macros: any }) => {
     setSelectedItems(prev => prev.map((item, i) => 
       i === itemIndex 
-        ? { ...item, currentGrams: portion.grams, currentMacros: portion.macros }
+        ? { 
+            ...item, 
+            currentGrams: Number(portion.grams) || 0, 
+            currentMacros: {
+              kcal: Number(portion.macros.kcal) || 0,
+              protein_g: Number(portion.macros.protein_g) || 0,
+              carbs_g: Number(portion.macros.carbs_g) || 0,
+              fat_g: Number(portion.macros.fat_g) || 0,
+            }
+          }
         : item
     ));
   };
@@ -162,7 +183,7 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
       client_confidence: includedItems.reduce((sum, item) => {
         const originalItem = analysisResult.items[item.position];
         const candidate = originalItem.candidates?.[item.chosenCandidateIndex];
-        const confidence = candidate?.confidence || originalItem.confidence || 0.8;
+        const confidence = Number(candidate?.confidence || originalItem.confidence) || 0.8;
         return sum + confidence;
       }, 0) / includedItems.length,
     };
@@ -182,7 +203,7 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
         unit: 'serving',
         grams: item.currentGrams,
         macros: item.currentMacros,
-        confidence: candidate?.confidence || originalItem.confidence,
+        confidence: Number(candidate?.confidence || originalItem.confidence) || 0.8,
         source_hints: originalItem.source_hints,
       };
     });
@@ -298,57 +319,62 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
 
             const currentCandidate = originalItem.candidates?.[selectedItem.chosenCandidateIndex];
             const displayItem = currentCandidate || originalItem;
-            const baseGrams = originalItem.grams || 100;
+            const baseGrams = Number(originalItem.grams) || 100;
 
             return (
               <div
                 key={index}
-                className={`p-4 border-2 rounded-lg transition-all ${
+                className={`p-6 border-2 rounded-xl transition-all ${
                   selectedItem.include 
-                    ? 'border-green-200 bg-green-50' 
+                    ? 'border-green-200 bg-green-50 shadow-sm' 
                     : 'border-gray-200 bg-gray-50'
                 }`}
               >
                 {/* Item Header */}
-                <div className="flex items-start gap-3 mb-3">
+                <div className="flex items-start gap-4 mb-4">
                   <input
                     type="checkbox"
                     checked={selectedItem.include}
                     onChange={() => handleItemToggle(index)}
-                    className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
                   />
                   <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium text-gray-900">{displayItem.name}</h3>
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">{displayItem.name}</h3>
                         {displayItem.brand && (
-                          <span className="text-xs text-gray-500">{displayItem.brand}</span>
+                          <p className="text-sm text-gray-600">{displayItem.brand}</p>
                         )}
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          (displayItem.confidence || 0.8) >= 0.8 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
+                        {originalItem.originalText && (
+                          <p className="text-xs text-gray-500 italic">From: "{originalItem.originalText}"</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 text-xs font-medium rounded-full border ${
+                          (Number(displayItem.confidence) || 0.8) >= 0.8 
+                            ? 'bg-green-100 text-green-800 border-green-200' 
+                            : 'bg-yellow-100 text-yellow-800 border-yellow-200'
                         }`}>
-                          {Math.round((displayItem.confidence || 0.8) * 100)}%
+                          {Math.round((Number(displayItem.confidence) || 0.8) * 100)}% confidence
                         </span>
                       </div>
                     </div>
 
                     {/* Candidate Switcher */}
                     {originalItem.candidates && originalItem.candidates.length > 1 && (
-                      <div className="mt-2">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
                           Alternative matches:
                         </label>
                         <div className="relative">
                           <select
                             value={selectedItem.chosenCandidateIndex}
                             onChange={(e) => handleCandidateChange(index, parseInt(e.target.value))}
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white"
                           >
                             {originalItem.candidates.map((candidate, candIndex) => (
                               <option key={candIndex} value={candIndex}>
-                                {candidate.name} {candidate.brand ? `(${candidate.brand})` : ''} - {Math.round(candidate.confidence * 100)}%
+                                {candidate.name} {candidate.brand ? `(${candidate.brand})` : ''} - {Math.round((Number(candidate.confidence) || 0.8) * 100)}%
                               </option>
                             ))}
                           </select>
@@ -359,8 +385,8 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
 
                     {/* Portion Controls */}
                     {selectedItem.include && (
-                      <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200">
-                        <label className="block text-xs font-medium text-gray-700 mb-2">
+                      <div className="bg-white rounded-lg border border-gray-200 p-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-3">
                           Portion size:
                         </label>
                         <PortionControls
@@ -371,11 +397,23 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
                         />
                         
                         {/* Current Macros Display */}
-                        <div className="mt-2 flex justify-between text-xs text-gray-600">
-                          <span>{selectedItem.currentMacros.kcal} cal</span>
-                          <span>P: {selectedItem.currentMacros.protein_g}g</span>
-                          <span>C: {selectedItem.currentMacros.carbs_g}g</span>
-                          <span>F: {selectedItem.currentMacros.fat_g}g</span>
+                        <div className="mt-3 grid grid-cols-4 gap-3 text-center">
+                          <div className="p-2 bg-gray-50 rounded">
+                            <div className="text-sm font-semibold text-gray-900">{selectedItem.currentMacros.kcal}</div>
+                            <div className="text-xs text-gray-600">cal</div>
+                          </div>
+                          <div className="p-2 bg-red-50 rounded">
+                            <div className="text-sm font-semibold text-red-700">{selectedItem.currentMacros.protein_g.toFixed(1)}g</div>
+                            <div className="text-xs text-red-600">Protein</div>
+                          </div>
+                          <div className="p-2 bg-blue-50 rounded">
+                            <div className="text-sm font-semibold text-blue-700">{selectedItem.currentMacros.carbs_g.toFixed(1)}g</div>
+                            <div className="text-xs text-blue-600">Carbs</div>
+                          </div>
+                          <div className="p-2 bg-yellow-50 rounded">
+                            <div className="text-sm font-semibold text-yellow-700">{selectedItem.currentMacros.fat_g.toFixed(1)}g</div>
+                            <div className="text-xs text-yellow-600">Fat</div>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -388,20 +426,24 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
 
         {/* Meal Slot Selector */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
             Meal timing:
           </label>
-          <select
-            value={mealSlot}
-            onChange={(e) => setMealSlot(e.target.value as any)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="breakfast">Breakfast</option>
-            <option value="lunch">Lunch</option>
-            <option value="dinner">Dinner</option>
-            <option value="snack">Snack</option>
-            <option value="unknown">Unknown</option>
-          </select>
+          <div className="grid grid-cols-5 gap-2">
+            {['breakfast', 'lunch', 'dinner', 'snack', 'unknown'].map((slot) => (
+              <button
+                key={slot}
+                onClick={() => setMealSlot(slot as any)}
+                className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                  mealSlot === slot
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {slot.charAt(0).toUpperCase() + slot.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Optional Note */}
@@ -422,42 +464,42 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
       {/* Fixed Footer */}
       <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
         {/* Totals Panel */}
-        <div className="bg-white p-4 rounded-lg border border-gray-200 mb-4">
-          <h3 className="font-medium text-gray-900 mb-3">Totals for this meal</h3>
+        <div className="bg-gradient-to-r from-blue-50 to-green-50 p-6 rounded-xl border border-blue-200 mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Meal Totals</h3>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
-            <div className="text-center">
-              <div className="text-lg font-bold text-gray-900">{totals.kcal}</div>
-              <div className="text-xs text-gray-500">Calories</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="text-center p-3 bg-white rounded-lg border border-gray-200">
+              <div className="text-2xl font-bold text-gray-900">{totals.kcal}</div>
+              <div className="text-sm text-gray-600">Calories</div>
             </div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-red-600">{totals.protein_g.toFixed(1)}g</div>
-              <div className="text-xs text-gray-500">Protein</div>
+            <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
+              <div className="text-2xl font-bold text-red-700">{totals.protein_g.toFixed(1)}g</div>
+              <div className="text-sm text-red-600">Protein</div>
             </div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-blue-600">{totals.carbs_g.toFixed(1)}g</div>
-              <div className="text-xs text-gray-500">Carbs</div>
+            <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="text-2xl font-bold text-blue-700">{totals.carbs_g.toFixed(1)}g</div>
+              <div className="text-sm text-blue-600">Carbs</div>
             </div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-yellow-600">{totals.fat_g.toFixed(1)}g</div>
-              <div className="text-xs text-gray-500">Fat</div>
+            <div className="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+              <div className="text-2xl font-bold text-yellow-700">{totals.fat_g.toFixed(1)}g</div>
+              <div className="text-sm text-yellow-600">Fat</div>
             </div>
           </div>
 
           {/* TEF and Net */}
-          <div className="flex justify-between items-center text-sm pt-3 border-t border-gray-200">
+          <div className="flex justify-between items-center text-sm pt-4 border-t border-gray-200">
             <div className="text-gray-600">
-              TEF (thermic effect): <span className="font-medium">{totals.tef_kcal} cal</span>
+              TEF (thermic effect): <span className="font-semibold text-orange-600">{totals.tef_kcal} cal</span>
             </div>
             <div className="text-gray-900">
-              Net calories: <span className="font-bold">{totals.net_kcal} cal</span>
+              Net calories: <span className="font-bold text-green-600">{totals.net_kcal} cal</span>
             </div>
           </div>
 
           {/* How This Affects Today */}
-          <div className="mt-3 p-2 bg-blue-50 rounded border border-blue-200">
-            <p className="text-xs text-blue-700">
-              📊 How this affects today: Remaining ~1,200 kcal, ~75g protein (placeholder)
+          <div className="mt-4 p-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+            <p className="text-sm text-purple-800">
+              <span className="font-semibold">How this affects today:</span> Remaining ~1,200 kcal, ~75g protein (placeholder)
             </p>
           </div>
         </div>

@@ -540,7 +540,7 @@ export const ChatPat: React.FC = () => {
   const handleMealTextInput = async (input: string) => {
     try {
       setIsAnalyzingFood(true);
-      const foodPhrase = extractFoodPhrase(input);
+      const foodPhrases = extractFoodPhrases(input);
       
       // Add user message to chat
       const userMessage: ChatMessage = {
@@ -552,32 +552,86 @@ export const ChatPat: React.FC = () => {
       setMessages(prev => [...prev, userMessage]);
       setInputText('');
       
-      // Fetch food macros
-      const macroResult = await fetchFoodMacros(foodPhrase);
+      // Process each food item
+      const analysisItems = [];
       
-      if (macroResult.ok && macroResult.macros) {
+      for (let i = 0; i < foodPhrases.length; i++) {
+        const foodPhrase = foodPhrases[i];
+        const { cleanName, grams } = parseQuantityAndSize(foodPhrase);
+        
+        try {
+          const macroResult = await fetchFoodMacros(cleanName);
+          
+          if (macroResult.ok && macroResult.macros) {
+            analysisItems.push({
+              name: cleanName,
+              originalText: foodPhrase,
+              grams: grams,
+              macros: {
+                kcal: Number(macroResult.macros.kcal || macroResult.macros.calories) || 0,
+                protein_g: Number(macroResult.macros.protein_g) || 0,
+                carbs_g: Number(macroResult.macros.carbs_g) || 0,
+                fat_g: Number(macroResult.macros.fat_g) || 0,
+              },
+              confidence: Number(macroResult.macros.confidence) || 0.7,
+              candidates: [{
+                name: cleanName,
+                macros: {
+                  kcal: Number(macroResult.macros.kcal || macroResult.macros.calories) || 0,
+                  protein_g: Number(macroResult.macros.protein_g) || 0,
+                  carbs_g: Number(macroResult.macros.carbs_g) || 0,
+                  fat_g: Number(macroResult.macros.fat_g) || 0,
+                },
+                confidence: Number(macroResult.macros.confidence) || 0.7,
+              }]
+            });
+          } else {
+            // Add placeholder item if lookup fails
+            analysisItems.push({
+              name: cleanName,
+              originalText: foodPhrase,
+              grams: grams,
+              macros: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+              confidence: 0.3,
+              candidates: [{
+                name: cleanName,
+                macros: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+                confidence: 0.3,
+              }]
+            });
+          }
+        } catch (error) {
+          console.error(`Error fetching macros for "${cleanName}":`, error);
+          // Add placeholder item on error
+          analysisItems.push({
+            name: cleanName,
+            originalText: foodPhrase,
+            grams: grams,
+            macros: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+            confidence: 0.3,
+            candidates: [{
+              name: cleanName,
+              macros: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+              confidence: 0.3,
+            }]
+          });
+        }
+      }
+      
+      if (analysisItems.length > 0) {
         // Build analysis result for verification screen
         const analysisResult: AnalysisResult = {
           source: 'text',
           meal_slot: inferMealSlot(),
-          items: [{
-            name: foodPhrase,
-            grams: macroResult.macros.grams || 100,
-            macros: {
-              kcal: macroResult.macros.kcal,
-              protein_g: macroResult.macros.protein,
-              carbs_g: macroResult.macros.carbs,
-              fat_g: macroResult.macros.fat
-            },
-            confidence: macroResult.macros.confidence || 0.7
-          }]
+          items: analysisItems,
+          originalInput: input
         };
         
         setCurrentAnalysisResult(analysisResult);
         setShowFoodVerificationScreen(true);
       } else {
-        // Fallback to normal chat if food lookup fails
-        toast.error('Could not find nutrition info for that food');
+        // Fallback to normal chat if all lookups fail
+        toast.error('Could not find nutrition info for any of the foods mentioned');
         // Continue with normal chat processing
         setIsSending(true);
         setIsThinking(true);
