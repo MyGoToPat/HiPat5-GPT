@@ -4,7 +4,6 @@ import { getSupabase } from '../lib/supabase';
 import { hasPatAccess, type AclProfile } from '../lib/access/acl';
 import { ArrowLeft, Mic } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useRole } from '../hooks/useRole';
 
 
 export default function VoicePage() {
@@ -20,11 +19,16 @@ export default function VoicePage() {
       setUser(authUser);
 
       if (authUser) {
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('id, role, beta_user, is_beta, is_paid')
+          .select('id, role, beta_user')
           .eq('id', authUser.id)
           .maybeSingle();
+        
+        if (profileError) {
+          console.error('Error fetching user profile:', profileError);
+        }
+        
         setProfile(profileData as AclProfile | null);
       }
       setLoading(false);
@@ -50,8 +54,6 @@ export default function VoicePage() {
                 <div>email: {user?.email || 'null'}</div>
                 <div>role: {profile?.role || 'null'}</div>
                 <div>beta_user: <span className={profile?.beta_user === true ? 'text-green-400' : 'text-red-400'}>{profile?.beta_user?.toString() || 'null'}</span></div>
-                <div>is_beta: <span className={profile?.is_beta === true ? 'text-green-400' : 'text-red-400'}>{profile?.is_beta?.toString() || 'null'}</span></div>
-                <div>is_paid: <span className={profile?.is_paid === true ? 'text-green-400' : 'text-red-400'}>{profile?.is_paid?.toString() || 'null'}</span></div>
                 <div>appMeta.role: {user?.app_metadata?.role || 'null'}</div>
                 <div>appMeta.beta: <span className={user?.app_metadata?.beta === true ? 'text-green-400' : 'text-red-400'}>{user?.app_metadata?.beta?.toString() || 'null'}</span></div>
                 <div>appMeta.paid: <span className={user?.app_metadata?.paid === true ? 'text-green-400' : 'text-red-400'}>{user?.app_metadata?.paid?.toString() || 'null'}</span></div>
