@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { getSupabase } from '../../lib/supabase';
 import { hasPatAccess, type AclProfile } from '../../lib/access/acl';
-import { hasPatAccess, type AclProfile } from '../../lib/access/acl';
 import BetaHoldGuard from '../BetaHoldGuard';
 
 interface DebugInfo {
