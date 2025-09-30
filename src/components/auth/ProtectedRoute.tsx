@@ -25,112 +25,51 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
   const [hasUser, setHasUser] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
   const [profile, setProfile] = useState<AclProfile | null>(null);
-  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const supabase = getSupabase();
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
         
         if (!alive) return;
         
-        if (!user) {
+        if (userError || !authUser) {
           setHasUser(false);
-          setDebugInfo({
-            userEmail: null,
-            isAdmin: false,
-            isPaidUser: false,
-            isBetaUser: false,
-            sourceFields: {
-              profilesRole: null,
-              profilesBetaUser: null, // from beta_user column
-              profilesIsBeta: null, // from is_beta column
-              profilesIsPaid: null, // from is_paid column
-              appMetadataRole: null,
-              appMetadataBeta: null, // from app_metadata.beta
-              appMetadataPaid: null, // from app_metadata.paid
-            }
-          });
           setLoading(false);
           return;
         }
 
+        setUser(authUser);
         setHasUser(true);
 
-        // Check user's role and beta status
-        const { data: profile, error } = await supabase
+        // Fetch profile with correct key and minimal fields
+        const { data: profileData, error } = await supabase
           .from('profiles')
-          .select('id, user_id, role, beta_user, is_beta, is_paid')
-          .eq('id', user.id)
+          .select('id, role, beta_user, is_beta, is_paid')
+          .eq('id', authUser.id)
           .maybeSingle();
-        setProfile(profileData as AclProfile | null);
 
-        console.log('[Gate:ProfileRow]', profile);
+        console.log('[Gate:ProfileRow]', profileData);
 
         if (!alive) return;
 
         if (error) {
           console.error('Error fetching user profile:', error);
           setHasAccess(false);
-          setDebugInfo({
-            userEmail: user.email || null,
-            isAdmin: false,
-            isPaidUser: false,
-            isBetaUser: false,
-            sourceFields: {
-              profilesRole: null,
-              profilesBetaUser: null, // from beta_user column
-              profilesIsBeta: null, // from is_beta column
-              profilesIsPaid: null, // from is_paid column
-              appMetadataRole: user.app_metadata?.role || null,
-              appMetadataBeta: user.app_metadata?.beta || null, // from app_metadata.beta
-              appMetadataPaid: user.app_metadata?.paid || null, // from app_metadata.paid
-            }
-          });
           setLoading(false);
           return;
         }
 
-        // Access control logic:
-        const allowAccess = hasPatAccess(user, profileData as AclProfile);
-
-        // Capture debug information
-        const debug: DebugInfo = {
-          userEmail: user.email || null,
-          isAdmin: hasPatAccess(user, profileData as AclProfile), // Re-evaluate for debug display
-          isPaidUser: (profileData?.role === 'paid_user' || (profileData as AclProfile)?.is_paid === true || user.app_metadata?.paid === true),
-          isBetaUser: ((profileData as AclProfile)?.beta_user === true || (profileData as AclProfile)?.is_beta === true || user.app_metadata?.beta === true),
-          sourceFields: {
-            profilesRole: profileData?.role || null,
-            profilesBetaUser: (profileData as AclProfile)?.beta_user || null, // from beta_user column
-            profilesIsBeta: (profileData as AclProfile)?.is_beta || null, // from is_beta column
-            profilesIsPaid: (profileData as AclProfile)?.is_paid || null, // from is_paid column
-            appMetadataRole: user.app_metadata?.role || null,
-            appMetadataBeta: user.app_metadata?.beta || null, // from app_metadata.beta
-            appMetadataPaid: user.app_metadata?.paid || null, // from app_metadata.paid
-          }
-        };
+        setProfile(profileData as AclProfile | null);
         
-        setDebugInfo(debug);
-        
-        // Console log for debugging
-        console.log('[ProtectedRoute Debug]', debug);
-        if (import.meta.env.DEV) {
-          console.log('[Gate:Access]', { 
-            uid: user.id,
-            role: profileData?.role,
-            beta_user: (profileData as AclProfile)?.beta_user,
-            is_beta: (profileData as AclProfile)?.is_beta,
-            is_paid: (profileData as AclProfile)?.is_paid,
-            isAdmin: debug.isAdmin,
-            isBetaUser: debug.isBetaUser,
-            allowAccess 
-          });
-        }
-
+        // Centralized access control
+        const allowAccess = hasPatAccess(authUser, profileData as AclProfile);
         setHasAccess(allowAccess);
+
+
         setLoading(false);
       } catch (error) {
         console.error('ProtectedRoute error:', error);
@@ -157,24 +96,19 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
           <p className="text-gray-500 text-sm">Contact your administrator for access or wait for general availability.</p>
           
           {/* Debug Panel - DEV ONLY */}
-          {(import.meta.env.DEV || !hasAccess) && debugInfo && user && profile && (
+          {import.meta.env.DEV && user && profile && (
             <div className="absolute top-4 right-4 bg-gray-900 text-white p-3 rounded-lg text-xs font-mono max-w-xs">
               <div className="text-yellow-400 font-semibold mb-2">DEBUG INFO</div>
               <div className="space-y-1">
-                <div>Email: {debugInfo.userEmail || 'no session'}</div>
-                <div>isAdmin: <span className={debugInfo.isAdmin ? 'text-green-400' : 'text-red-400'}>{debugInfo.isAdmin.toString()}</span></div>
-                <div>isPaidUser: <span className={debugInfo.isPaidUser ? 'text-green-400' : 'text-red-400'}>{debugInfo.isPaidUser.toString()}</span></div>
-                <div>isBetaUser: <span className={debugInfo.isBetaUser ? 'text-green-400' : 'text-red-400'}>{debugInfo.isBetaUser.toString()}</span></div>
-                <div className="border-t border-gray-700 pt-2 mt-2">
-                  <div className="text-gray-400 mb-1">Source Fields:</div>
-                  <div>profiles.role: {debugInfo.sourceFields.profilesRole || 'null'}</div>
-                  <div>profiles.beta_user: <span className={debugInfo.sourceFields.profilesBetaUser === true ? 'text-green-400' : 'text-red-400'}>{debugInfo.sourceFields.profilesBetaUser?.toString() || 'null'}</span></div>
-                  <div>profiles.is_beta: <span className={debugInfo.sourceFields.profilesIsBeta === true ? 'text-green-400' : 'text-red-400'}>{debugInfo.sourceFields.profilesIsBeta?.toString() || 'null'}</span></div>
-                  <div>profiles.is_paid: <span className={debugInfo.sourceFields.profilesIsPaid === true ? 'text-green-400' : 'text-red-400'}>{debugInfo.sourceFields.profilesIsPaid?.toString() || 'null'}</span></div>
-                  <div>app_metadata.role: {debugInfo.sourceFields.appMetadataRole || 'null'}</div>
-                  <div>app_metadata.beta: <span className={debugInfo.sourceFields.appMetadataBeta === true ? 'text-green-400' : 'text-red-400'}>{debugInfo.sourceFields.appMetadataBeta?.toString() || 'null'}</span></div>
-                  <div>app_metadata.paid: <span className={debugInfo.sourceFields.appMetadataPaid === true ? 'text-green-400' : 'text-red-400'}>{debugInfo.sourceFields.appMetadataPaid?.toString() || 'null'}</span></div>
-                </div>
+                <div>email: {user?.email || 'null'}</div>
+                <div>role: {profile?.role || 'null'}</div>
+                <div>beta_user: <span className={profile?.beta_user === true ? 'text-green-400' : 'text-red-400'}>{profile?.beta_user?.toString() || 'null'}</span></div>
+                <div>is_beta: <span className={profile?.is_beta === true ? 'text-green-400' : 'text-red-400'}>{profile?.is_beta?.toString() || 'null'}</span></div>
+                <div>is_paid: <span className={profile?.is_paid === true ? 'text-green-400' : 'text-red-400'}>{profile?.is_paid?.toString() || 'null'}</span></div>
+                <div>appMeta.role: {user?.app_metadata?.role || 'null'}</div>
+                <div>appMeta.beta: <span className={user?.app_metadata?.beta === true ? 'text-green-400' : 'text-red-400'}>{user?.app_metadata?.beta?.toString() || 'null'}</span></div>
+                <div>appMeta.paid: <span className={user?.app_metadata?.paid === true ? 'text-green-400' : 'text-red-400'}>{user?.app_metadata?.paid?.toString() || 'null'}</span></div>
+                <div>allowAccess: <span className={hasAccess ? 'text-green-400' : 'text-red-400'}>{hasAccess.toString()}</span></div>
               </div>
             </div>
           )}

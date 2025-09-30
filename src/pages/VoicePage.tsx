@@ -1,13 +1,13 @@
 import React from 'react';
 import { TalkingPatPage1 } from '../components/TalkingPatPage1';
-import { getSupabase, getUserProfile } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 import { hasPatAccess, type AclProfile } from '../lib/access/acl';
 import { ArrowLeft, Mic } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useRole } from '../hooks/useRole';
 
 
 export default function VoicePage() {
-  const { can } = useRole();
   const navigate = useNavigate();
   const [user, setUser] = React.useState<any | null>(null);
   const [profile, setProfile] = React.useState<AclProfile | null>(null);
@@ -20,12 +20,12 @@ export default function VoicePage() {
       setUser(authUser);
 
       if (authUser) {
-        const { data: userProfile } = await supabase
+        const { data: profileData } = await supabase
           .from('profiles')
-          .select('id, user_id, role, beta_user, is_beta, is_paid')
+          .select('id, role, beta_user, is_beta, is_paid')
           .eq('id', authUser.id)
           .maybeSingle();
-        setProfile(userProfile as AclProfile | null);
+        setProfile(profileData as AclProfile | null);
       }
       setLoading(false);
     };
@@ -41,6 +41,25 @@ export default function VoicePage() {
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
           <p className="text-gray-600 mb-6">Your role doesn't allow access to voice features yet.</p>
+          
+          {/* Debug Panel - DEV ONLY */}
+          {import.meta.env.DEV && user && profile && (
+            <div className="absolute top-4 right-4 bg-gray-900 text-white p-3 rounded-lg text-xs font-mono max-w-xs">
+              <div className="text-yellow-400 font-semibold mb-2">DEBUG INFO</div>
+              <div className="space-y-1">
+                <div>email: {user?.email || 'null'}</div>
+                <div>role: {profile?.role || 'null'}</div>
+                <div>beta_user: <span className={profile?.beta_user === true ? 'text-green-400' : 'text-red-400'}>{profile?.beta_user?.toString() || 'null'}</span></div>
+                <div>is_beta: <span className={profile?.is_beta === true ? 'text-green-400' : 'text-red-400'}>{profile?.is_beta?.toString() || 'null'}</span></div>
+                <div>is_paid: <span className={profile?.is_paid === true ? 'text-green-400' : 'text-red-400'}>{profile?.is_paid?.toString() || 'null'}</span></div>
+                <div>appMeta.role: {user?.app_metadata?.role || 'null'}</div>
+                <div>appMeta.beta: <span className={user?.app_metadata?.beta === true ? 'text-green-400' : 'text-red-400'}>{user?.app_metadata?.beta?.toString() || 'null'}</span></div>
+                <div>appMeta.paid: <span className={user?.app_metadata?.paid === true ? 'text-green-400' : 'text-red-400'}>{user?.app_metadata?.paid?.toString() || 'null'}</span></div>
+                <div>allowAccess: <span className={hasPatAccess(user, profile) ? 'text-green-400' : 'text-red-400'}>{hasPatAccess(user, profile).toString()}</span></div>
+              </div>
+            </div>
+          )}
+          
           <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors mx-auto"
