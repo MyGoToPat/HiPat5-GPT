@@ -61,6 +61,11 @@ export const ChatPat: React.FC = () => {
   const [isLoggingActivity, setIsLoggingActivity] = useState(false);
   const [activeAgentSession, setActiveAgentSession] = useState<AgentSession | null>(null);
   const [silentMode, setSilentMode] = useState(false);
+  
+  // Food verification screen state
+  const [showFoodVerificationScreen, setShowFoodVerificationScreen] = useState(false);
+  const [currentAnalysisResult, setCurrentAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [isAnalyzingFood, setIsAnalyzingFood] = useState(false);
 
   // Load chat state on mount
   useEffect(() => {
@@ -143,6 +148,88 @@ export const ChatPat: React.FC = () => {
     isDictatingRef.current = isDictating;
   }, [isDictating]);
 
+  // Helper function to infer meal slot based on current time
+  const inferMealSlot = (): 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'unknown' => {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 11) return 'breakfast';
+    if (hour >= 11 && hour < 16) return 'lunch';
+    if (hour >= 16 && hour < 22) return 'dinner';
+    return 'snack';
+  };
+
+  // Helper function to extract food phrase from user input
+  const extractFoodPhrase = (input: string): string => {
+    const lowerInput = input.toLowerCase();
+    
+    // Try to extract food after "i ate" or "i had"
+    const ateMatch = lowerInput.match(/i\s+(ate|had)\s+(.+)/);
+    if (ateMatch) {
+      return ateMatch[2].trim();
+    }
+    
+    // Try to extract food after meal timing
+    const mealMatch = lowerInput.match(/for\s+(breakfast|lunch|dinner)\s+(.+)/);
+    if (mealMatch) {
+      return mealMatch[2].trim();
+    }
+    
+    // Fallback to full input
+    return input.trim();
+  };
+
+  // Helper function to detect meal-related text
+  const isMealText = (input: string): boolean => {
+    const lowerInput = input.toLowerCase();
+    const mealTriggers = [
+      'i ate', 'i had', 'ate', 'had',
+      'breakfast', 'lunch', 'dinner', 'snack',
+      'calories in', 'macros for', 'meal'
+    ];
+    
+    return mealTriggers.some(trigger => lowerInput.includes(trigger));
+  };
+
+  // Food verification screen handlers
+  const handleConfirmVerification = async (normalizedMeal: NormalizedMealData) => {
+    try {
+      setIsLoggingActivity(true);
+      const result = await saveMeal(normalizedMeal);
+      
+      if (result.ok) {
+        toast.success('Meal logged successfully!');
+        setShowFoodVerificationScreen(false);
+        setCurrentAnalysisResult(null);
+        
+        // Add confirmation message to chat
+        const confirmationMessage: ChatMessage = {
+          id: Date.now().toString(),
+          text: `Logged: ${normalizedMeal.mealItems.map(item => `${item.name} (${item.grams}g)`).join(', ')} - ${normalizedMeal.mealLog.totals.kcal} calories total`,
+          timestamp: new Date(),
+          isUser: false
+        };
+        setMessages(prev => [...prev, confirmationMessage]);
+      } else {
+        toast.error(result.error || 'Failed to save meal');
+      }
+    } catch (error) {
+      console.error('Error saving meal:', error);
+      toast.error('Failed to save meal');
+    } finally {
+      setIsLoggingActivity(false);
+    }
+  };
+
+  const handleCancelVerification = () => {
+    setShowFoodVerificationScreen(false);
+    setCurrentAnalysisResult(null);
+  };
+
+  const handleEditManually = () => {
+    setShowFoodVerificationScreen(false);
+    setCurrentAnalysisResult(null);
+    // Could add manual food entry logic here
+  };
+
   // Mock user metrics and alerts for mood calculation
   const userMetrics: UserMetrics = {
     workoutStreak: 3,
@@ -184,6 +271,12 @@ export const ChatPat: React.FC = () => {
 
   const handleSendMessage = () => {
     if (inputText.trim()) {
+      // Check for meal-related text before processing chat
+      if (isMealText(inputText)) {
+        handleMealTextInput(inputText);
+        return;
+      }
+      
       setIsSending(true);
       setIsThinking(true);
       
@@ -440,6 +533,80 @@ export const ChatPat: React.FC = () => {
 
         getAIResponse();
       }, 1000);
+    }
+  };
+
+  // Handle meal-related text input
+  const handleMealTextInput = async (input: string) => {
+    try {
+      setIsAnalyzingFood(true);
+      const foodPhrase = extractFoodPhrase(input);
+      
+      // Add user message to chat
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        text: input,
+        timestamp: new Date(),
+        isUser: true
+      };
+      setMessages(prev => [...prev, userMessage]);
+      setInputText('');
+      
+      // Fetch food macros
+      const macroResult = await fetchFoodMacros(foodPhrase);
+      
+      if (macroResult.ok && macroResult.macros) {
+        // Build analysis result for verification screen
+        const analysisResult: AnalysisResult = {
+          source: 'text',
+          meal_slot: inferMealSlot(),
+          items: [{
+            name: foodPhrase,
+            grams: macroResult.macros.grams || 100,
+            macros: {
+              kcal: macroResult.macros.kcal,
+              protein_g: macroResult.macros.protein,
+              carbs_g: macroResult.macros.carbs,
+              fat_g: macroResult.macros.fat
+            },
+            confidence: macroResult.macros.confidence || 0.7
+          }]
+        };
+        
+        setCurrentAnalysisResult(analysisResult);
+        setShowFoodVerificationScreen(true);
+      } else {
+        // Fallback to normal chat if food lookup fails
+        toast.error('Could not find nutrition info for that food');
+        // Continue with normal chat processing
+        setIsSending(true);
+        setIsThinking(true);
+        
+        // Process as normal chat message
+        setTimeout(() => {
+          setIsThinking(false);
+          setIsSpeaking(true);
+          
+          const fallbackResponse: ChatMessage = {
+            id: (Date.now() + 1).toString(),
+            text: "I couldn't find nutrition information for that food. You can try describing it differently or use the camera to take a photo.",
+            timestamp: new Date(),
+            isUser: false
+          };
+          
+          setMessages(prev => [...prev, fallbackResponse]);
+          
+          setTimeout(() => {
+            setIsSpeaking(false);
+            setIsSending(false);
+          }, 2000);
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('Error processing meal text:', error);
+      toast.error('Error processing food information');
+    } finally {
+      setIsAnalyzingFood(false);
     }
   };
 
@@ -880,7 +1047,7 @@ export const ChatPat: React.FC = () => {
     );
   }
 
-  // Show Food Verification Screen if active
+  // Show Food Verification Screen if active  
   if (showFoodVerificationScreen && currentAnalysisResult) {
     return (
       <FoodVerificationScreen
