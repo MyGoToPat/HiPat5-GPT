@@ -26,7 +26,7 @@ export function useRole() {
         try {
           const { data, error } = await supabase
             .from('profiles') // Fetch all relevant fields for AclProfile
-            .select('role, beta_user, is_beta, is_paid')
+            .select('role, beta_user')
             .eq('user_id', user.id)
             .maybeSingle();
 

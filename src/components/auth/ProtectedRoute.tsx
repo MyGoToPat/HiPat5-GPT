@@ -48,7 +48,7 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
         // Fetch profile with correct key and minimal fields
         const { data: profileData, error } = await supabase
           .from('profiles')
-          .select('id, role, beta_user, is_beta, is_paid')
+          .select('id, role, beta_user')
           .eq('id', authUser.id)
           .maybeSingle();
 
