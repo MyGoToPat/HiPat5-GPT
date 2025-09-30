@@ -61,12 +61,14 @@ export interface AnalysedFoodItemWithCandidates {
   };
   confidence?: number;
   source_hints?: any;
+  originalText?: string; // Track original parsed text for debugging
 }
 
 export interface AnalysisResult {
   items: AnalysedFoodItemWithCandidates[];
   meal_slot?: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'unknown';
   source: 'photo' | 'barcode' | 'text';
+  originalInput?: string; // Track original user input
 }
 
 export interface NormalizedMealItem {

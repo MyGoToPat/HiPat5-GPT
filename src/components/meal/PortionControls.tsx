@@ -36,25 +36,38 @@ export const PortionControls: React.FC<PortionControlsProps> = ({
   const [currentGrams, setCurrentGrams] = useState(initialGrams || baseServingGrams);
   const [customGrams, setCustomGrams] = useState(currentGrams.toString());
 
+  // Ensure all macro values are numbers and default to 0 if invalid
+  const safeMacros = {
+    kcal: Number(baseServingMacros.kcal) || 0,
+    protein_g: Number(baseServingMacros.protein_g) || 0,
+    carbs_g: Number(baseServingMacros.carbs_g) || 0,
+    fat_g: Number(baseServingMacros.fat_g) || 0,
+  };
+
+  const safeBaseGrams = Number(baseServingGrams) || 100;
+
   const calculateMacros = (grams: number) => {
-    const ratio = grams / baseServingGrams;
+    const safeGrams = Number(grams) || 0;
+    const ratio = safeGrams / safeBaseGrams;
+    
     return {
-      kcal: Math.round(baseServingMacros.kcal * ratio),
-      protein_g: Math.round(baseServingMacros.protein_g * ratio * 10) / 10,
-      carbs_g: Math.round(baseServingMacros.carbs_g * ratio * 10) / 10,
-      fat_g: Math.round(baseServingMacros.fat_g * ratio * 10) / 10,
+      kcal: Math.round((safeMacros.kcal * ratio) * 10) / 10,
+      protein_g: Math.round((safeMacros.protein_g * ratio) * 10) / 10,
+      carbs_g: Math.round((safeMacros.carbs_g * ratio) * 10) / 10,
+      fat_g: Math.round((safeMacros.fat_g * ratio) * 10) / 10,
     };
   };
 
   const updatePortion = (grams: number) => {
-    setCurrentGrams(grams);
-    setCustomGrams(grams.toString());
-    const macros = calculateMacros(grams);
-    onPortionChange({ grams, macros });
+    const safeGrams = Number(grams) || 0;
+    setCurrentGrams(safeGrams);
+    setCustomGrams(safeGrams.toString());
+    const macros = calculateMacros(safeGrams);
+    onPortionChange({ grams: safeGrams, macros });
   };
 
   const handlePresetClick = (multiplier: number) => {
-    const newGrams = Math.round(baseServingGrams * multiplier);
+    const newGrams = Math.round(safeBaseGrams * multiplier);
     updatePortion(newGrams);
   };
 
@@ -72,8 +85,9 @@ export const PortionControls: React.FC<PortionControlsProps> = ({
 
   // Initialize on mount
   useEffect(() => {
-    const macros = calculateMacros(currentGrams);
-    onPortionChange({ grams: currentGrams, macros });
+    const initialValue = Number(initialGrams) || safeBaseGrams;
+    const macros = calculateMacros(initialValue);
+    onPortionChange({ grams: initialValue, macros });
   }, []);
 
   return (
@@ -81,7 +95,7 @@ export const PortionControls: React.FC<PortionControlsProps> = ({
       {/* Preset Buttons */}
       <div className="flex gap-2 flex-wrap">
         {presets.map((preset) => {
-          const presetGrams = Math.round(baseServingGrams * preset.multiplier);
+          const presetGrams = Math.round(safeBaseGrams * preset.multiplier);
           const isSelected = Math.abs(currentGrams - presetGrams) < 1;
           
           return (
