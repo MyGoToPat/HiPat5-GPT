@@ -36,7 +36,23 @@ export default function VoicePage() {
     fetchAuthData();
   }, []);
 
-  if (loading || !user || !profile || !hasPatAccess(user, profile)) {
+  // Show loading state while fetching user data
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Mic size={24} className="text-blue-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading...</h2>
+          <p className="text-gray-600">Checking your access permissions</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check access after loading completes
+  if (!user || !profile || !hasPatAccess(user, profile)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
@@ -45,7 +61,7 @@ export default function VoicePage() {
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
           <p className="text-gray-600 mb-6">Your role doesn't allow access to voice features yet.</p>
-          
+
           {/* Debug Panel - DEV ONLY */}
           {import.meta.env.DEV && user && profile && (
             <div className="absolute top-4 right-4 bg-gray-900 text-white p-3 rounded-lg text-xs font-mono max-w-xs">
@@ -61,7 +77,7 @@ export default function VoicePage() {
               </div>
             </div>
           )}
-          
+
           <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors mx-auto"
