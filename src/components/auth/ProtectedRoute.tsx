@@ -54,9 +54,11 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
         // Check user's role and beta status
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('role, beta_user')
-          .eq('user_id', user.id)
+          .select('id, user_id, role, beta_user')
+          .eq('id', user.id)
           .maybeSingle();
+
+        console.log('[Gate:ProfileRow]', profile);
 
         if (!alive) return;
 
