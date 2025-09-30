@@ -43,12 +43,12 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
 
         // Access control logic:
         // 1. Admin users have full access
-        // 2. Paid users with beta_user = true have access
+        // 2. Beta users have access during testing
         // 3. Everyone else is blocked
         const isAdmin = profile?.role === 'admin';
-        const isPaidBetaUser = profile?.role === 'paid_user' && profile?.beta_user === true;
+        const isBetaUser = profile?.beta_user === true;
         
-        const allowAccess = isAdmin || isPaidBetaUser;
+        const allowAccess = isAdmin || isBetaUser;
 
         if (import.meta.env.DEV) {
           console.log('[Gate:Access]', { 
@@ -56,7 +56,7 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
             role: profile?.role, 
             beta_user: profile?.beta_user,
             isAdmin,
-            isPaidBetaUser,
+            isBetaUser,
             allowAccess 
           });
         }
