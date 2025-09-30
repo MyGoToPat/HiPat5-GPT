@@ -52,7 +52,9 @@ const EditUserModal = ({
     setEditingUser(prev => ({
       ...prev,
       role: nextRole,
-      beta_user: BETA_ALLOWED.includes(nextRole) ? prev.beta_user : false,
+      // Auto-enable beta for paid users to prevent access issues
+      beta_user: nextRole === 'paid_user' ? true :
+                 BETA_ALLOWED.includes(nextRole) ? prev.beta_user : false,
     }));
   };
 
@@ -104,7 +106,22 @@ const EditUserModal = ({
               ))}
             </select>
           </div>
-          
+
+          {/* Warning for misconfigured paid users */}
+          {editingUser.role === 'paid_user' && !editingUser.beta_user && (
+            <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle size={16} className="text-yellow-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-yellow-800">Beta Access Required</p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Paid users need Beta access enabled to use chat features. The checkbox below will be automatically checked.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Beta User Toggle */}
           <div>
             <label className="flex items-center gap-3 cursor-pointer">
