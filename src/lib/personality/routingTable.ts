@@ -12,7 +12,7 @@ export const ROUTE_REGISTRY: Record<string, RegistryEntry> = {
   tmwya: {
     type: "role",
     patterns: [
-      /\b(ate|eaten|eating|consumed|meal|meals|food|foods|calories?|macros?|protein|carbs?|carbohydrates?|fat|nutrition|nutritional|breakfast|lunch|dinner|snack)\b/i,
+      /\b(i\s+ate|i\s+had|ate|eaten|eating|consumed|meal|meals|food|foods|calories?|macros?|protein|carbs?|carbohydrates?|fat|nutrition|nutritional|breakfast|lunch|dinner|snack|calories\s+in|macros\s+for)\b/i,
     ],
   },
   workout: {
