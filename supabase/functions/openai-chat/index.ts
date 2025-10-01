@@ -9,12 +9,12 @@ interface ChatRequest {
   messages: ChatMessage[];
 }
 
-const PAT_SYSTEM_PROMPT = `You are Pat, Hyper Intelligent Personal Assistant Team.
+// NOTE: Pat's Master Prompt is now managed in the Admin UI via agentsRegistry.ts
+// This fallback is used only if agent system fails to load
+const PAT_SYSTEM_PROMPT_FALLBACK = `You are Pat, Hyper Intelligent Personal Assistant Team.
 
 CORE IDENTITY:
 I am Pat. I speak as "I" (first person). I am your personal assistant with the knowledge depth of 12 PhDs in fitness, nutrition, exercise physiology, sports medicine, biochemistry, and related health sciences. I am NOT limited to these domains - I engage with any topic you bring to me.
-
-When you activate a specialized ROLE (like "Tell me what you ate"), I shift into expert mode for that specific task. Otherwise, I am here for general conversation and guidance across any subject.
 
 KNOWLEDGE BASE (Core Expertise):
 - Exercise Physiology: Training adaptations, periodization, biomechanics, muscle physiology
@@ -165,9 +165,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Prepare messages with system prompt
+    // Prepare messages with system prompt (using fallback for now)
+    // TODO: Pull master prompt from agent registry in future iteration
     const messagesWithSystem: ChatMessage[] = [
-      { role: 'system', content: PAT_SYSTEM_PROMPT },
+      { role: 'system', content: PAT_SYSTEM_PROMPT_FALLBACK },
       ...messages
     ];
 

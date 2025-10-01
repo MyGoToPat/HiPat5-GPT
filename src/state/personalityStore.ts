@@ -10,12 +10,14 @@ type PersonalityState = {
 
 const KEY = "hipat.personality.v1";
 
+const CURRENT_VERSION = 4; // Increment when agents change to force reload
+
 const defaultState: PersonalityState = {
   agents: { ...defaultPersonalityAgents },
   swarm: Object.keys(defaultPersonalityAgents).sort(
     (a, b) => (defaultPersonalityAgents[a].order ?? 0) - (defaultPersonalityAgents[b].order ?? 0)
   ),
-  version: 3,
+  version: CURRENT_VERSION,
   useRouterV1: true, // Default on; can be disabled programmatically
 };
 
@@ -25,6 +27,14 @@ function load(): PersonalityState {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const loaded = JSON.parse(raw);
+
+      // Check version - if outdated, reset to defaults
+      if (!loaded.version || loaded.version < CURRENT_VERSION) {
+        console.log(`[PersonalityStore] Version mismatch (${loaded.version} < ${CURRENT_VERSION}). Resetting to defaults.`);
+        localStorage.removeItem(KEY);
+        return defaultState;
+      }
+
       // Auto-enable router for Admin/Beta roles
       if (typeof window !== 'undefined') {
         const userRole = localStorage.getItem('hipat_user_role') || 'free_user';
