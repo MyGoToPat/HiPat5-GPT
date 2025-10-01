@@ -379,6 +379,15 @@ export const ChatPat: React.FC = () => {
                     ? `${contextMessage}\n\nUser message: ${newMessage.text}`
                     : newMessage.text;
 
+                  // Extract first name from display_name or name
+                  const firstName = userProfile.display_name ||
+                    (userProfile.name ? userProfile.name.split(' ')[0] : 'there');
+
+                  // Calculate TDEE age in days
+                  const tdeeAge = userProfile.last_tdee_update
+                    ? Math.floor((Date.now() - new Date(userProfile.last_tdee_update).getTime()) / (1000 * 60 * 60 * 24))
+                    : null;
+
                   const pipelineResult = await runPersonalityPipeline({
                     userMessage: userMessageWithContext,
                     context: {
@@ -388,6 +397,14 @@ export const ChatPat: React.FC = () => {
                         trial_ends: (userProfile as any).trial_ends || null,
                         role: userProfile.role || 'free_user'
                       },
+                      // User-specific context for natural conversation
+                      firstName: firstName,
+                      fullName: userProfile.name || 'User',
+                      chatCount: userProfile.chat_count || 0,
+                      isFirstTimeChat: !userProfile.chat_count || userProfile.chat_count === 0,
+                      hasTDEE: userProfile.has_completed_tdee || false,
+                      tdeeAge: tdeeAge,
+                      lastTDEEUpdate: userProfile.last_tdee_update || null,
                       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                       today: new Date().toISOString().slice(0, 10),
                       audience: 'beginner',
