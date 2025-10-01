@@ -29,10 +29,10 @@ const activityLevelLabels = {
 };
 
 const dietaryPreferenceLabels = {
-  carnivore_keto: 'Carnivore/Keto',
-  ketovore: 'Ketovore',
-  low_carb: 'Low Carb',
-  balanced_omnivore: 'Balanced Omnivore'
+  carnivore_keto: 'Carnivore/Keto (70-80% fat)',
+  ketovore: 'Ketovore (60-70% fat)',
+  low_carb: 'Low Carb (30-40% fat)',
+  balanced_omnivore: 'Balanced Omnivore (25-30% fat)'
 };
 
 export const TDEEMetricsSection: React.FC = () => {

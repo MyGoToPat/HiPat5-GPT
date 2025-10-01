@@ -8,8 +8,7 @@ import toast from 'react-hot-toast';
 
 export const StepCompletion: React.FC = () => {
   const navigate = useNavigate();
-  const { calculatedMacros, setStepValidity, currentStep } = useOnboarding();
-  const [countdown, setCountdown] = React.useState(5);
+  const { calculatedMacros, userData, setStepValidity, currentStep } = useOnboarding();
   const [isSaving, setIsSaving] = React.useState(true);
 
   useEffect(() => {
@@ -56,6 +55,7 @@ export const StepCompletion: React.FC = () => {
           console.error('Failed to save macros:', error);
           toast.error('Failed to save your plan');
         } else {
+          toast.success('Your plan has been saved!');
           // Track completion
           trackTDEEWizardCompleted(
             user.id,
@@ -65,30 +65,14 @@ export const StepCompletion: React.FC = () => {
         }
       } catch (error) {
         console.error('Error saving macros:', error);
+        toast.error('Error saving your plan');
       } finally {
         setIsSaving(false);
       }
     };
 
     saveMacros();
-  }, [calculatedMacros]);
-
-  useEffect(() => {
-    if (isSaving) return;
-
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          navigate('/dashboard');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isSaving, navigate]);
+  }, [calculatedMacros, userData]);
 
   const handleViewDashboard = () => {
     navigate('/dashboard');
@@ -162,7 +146,7 @@ export const StepCompletion: React.FC = () => {
       <button
         onClick={handleViewDashboard}
         disabled={isSaving}
-        className="w-full px-6 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-lg transition-colors shadow-lg hover:shadow-xl"
+        className="w-full px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-lg transition-colors shadow-lg hover:shadow-xl"
       >
         {isSaving ? (
           <span className="flex items-center justify-center gap-2">
@@ -170,19 +154,16 @@ export const StepCompletion: React.FC = () => {
             Saving Your Plan...
           </span>
         ) : (
-          'View My Dashboard'
+          <>
+            <CheckCircle size={20} className="inline mr-2" />
+            Save & Go to Dashboard
+          </>
         )}
       </button>
 
-      {!isSaving && countdown > 0 && (
+      {!isSaving && (
         <p className="text-sm text-gray-500 mt-4">
-          Redirecting automatically in {countdown}s...
-        </p>
-      )}
-
-      {!isSaving && countdown === 0 && (
-        <p className="text-sm text-green-600 mt-4 font-medium">
-          Redirecting now...
+          Your plan has been saved. Click the button above when you're ready.
         </p>
       )}
     </div>
