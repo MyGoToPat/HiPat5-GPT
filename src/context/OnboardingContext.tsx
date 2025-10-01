@@ -55,7 +55,23 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
   const [userData, setUserData] = useState<UserData>({});
   const [calculatedMacros, setCalculatedMacros] = useState<CalculatedMacros>({});
   const [stepValidity, setStepValidityState] = useState<Map<number, boolean>>(new Map());
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false); // Mock for now
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+
+  // Check authentication status on mount
+  React.useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { getSupabase } = await import('../lib/supabase');
+        const supabase = getSupabase();
+        const { data: { user } } = await supabase.auth.getUser();
+        setIsLoggedIn(!!user);
+      } catch (error) {
+        console.error('Failed to check auth status:', error);
+        setIsLoggedIn(false);
+      }
+    };
+    checkAuth();
+  }, []);
 
   const updateUserData = useCallback((key: keyof UserData, value: any) => {
     setUserData(prevData => {

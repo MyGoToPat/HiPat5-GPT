@@ -81,7 +81,18 @@ export const StepEmailPrompt: React.FC = () => {
     }
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    // For logged-in users, save macros before finishing
+    if (isLoggedIn) {
+      setIsSubmitting(true);
+      try {
+        await handleSaveToProfile();
+      } catch (error) {
+        console.error('Failed to save on finish:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
     setIsComplete(true);
   };
 
@@ -203,9 +214,10 @@ export const StepEmailPrompt: React.FC = () => {
 
         <button
           onClick={handleFinish}
-          className="w-full px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors"
+          disabled={isSubmitting}
+          className="w-full px-6 py-3 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-300 disabled:cursor-not-allowed text-gray-700 rounded-lg font-medium transition-colors"
         >
-          Finish
+          {isSubmitting ? 'Saving...' : 'Finish'}
         </button>
       </div>
 
