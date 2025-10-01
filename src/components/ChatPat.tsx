@@ -345,19 +345,42 @@ export const ChatPat: React.FC = () => {
               content: msg.text
             }));
             
+            // Check user context for Pat's awareness (TDEE, first-time user, etc.)
+            let contextMessage = '';
+            try {
+              const user = await getSupabase().auth.getUser();
+              if (user.data.user) {
+                const { getUserContextFlags, buildContextMessage, updateUserChatContext } = await import('../lib/personality/contextChecker');
+                const contextFlags = await getUserContextFlags(user.data.user.id);
+                contextMessage = buildContextMessage(contextFlags);
+
+                // Update chat count in background (non-blocking)
+                updateUserChatContext(user.data.user.id).catch(err =>
+                  console.warn('Failed to update chat context:', err)
+                );
+              }
+            } catch (ctxError) {
+              console.warn('Context check failed, continuing without context:', ctxError);
+            }
+
             // Use new personality pipeline if available
             try {
               const { runPersonalityPipeline } = await import('../lib/personality/orchestrator');
               const user = await getSupabase().auth.getUser();
-              
+
               if (user.data.user) {
                 // Get user profile for permission checks
                 const { getUserProfile } = await import('../lib/supabase');
                 const userProfile = await getUserProfile(user.data.user.id);
-                
+
                 if (userProfile) {
+                  // Inject context message into the pipeline
+                  const userMessageWithContext = contextMessage
+                    ? `${contextMessage}\n\nUser message: ${newMessage.text}`
+                    : newMessage.text;
+
                   const pipelineResult = await runPersonalityPipeline({
-                    userMessage: newMessage.text,
+                    userMessage: userMessageWithContext,
                     context: {
                       userId: user.data.user.id,
                       userProfile: {
@@ -440,7 +463,17 @@ export const ChatPat: React.FC = () => {
             }
             
             // Fallback to existing chat logic
-            const payload = conversationHistory.slice(-10);
+            // Inject context into the last user message if we have it
+            let payload = conversationHistory.slice(-10);
+            if (contextMessage && payload.length > 0) {
+              const lastIdx = payload.length - 1;
+              if (payload[lastIdx].role === 'user') {
+                payload[lastIdx] = {
+                  ...payload[lastIdx],
+                  content: `${contextMessage}\n\nUser message: ${payload[lastIdx].content}`
+                };
+              }
+            }
             console.log("[chat:req]", { messages: payload });
             const reply = await callChat(payload);
             console.log("[chat:res]", reply);

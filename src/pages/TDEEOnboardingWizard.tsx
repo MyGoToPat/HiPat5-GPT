@@ -19,14 +19,43 @@ interface TDEEOnboardingWizardProps {
   onComplete?: () => void;
 }
 const TDEEOnboardingWizardContent: React.FC<{ onComplete?: () => void }> = ({ onComplete }) => {
-  const { currentStep } = useOnboarding();
+  const { currentStep, calculatedMacros } = useOnboarding();
 
-  // Handle wizard completion
+  // Handle wizard completion and mark TDEE as completed in database
   useEffect(() => {
     if (currentStep > 11 && onComplete) {
+      // Mark TDEE as completed in the database
+      (async () => {
+        try {
+          const { getSupabase } = await import('../lib/supabase');
+          const { markTDEECompleted } = await import('../lib/personality/contextChecker');
+
+          const supabase = getSupabase();
+          const { data: { user } } = await supabase.auth.getUser();
+
+          if (user && calculatedMacros.tdee && calculatedMacros.chosenBmr) {
+            await markTDEECompleted(user.id, {
+              tdee: calculatedMacros.tdee,
+              bmr: calculatedMacros.chosenBmr,
+              macros: {
+                protein: calculatedMacros.proteinG || 0,
+                carbs: calculatedMacros.carbG || 0,
+                fat: calculatedMacros.fatG || 0,
+                calories: calculatedMacros.netCal || calculatedMacros.tdee
+              },
+              calculated_at: new Date().toISOString()
+            });
+            console.log('TDEE marked as completed in database');
+          }
+        } catch (error) {
+          console.error('Failed to mark TDEE completed:', error);
+          // Don't block wizard completion if this fails
+        }
+      })();
+
       onComplete();
     }
-  }, [currentStep, onComplete]);
+  }, [currentStep, onComplete, calculatedMacros]);
   const renderStep = () => {
     switch (currentStep) {
       case 0:
