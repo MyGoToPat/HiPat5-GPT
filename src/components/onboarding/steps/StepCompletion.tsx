@@ -28,16 +28,25 @@ export const StepCompletion: React.FC = () => {
           return;
         }
 
-        // Save calculated macros to user_metrics table
+        // Save calculated macros AND personal data to user_metrics table
         const { error } = await supabase
           .from('user_metrics')
           .upsert({
             user_id: user.id,
+            // Calculated values
             bmr: calculatedMacros.chosenBmr,
             tdee: calculatedMacros.tdee,
             protein_g: calculatedMacros.proteinG,
             carbs_g: calculatedMacros.carbG,
             fat_g: calculatedMacros.fatG,
+            // Personal data from onboarding
+            age: userData.age,
+            gender: userData.gender,
+            height_cm: userData.height?.value,
+            weight_kg: userData.weight?.value,
+            body_fat_percent: userData.bodyFatPercent,
+            activity_level: userData.activityLevel,
+            dietary_preference: userData.dietaryPreference,
             updated_at: new Date().toISOString()
           }, {
             onConflict: 'user_id'

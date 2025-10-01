@@ -51,11 +51,20 @@ export const StepEmailPrompt: React.FC = () => {
         .from('user_metrics')
         .upsert({
           user_id: user.data.user.id,
+          // Calculated values
           bmr: calculatedMacros.chosenBmr,
           tdee: calculatedMacros.tdee,
           protein_g: calculatedMacros.proteinG,
           carbs_g: calculatedMacros.carbG,
           fat_g: calculatedMacros.fatG,
+          // Personal data from onboarding
+          age: userData.age,
+          gender: userData.gender,
+          height_cm: userData.height?.value,
+          weight_kg: userData.weight?.value,
+          body_fat_percent: userData.bodyFatPercent,
+          activity_level: userData.activityLevel,
+          dietary_preference: userData.dietaryPreference,
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'user_id'

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { PatAvatar } from './PatAvatar';
-import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, Edit3, Save, X, Camera, Globe, Moon, Sun, Smartphone, Trophy, Target, MessageSquare, Award, TrendingUp, Activity, Clock, CheckCircle, Volume2, Flame } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Settings, Bell, Shield, CreditCard, BarChart3, CreditCard as Edit3, Save, X, Camera, Globe, Moon, Sun, Smartphone, Trophy, Target, MessageSquare, Award, TrendingUp, Activity, Clock, CheckCircle, Volume2, Flame } from 'lucide-react';
 import { AchievementBadges } from './profile/AchievementBadges';
 import { ProgressVisualizations } from './profile/ProgressVisualizations';
 import { AIInsights } from './profile/AIInsights';
 import { CustomizableHeader } from './profile/CustomizableHeader';
+import { TDEEMetricsSection } from './profile/TDEEMetricsSection';
 import { getSupabase, getUserProfile, upsertUserProfile } from '../lib/supabase';
 import { getDashboardMetrics } from '../lib/supabase';
 import RequestRoleUpgrade from './settings/RequestRoleUpgrade';
@@ -314,6 +315,8 @@ export const ProfilePage: React.FC = () => {
       {/* Achievement Badges */}
       <AchievementBadges achievements={[]} />
 
+      {/* TDEE & Nutrition Metrics */}
+      <TDEEMetricsSection />
 
       {/* Contact Support */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
