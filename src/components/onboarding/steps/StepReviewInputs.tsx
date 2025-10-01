@@ -1,6 +1,6 @@
 import React from 'react';
 import { useOnboarding } from '../../../context/OnboardingContext';
-import { CheckCircle, Edit3 } from 'lucide-react';
+import { CheckCircle, CreditCard as Edit3 } from 'lucide-react';
 
 export const StepReviewInputs: React.FC = () => {
   const { userData, goToStep, setStepValidity, currentStep } = useOnboarding();
@@ -59,11 +59,17 @@ export const StepReviewInputs: React.FC = () => {
     },
     {
       label: 'Date of Birth',
-      value: userData.dateOfBirth ? new Date(userData.dateOfBirth).toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      }) + ` (${userData.age} years old)` : 'Not provided',
+      value: userData.dateOfBirth ? (() => {
+        // Parse ISO date string directly to avoid timezone issues
+        const [year, month, day] = userData.dateOfBirth.split('-').map(Number);
+        const utcDate = new Date(Date.UTC(year, month - 1, day));
+        return utcDate.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          timeZone: 'UTC'
+        }) + ` (${userData.age} years old)`;
+      })() : 'Not provided',
       editStep: 3
     },
     {

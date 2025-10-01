@@ -73,30 +73,6 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
           if (profile?.name) {
             setUserData(prev => ({ ...prev, firstName: profile.name }));
           }
-
-          // Load existing TDEE data from user_metrics
-          const { data: metrics, error } = await supabase
-            .from('user_metrics')
-            .select('*')
-            .eq('user_id', user.id)
-            .maybeSingle();
-
-          if (!error && metrics) {
-            // Pre-populate all TDEE fields if they exist
-            const updates: Partial<UserData> = {};
-
-            if (metrics.gender) updates.gender = metrics.gender as 'male' | 'female';
-            if (metrics.age) updates.age = metrics.age;
-            if (metrics.height_cm) updates.height = { value: metrics.height_cm, unit: 'cm' };
-            if (metrics.weight_kg) updates.weight = { value: metrics.weight_kg, unit: 'kg' };
-            if (metrics.body_fat_percent) updates.bodyFatPercent = metrics.body_fat_percent;
-            if (metrics.activity_level) updates.activityLevel = metrics.activity_level;
-            if (metrics.dietary_preference) updates.dietaryPreference = metrics.dietary_preference;
-
-            if (Object.keys(updates).length > 0) {
-              setUserData(prev => ({ ...prev, ...updates }));
-            }
-          }
         } else {
           setIsLoggedIn(false);
         }

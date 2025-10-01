@@ -8,11 +8,13 @@ export const StepAge: React.FC = () => {
   // Initialize with default date July 1, 1999 or existing data
   const getInitialDate = () => {
     if (userData.dateOfBirth) {
-      const date = new Date(userData.dateOfBirth);
+      // Parse ISO date string directly to avoid timezone issues
+      // Format is "YYYY-MM-DD"
+      const [year, month, day] = userData.dateOfBirth.split('-').map(Number);
       return {
-        month: date.getMonth() + 1,
-        day: date.getDate(),
-        year: date.getFullYear()
+        month: month,
+        day: day,
+        year: year
       };
     }
     return { month: 7, day: 1, year: 1999 }; // Default to July 1, 1999
