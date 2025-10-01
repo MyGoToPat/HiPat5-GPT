@@ -1,5 +1,5 @@
 export const stepPrompts: { [key: number]: string } = {
-  0: "Hi, I'm Pat, let's build YOUR macro plan.",
+  0: "Hi [FirstName], I'm Pat. Let's build YOUR macro plan.",
   1: "What's your first name?",
   2: "Okay, [FirstName], first, what's your biological sex?",
   3: "Thanks, [FirstName]. When were you born?",

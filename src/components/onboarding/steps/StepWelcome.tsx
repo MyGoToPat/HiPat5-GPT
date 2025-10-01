@@ -10,15 +10,8 @@ export const StepWelcome: React.FC = () => {
     setStepValidity(currentStep, true);
   }, [setStepValidity, currentStep]);
 
-  // Create personalized greeting
-  const greeting = userData.firstName && isLoggedIn
-    ? `Hi ${userData.firstName}, I'm Pat. Let's build YOUR macro plan.`
-    : "Hi, I'm Pat. Let's build YOUR macro plan.";
-
   return (
     <div className="text-center">
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">{greeting}</h2>
-
       <div className="grid grid-cols-3 gap-4 mb-8">
         <div className="text-center p-3 bg-pat-purple-50 rounded-lg">
           <Zap size={24} className="text-pat-purple-600 mx-auto mb-2" />

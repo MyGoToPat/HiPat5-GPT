@@ -67,8 +67,34 @@ export async function checkAndAwardAchievements(user_id: string) {
   return data || 0;
 }
 
+// Profile management
+export async function upsertUserProfile(user_id: string, profileData: {
+  name?: string;
+  email?: string;
+  phone?: string | null;
+  location?: string | null;
+  dob?: string | null;
+  bio?: string | null;
+}) {
+  if (!user_id) throw new Error('upsertUserProfile: missing user_id');
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert({
+      user_id,
+      ...profileData,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'user_id'
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 // ---- BEGIN AUTO-STUBS (do not edit below; regenerated) ----
-export const upsertUserProfile = (..._args: any[]): any => { console.warn('[supabase legacy stub] upsertUserProfile called'); return undefined as any; };
 export const requestRoleUpgrade = (..._args: any[]): any => { console.warn('[supabase legacy stub] requestRoleUpgrade called'); return undefined as any; };
 export const approveUpgradeRequest = (..._args: any[]): any => { console.warn('[supabase legacy stub] approveUpgradeRequest called'); return undefined as any; };
 export const denyUpgradeRequest = (..._args: any[]): any => { console.warn('[supabase legacy stub] denyUpgradeRequest called'); return undefined as any; };
