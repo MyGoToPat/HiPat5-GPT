@@ -7,6 +7,7 @@ interface ChatMessage {
 
 interface ChatRequest {
   messages: ChatMessage[];
+  stream?: boolean;
 }
 
 // NOTE: Pat's Master Prompt is now managed in the Admin UI via agentsRegistry.ts
@@ -141,7 +142,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { messages }: ChatRequest = await req.json();
+    const { messages, stream = false }: ChatRequest = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(
@@ -172,7 +173,102 @@ Deno.serve(async (req: Request) => {
       ...messages
     ];
 
-    // Call OpenAI API
+    // If streaming is requested, use SSE
+    if (stream) {
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: messagesWithSystem,
+          max_tokens: 700,
+          temperature: 0.3,
+          stream: true,
+        }),
+      });
+
+      if (!openaiResponse.ok) {
+        const errorData = await openaiResponse.text();
+        console.error('OpenAI API error:', errorData);
+
+        return new Response(
+          JSON.stringify({ error: 'Failed to start stream' }),
+          {
+            status: openaiResponse.status,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      // Create readable stream for SSE
+      const reader = openaiResponse.body?.getReader();
+      const decoder = new TextDecoder();
+
+      const stream = new ReadableStream({
+        async start(controller) {
+          if (!reader) {
+            controller.close();
+            return;
+          }
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+
+              if (done) {
+                // Send done event
+                controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+                controller.close();
+                break;
+              }
+
+              const chunk = decoder.decode(value);
+              const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = line.substring(6);
+
+                  if (data === '[DONE]') {
+                    controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+                    continue;
+                  }
+
+                  try {
+                    const parsed = JSON.parse(data);
+                    const content = parsed.choices?.[0]?.delta?.content;
+
+                    if (content) {
+                      // Forward the token in SSE format
+                      controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ token: content })}\n\n`));
+                    }
+                  } catch (e) {
+                    console.warn('Failed to parse streaming chunk:', e);
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Streaming error:', error);
+            controller.error(error);
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    }
+
+    // Non-streaming mode (original behavior)
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -190,7 +286,7 @@ Deno.serve(async (req: Request) => {
     if (!openaiResponse.ok) {
       const errorData = await openaiResponse.text();
       console.error('OpenAI API error:', errorData);
-      
+
       if (openaiResponse.status === 429) {
         return new Response(
           JSON.stringify({ error: 'I\'m a bit busy right now. Please try again in a moment.' }),
@@ -200,7 +296,7 @@ Deno.serve(async (req: Request) => {
           }
         );
       }
-      
+
       return new Response(
         JSON.stringify({ error: 'I\'m having trouble connecting right now. Please try again later.' }),
         {
@@ -232,9 +328,9 @@ Deno.serve(async (req: Request) => {
     });
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         message: assistantMessage,
-        usage: openaiData.usage 
+        usage: openaiData.usage
       }),
       {
         status: 200,

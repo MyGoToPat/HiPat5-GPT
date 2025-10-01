@@ -17,6 +17,7 @@ import { ChatManager } from '../utils/chatManager';
 import { ChatHistory, ChatMessage, ChatState } from '../types/chat';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { callChat } from '../lib/chat';
+import { callChatStreaming } from '../lib/streamingChat';
 import { trackFirstChatMessage } from '../lib/analytics';
 import { updateDailyActivitySummary, checkAndAwardAchievements } from '../lib/supabase';
 import { 
@@ -479,7 +480,7 @@ export const ChatPat: React.FC = () => {
               console.warn('New personality pipeline not available, falling back to direct chat:', importError);
             }
             
-            // Fallback to existing chat logic
+            // Fallback to existing chat logic with streaming
             // Inject context into the last user message if we have it
             let payload = conversationHistory.slice(-10);
             if (contextMessage && payload.length > 0) {
@@ -492,39 +493,69 @@ export const ChatPat: React.FC = () => {
               }
             }
             console.log("[chat:req]", { messages: payload });
-            const reply = await callChat(payload);
-            console.log("[chat:res]", reply);
 
-            if (!reply.ok) {
-              const errorMsg = reply.error || 'Chat failed';
-              console.error('callChat error:', errorMsg);
-              
-              // Show friendly message for 429 errors
-              if (errorMsg.includes('429')) {
-                toast.error("Pat is busy right now. Please try again later.");
-              } else {
-                toast.error(errorMsg);
-              }
-              
-              setIsSending(false);
-              setIsThinking(false);
-              setIsSpeaking(false);
-              return;
-            }
-            
-            const responseText = reply.content || "I'm here to help! How can I assist you today?";
-            
+            // Create an empty message for streaming
+            const streamingMessageId = (Date.now() + 1).toString();
+            let streamingText = '';
+
             const patResponse: ChatMessage = {
-              id: (Date.now() + 1).toString(),
-              text: responseText,
+              id: streamingMessageId,
+              text: '',
               timestamp: new Date(),
               isUser: false
             };
-            
+
+            // Add empty message first
             setMessages(prev => [...prev, patResponse]);
-            
+
+            // Use streaming for real-time typing effect
+            await callChatStreaming({
+              messages: payload,
+              onToken: (token: string) => {
+                streamingText += token;
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === streamingMessageId
+                      ? { ...msg, text: streamingText }
+                      : msg
+                  )
+                );
+              },
+              onComplete: (fullText: string) => {
+                console.log("[chat:res] Streaming complete");
+                streamingText = fullText;
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === streamingMessageId
+                      ? { ...msg, text: fullText }
+                      : msg
+                  )
+                );
+                setIsSending(false);
+                setIsThinking(false);
+                setIsSpeaking(false);
+              },
+              onError: (error: string) => {
+                console.error('Streaming error:', error);
+                toast.error(error.includes('429') ? "Pat is busy right now. Please try again later." : error);
+
+                // Remove the empty message on error
+                setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId));
+                setIsSending(false);
+                setIsThinking(false);
+                setIsSpeaking(false);
+                return;
+              }
+            });
+
+            // Update the reference for saving
+            const finalStreamingResponse = {
+              ...patResponse,
+              text: streamingText || "I'm here to help! How can I assist you today?"
+            };
+
             // Save thread after successful assistant reply
-            const finalMessages = [...messages, newMessage, patResponse];
+            const finalMessages = [...messages, newMessage, finalStreamingResponse];
             const messagesForSave = finalMessages.map(msg => ({
               role: msg.isUser ? 'user' : 'assistant',
               content: msg.text
@@ -544,8 +575,8 @@ export const ChatPat: React.FC = () => {
               // Fire-and-forget save - don't block UI
               ChatManager.saveMessage({
                 thread_id: threadId,
-                role: "assistant", 
-                content: patResponse.text
+                role: "assistant",
+                content: finalStreamingResponse.text
               });
             } catch (error) {
               // Silently fail - persistence is optional
@@ -568,11 +599,7 @@ export const ChatPat: React.FC = () => {
               }
             }
             
-            // Simulate speaking duration
-            setTimeout(() => {
-              setIsSpeaking(false);
-              setIsSending(false);
-            }, responseText.length * 50);
+            // Note: Speaking and sending state already handled in streaming callbacks
             
           } catch (error) {
             console.error('Error getting AI response:', error);
@@ -1217,21 +1244,22 @@ export const ChatPat: React.FC = () => {
             </div>
           )}
           
-          <div className={`space-y-4 transition-opacity duration-300 ${isTyping || messages.length > 1 ? 'opacity-100' : 'opacity-0'}`}>
+          <div className={`space-y-6 transition-opacity duration-300 ${isTyping || messages.length > 1 ? 'opacity-100' : 'opacity-0'}`}>
             {messages.map((message) => (
               <div
                 key={message.id}
                 className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
+                  className={`max-w-sm lg:max-w-2xl px-5 py-4 rounded-2xl ${
                     message.isUser
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-800 text-gray-100'
                   }`}
+                  style={{ maxWidth: message.isUser ? '480px' : '700px' }}
                 >
-                  <p className="text-sm">{message.text}</p>
-                  <p className="text-xs opacity-70 mt-1">
+                  <p className="text-base leading-relaxed" style={{ lineHeight: '1.6' }}>{message.text}</p>
+                  <p className="text-xs opacity-70 mt-2">
                     {message.timestamp.toLocaleTimeString([], { 
                       hour: '2-digit', 
                       minute: '2-digit' 
@@ -1244,8 +1272,8 @@ export const ChatPat: React.FC = () => {
             {/* Typing Indicator */}
             {isSending && (
               <div className="flex justify-start">
-                <div className="max-w-xs lg:max-w-md px-4 py-3 rounded-2xl bg-gray-800 text-gray-100">
-                  <p className="text-sm text-gray-400">Pat is thinking...</p>
+                <div className="max-w-sm lg:max-w-2xl px-5 py-4 rounded-2xl bg-gray-800 text-gray-100" style={{ maxWidth: '700px' }}>
+                  <p className="text-base text-gray-400 leading-relaxed">Pat is thinking...</p>
                 </div>
               </div>
             )}
