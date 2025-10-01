@@ -3,7 +3,7 @@ import { useOnboarding } from '../../../context/OnboardingContext';
 import { User } from 'lucide-react';
 
 export const StepFirstName: React.FC = () => {
-  const { userData, updateUserData, setStepValidity, currentStep } = useOnboarding();
+  const { userData, updateUserData, setStepValidity, currentStep, isLoggedIn, goToNextStep } = useOnboarding();
   const [firstName, setFirstName] = useState<string>(userData.firstName || '');
 
   const validateName = (name: string): boolean => {
@@ -13,17 +13,26 @@ export const StepFirstName: React.FC = () => {
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setFirstName(value);
-    
+
     const isValid = validateName(value);
     updateUserData('firstName', typeof value === 'string' ? value.trim() : '');
     setStepValidity(currentStep, isValid);
   };
 
+  // Auto-skip this step if user is logged in and has a name
+  React.useEffect(() => {
+    if (isLoggedIn && userData.firstName && validateName(userData.firstName)) {
+      setStepValidity(currentStep, true);
+      // Auto-advance to next step
+      setTimeout(() => goToNextStep(), 100);
+    }
+  }, [isLoggedIn, userData.firstName, currentStep, setStepValidity, goToNextStep]);
+
   // Initialize validity on mount based on existing data
   React.useEffect(() => {
     const isValid = validateName(firstName);
     setStepValidity(currentStep, isValid);
-  }, [setStepValidity, currentStep]);
+  }, [setStepValidity, currentStep, firstName]);
 
   return (
     <div className="text-center">

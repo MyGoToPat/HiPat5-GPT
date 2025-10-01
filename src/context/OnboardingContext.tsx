@@ -57,20 +57,31 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
   const [stepValidity, setStepValidityState] = useState<Map<number, boolean>>(new Map());
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
-  // Check authentication status on mount
+  // Check authentication status and load user profile on mount
   React.useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuthAndLoadProfile = async () => {
       try {
-        const { getSupabase } = await import('../lib/supabase');
+        const { getSupabase, getUserProfile } = await import('../lib/supabase');
         const supabase = getSupabase();
         const { data: { user } } = await supabase.auth.getUser();
-        setIsLoggedIn(!!user);
+
+        if (user) {
+          setIsLoggedIn(true);
+
+          // Load user profile to pre-populate name
+          const profile = await getUserProfile(user.id);
+          if (profile?.name) {
+            setUserData(prev => ({ ...prev, firstName: profile.name }));
+          }
+        } else {
+          setIsLoggedIn(false);
+        }
       } catch (error) {
-        console.error('Failed to check auth status:', error);
+        console.error('Failed to check auth status or load profile:', error);
         setIsLoggedIn(false);
       }
     };
-    checkAuth();
+    checkAuthAndLoadProfile();
   }, []);
 
   const updateUserData = useCallback((key: keyof UserData, value: any) => {
