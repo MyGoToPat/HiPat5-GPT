@@ -67,7 +67,7 @@ export default function AgentsListPage() {
       if (roleFilter === 'pats-personality') {
         const personalityAgents = getPersonalityAgents();
         const swarm = getPersonalitySwarm();
-        
+
         const personalityRows: AgentRow[] = swarm.map(agentId => {
           const agent = personalityAgents[agentId];
           if (!agent) return null;
@@ -83,8 +83,33 @@ export default function AgentsListPage() {
             versionConfig: { swarm: 'pats-personality' }
           };
         }).filter(Boolean) as AgentRow[];
-        
+
         setRows(personalityRows);
+      } else if (roleFilter === 'tell-me-what-you-ate') {
+        // Show TMWYA agents from personality store
+        const personalityAgents = getPersonalityAgents();
+
+        // Filter TMWYA agents (all start with 'tmwya-')
+        const tmwyaAgentIds = Object.keys(personalityAgents)
+          .filter(id => id.startsWith('tmwya-'))
+          .sort((a, b) => (personalityAgents[a].order ?? 0) - (personalityAgents[b].order ?? 0));
+
+        const tmwyaRows: AgentRow[] = tmwyaAgentIds.map(agentId => {
+          const agent = personalityAgents[agentId];
+          return {
+            id: agent.id,
+            slug: agent.id,
+            name: agent.name,
+            enabled: agent.enabled,
+            enabledForPaid: agent.enabledForPaid ?? true,
+            enabledForFreeTrial: agent.enabledForFreeTrial ?? true,
+            order: agent.order,
+            current_version_id: null,
+            versionConfig: { swarm: 'tell-me-what-you-ate' }
+          };
+        });
+
+        setRows(tmwyaRows);
       } else {
         // For other filters, use existing Supabase logic
         const { data } = await sb
@@ -166,53 +191,86 @@ export default function AgentsListPage() {
   };
 
   async function saveRow(row: AgentRow) {
-    const match = row.id != null ? { id: row.id } : { slug: row.slug };
     try {
-      // Save enabled/order to agents table
-      await sb
-        .from('agents')
-        .update({
-          enabled: !!row.enabled,
-          order: row.order
-        })
-        .match(match);
+      // Check if this is a personality agent (Pat's Personality or TMWYA)
+      const isPersonalityAgent = roleFilter === 'pats-personality' || roleFilter === 'tell-me-what-you-ate';
 
-      // Save swarm to agent_versions if defined
-      if (row.swarm !== undefined) {
-        // Fetch agent to get current_version_id
-        const { data: agent, error: agentError } = await sb
+      if (isPersonalityAgent) {
+        // Save personality agents to localStorage
+        const personalityAgents = getPersonalityAgents();
+        const agent = personalityAgents[row.slug];
+
+        if (agent) {
+          upsertPersonalityAgent({
+            ...agent,
+            enabled: !!row.enabled,
+            enabledForPaid: row.enabledForPaid ?? true,
+            enabledForFreeTrial: row.enabledForFreeTrial ?? true,
+            order: row.order
+          });
+
+          setRows(curr =>
+            (curr ?? []).map(r =>
+              (r.id === row.id || r.slug === row.slug) ? { ...r, _dirty: false } : r
+            )
+          );
+
+          // Dispatch refresh event
+          window.dispatchEvent(new Event('hipat:personality:refresh'));
+
+          toast.success(`Saved "${row.name}"`);
+        } else {
+          toast.error(`Agent "${row.slug}" not found in personality store`);
+        }
+      } else {
+        // Save database agents to Supabase
+        const match = row.id != null ? { id: row.id } : { slug: row.slug };
+
+        await sb
           .from('agents')
-          .select('current_version_id')
-          .match(match)
-          .single();
+          .update({
+            enabled: !!row.enabled,
+            order: row.order
+          })
+          .match(match);
 
-        if (!agentError && agent?.current_version_id) {
-          // Fetch current version config
-          const { data: version, error: versionError } = await sb
-            .from('agent_versions')
-            .select('id, config, config_json')
-            .eq('id', agent.current_version_id)
+        // Save swarm to agent_versions if defined
+        if (row.swarm !== undefined) {
+          // Fetch agent to get current_version_id
+          const { data: agent, error: agentError } = await sb
+            .from('agents')
+            .select('current_version_id')
+            .match(match)
             .single();
 
-          if (!versionError && version) {
-            const base = version.config ?? version.config_json ?? {};
-            const merged = { ...base, swarm: row.swarm ?? null };
-
-            // Update agent_versions with merged config
-            await sb
+          if (!agentError && agent?.current_version_id) {
+            // Fetch current version config
+            const { data: version, error: versionError } = await sb
               .from('agent_versions')
-              .update({ config: merged })
-              .eq('id', version.id);
+              .select('id, config, config_json')
+              .eq('id', agent.current_version_id)
+              .single();
+
+            if (!versionError && version) {
+              const base = version.config ?? version.config_json ?? {};
+              const merged = { ...base, swarm: row.swarm ?? null };
+
+              // Update agent_versions with merged config
+              await sb
+                .from('agent_versions')
+                .update({ config: merged })
+                .eq('id', version.id);
+            }
           }
         }
-      }
 
-      setRows(curr =>
-        (curr ?? []).map(r =>
-          (r.id === row.id || r.slug === row.slug) ? { ...r, _dirty: false } : r
-        )
-      );
-      toast.success(`Saved "${row.name}"`);
+        setRows(curr =>
+          (curr ?? []).map(r =>
+            (r.id === row.id || r.slug === row.slug) ? { ...r, _dirty: false } : r
+          )
+        );
+        toast.success(`Saved "${row.name}"`);
+      }
     } catch (e: any) {
       toast.error(`Save failed${e?.message ? `: ${e.message}` : ''}`);
     }
