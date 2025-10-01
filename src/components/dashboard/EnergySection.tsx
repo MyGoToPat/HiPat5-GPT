@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Apple, TrendingDown, Edit3, Save, X } from 'lucide-react';
+import { Zap, Apple, TrendingDown, CreditCard as Edit3, Save, X } from 'lucide-react';
 import { MacroWheel } from './MacroWheel';
 import { EnergyData } from '../../types/metrics';
 import { CollapsibleTile } from './CollapsibleTile';
@@ -10,9 +10,19 @@ import { DataSourceBadge } from '../../lib/devDataSourceBadge';
 
 interface EnergySectionProps {
   energyData?: EnergyData;
+  targetProtein?: number;
+  targetCarbs?: number;
+  targetFat?: number;
+  targetCalories?: number;
 }
 
-export const EnergySection: React.FC<EnergySectionProps> = ({ energyData }) => {
+export const EnergySection: React.FC<EnergySectionProps> = ({
+  energyData,
+  targetProtein,
+  targetCarbs,
+  targetFat,
+  targetCalories
+}) => {
   const [showEditModal, setShowEditModal] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [macroOverrides, setMacroOverrides] = React.useState<{
@@ -71,21 +81,31 @@ export const EnergySection: React.FC<EnergySectionProps> = ({ energyData }) => {
 
   // Use provided data or fallback to defaults
   const calories = energyData?.calories || 0;
-  const tdee = energyData?.tdee || 2200;
+  const tdee = targetCalories || energyData?.tdee || 2200;
   const deficit = tdee - calories;
-  
-  // Use overrides if they exist, otherwise fall back to calculated values
-  const protein = macroOverrides?.protein_g ?? energyData?.protein_g ?? 0;
-  const carbs = macroOverrides?.carb_g ?? energyData?.carb_g ?? 0;
-  const fat = macroOverrides?.fat_g ?? energyData?.fat_g ?? 0;
+
+  // CONSUMED macros (from food logs today)
+  const proteinConsumed = energyData?.protein_g || 0;
+  const carbsConsumed = energyData?.carb_g || 0;
+  const fatConsumed = energyData?.fat_g || 0;
+
+  // TARGET macros (from TDEE onboarding or overrides)
+  const proteinTarget = targetProtein || macroOverrides?.protein_g || 150;
+  const carbsTarget = targetCarbs || macroOverrides?.carb_g || 200;
+  const fatTarget = targetFat || macroOverrides?.fat_g || 60;
+
+  // REMAINING macros
+  const proteinRemaining = Math.max(0, proteinTarget - proteinConsumed);
+  const carbsRemaining = Math.max(0, carbsTarget - carbsConsumed);
+  const fatRemaining = Math.max(0, fatTarget - fatConsumed);
 
   // Use provided data or create default structure
   const displayEnergyData: EnergyData = energyData || {
     date: '2024-01-21',
     calories: calories,
-    protein_g: protein,
-    fat_g: fat,
-    carb_g: carbs,
+    protein_g: proteinConsumed,
+    fat_g: fatConsumed,
+    carb_g: carbsConsumed,
     salt_g: 2.3,
     water_l: 3.2,
     first_meal_time: '08:30',
@@ -95,11 +115,11 @@ export const EnergySection: React.FC<EnergySectionProps> = ({ energyData }) => {
   };
 
   const handleOpenEditModal = () => {
-    // Pre-populate form with current values (overrides or calculated)
+    // Pre-populate form with current values (targets)
     setEditForm({
-      protein_g: protein,
-      fat_g: fat,
-      carb_g: carbs
+      protein_g: proteinTarget,
+      fat_g: fatTarget,
+      carb_g: carbsTarget
     });
     setShowEditModal(true);
   };
@@ -142,26 +162,29 @@ export const EnergySection: React.FC<EnergySectionProps> = ({ energyData }) => {
         )}
       </div>
       
-      {/* Quick macro summary */}
+      {/* Quick macro summary - Consumed / Target */}
       {calories > 0 ? (
         <div className="grid grid-cols-3 gap-1 sm:gap-2 text-xs">
           <div className="text-center">
-            <div className="text-white font-medium text-xs sm:text-sm">{protein.toFixed(0)}g</div>
+            <div className="text-white font-medium text-xs sm:text-sm">{proteinConsumed.toFixed(0)} / {proteinTarget.toFixed(0)}g</div>
             <div className="text-red-400">Protein</div>
+            <div className="text-gray-500">{proteinRemaining.toFixed(0)}g left</div>
           </div>
           <div className="text-center">
-            <div className="text-white font-medium text-xs sm:text-sm">{carbs.toFixed(0)}g</div>
+            <div className="text-white font-medium text-xs sm:text-sm">{carbsConsumed.toFixed(0)} / {carbsTarget.toFixed(0)}g</div>
             <div className="text-blue-400">Carbs</div>
+            <div className="text-gray-500">{carbsRemaining.toFixed(0)}g left</div>
           </div>
           <div className="text-center">
-            <div className="text-white font-medium text-xs sm:text-sm">{fat.toFixed(0)}g</div>
+            <div className="text-white font-medium text-xs sm:text-sm">{fatConsumed.toFixed(0)} / {fatTarget.toFixed(0)}g</div>
             <div className="text-yellow-400">Fat</div>
+            <div className="text-gray-500">{fatRemaining.toFixed(0)}g left</div>
           </div>
         </div>
       ) : (
         <div className="text-center p-2">
           <p className="text-gray-400 text-xs sm:text-sm">No food logged today</p>
-          <p className="text-gray-500 text-xs">Start logging to see your macros</p>
+          <p className="text-gray-500 text-xs">Daily targets: {proteinTarget.toFixed(0)}p / {carbsTarget.toFixed(0)}c / {fatTarget.toFixed(0)}f</p>
         </div>
       )}
     </div>
@@ -173,9 +196,15 @@ export const EnergySection: React.FC<EnergySectionProps> = ({ energyData }) => {
       
       {/* Macro Wheel Component */}
       <div className="mt-4">
-        <MacroWheel data={displayEnergyData} />
+        <MacroWheel
+          data={displayEnergyData}
+          targetProtein={targetProtein}
+          targetCarbs={targetCarbs}
+          targetFat={targetFat}
+          targetCalories={targetCalories}
+        />
       </div>
-      
+
       {/* Additional metrics */}
       <div className="mt-4 space-y-2">
         <div className="flex justify-between items-center text-xs">

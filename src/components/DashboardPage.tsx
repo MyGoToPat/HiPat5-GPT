@@ -15,6 +15,8 @@ import { useNavigate } from 'react-router-dom';
 interface UserMetricsData {
   tdee?: number;
   protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
   bmr?: number;
 }
 
@@ -215,7 +217,7 @@ export const DashboardPage: React.FC = () => {
             <div className="grid gap-4 mb-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               <FrequencySection workouts={dashboardData?.workoutLogs || []} />
               <RestSection sleepLogs={dashboardData?.sleepLogs || []} />
-              <EnergySection 
+              <EnergySection
                 energyData={dashboardData ? {
                   date: new Date().toISOString().split('T')[0],
                   calories: dashboardData.totalCalories,
@@ -229,6 +231,10 @@ export const DashboardPage: React.FC = () => {
                   tdee: dashboardData.userMetrics?.tdee || 2200,
                   bmr: dashboardData.userMetrics?.bmr || 1800
                 } : undefined}
+                targetProtein={dashboardData?.userMetrics?.protein_g}
+                targetCarbs={dashboardData?.userMetrics?.carbs_g}
+                targetFat={dashboardData?.userMetrics?.fat_g}
+                targetCalories={dashboardData?.userMetrics?.tdee}
               />
               <EffortSection workouts={dashboardData?.workoutLogs || []} />
             </div>

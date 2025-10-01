@@ -3,21 +3,50 @@ import { EnergyData } from '../../types/metrics';
 
 interface MacroWheelProps {
   data: EnergyData;
+  targetProtein?: number;
+  targetCarbs?: number;
+  targetFat?: number;
+  targetCalories?: number;
   className?: string;
 }
 
-export const MacroWheel: React.FC<MacroWheelProps> = ({ data, className = '' }) => {
-  const proteinCals = data.protein_g * 4;
-  const carbCals = data.carb_g * 4;
-  const fatCals = data.fat_g * 9;
+export const MacroWheel: React.FC<MacroWheelProps> = ({
+  data,
+  targetProtein,
+  targetCarbs,
+  targetFat,
+  targetCalories,
+  className = ''
+}) => {
+  // Consumed macros (from food logs)
+  const proteinConsumed = data.protein_g;
+  const carbsConsumed = data.carb_g;
+  const fatConsumed = data.fat_g;
+  const caloriesConsumed = data.calories;
+
+  // Target macros (from TDEE onboarding)
+  const proteinTarget = targetProtein || data.protein_g;
+  const carbsTarget = targetCarbs || data.carb_g;
+  const fatTarget = targetFat || data.fat_g;
+  const caloriesTarget = targetCalories || data.tdee;
+
+  // Remaining macros
+  const proteinRemaining = Math.max(0, proteinTarget - proteinConsumed);
+  const carbsRemaining = Math.max(0, carbsTarget - carbsConsumed);
+  const fatRemaining = Math.max(0, fatTarget - fatConsumed);
+
+  // Calculate percentages for the wheel (consumed / target)
+  const proteinPercent = Math.min(100, (proteinConsumed / proteinTarget) * 100);
+  const carbPercent = Math.min(100, (carbsConsumed / carbsTarget) * 100);
+  const fatPercent = Math.min(100, (fatConsumed / fatTarget) * 100);
+
+  const proteinCals = proteinConsumed * 4;
+  const carbCals = carbsConsumed * 4;
+  const fatCals = fatConsumed * 9;
   const totalMacroCals = proteinCals + carbCals + fatCals;
   
-  const proteinPercent = (proteinCals / totalMacroCals) * 100;
-  const carbPercent = (carbCals / totalMacroCals) * 100;
-  const fatPercent = (fatCals / totalMacroCals) * 100;
-  
-  const deficit = data.tdee - data.calories;
-  const deficitPercent = Math.abs(deficit / data.tdee) * 100;
+  const deficit = caloriesTarget - caloriesConsumed;
+  const deficitPercent = Math.abs(deficit / caloriesTarget) * 100;
   
   // Calculate stroke dash arrays for the circular progress
   const circumference = 2 * Math.PI * 45; // radius = 45
@@ -94,38 +123,48 @@ export const MacroWheel: React.FC<MacroWheelProps> = ({ data, className = '' }) 
         </div>
       </div>
       
-      {/* Macro breakdown */}
+      {/* Macro breakdown - Consumed / Target */}
       <div className="grid grid-cols-3 gap-2 mt-4 text-xs">
         <div className="text-center">
           <div className="w-3 h-3 bg-red-500 rounded-full mx-auto mb-1"></div>
-          <div className="text-white font-medium">{data.protein_g}g</div>
+          <div className="text-white font-medium">{proteinConsumed.toFixed(0)} / {proteinTarget.toFixed(0)}g</div>
           <div className="text-gray-400">Protein</div>
-          <div className="text-gray-500">{proteinPercent.toFixed(0)}%</div>
+          <div className={proteinRemaining > 0 ? 'text-yellow-400' : 'text-green-400'}>
+            {proteinRemaining > 0 ? `${proteinRemaining.toFixed(0)}g left` : 'Goal met!'}
+          </div>
         </div>
         <div className="text-center">
           <div className="w-3 h-3 bg-blue-500 rounded-full mx-auto mb-1"></div>
-          <div className="text-white font-medium">{data.carb_g}g</div>
+          <div className="text-white font-medium">{carbsConsumed.toFixed(0)} / {carbsTarget.toFixed(0)}g</div>
           <div className="text-gray-400">Carbs</div>
-          <div className="text-gray-500">{carbPercent.toFixed(0)}%</div>
+          <div className={carbsRemaining > 0 ? 'text-yellow-400' : 'text-green-400'}>
+            {carbsRemaining > 0 ? `${carbsRemaining.toFixed(0)}g left` : 'Goal met!'}
+          </div>
         </div>
         <div className="text-center">
           <div className="w-3 h-3 bg-yellow-500 rounded-full mx-auto mb-1"></div>
-          <div className="text-white font-medium">{data.fat_g}g</div>
+          <div className="text-white font-medium">{fatConsumed.toFixed(0)} / {fatTarget.toFixed(0)}g</div>
           <div className="text-gray-400">Fat</div>
-          <div className="text-gray-500">{fatPercent.toFixed(0)}%</div>
+          <div className={fatRemaining > 0 ? 'text-yellow-400' : 'text-green-400'}>
+            {fatRemaining > 0 ? `${fatRemaining.toFixed(0)}g left` : 'Goal met!'}
+          </div>
         </div>
       </div>
       
       {/* TDEE comparison */}
       <div className="mt-3 p-2 bg-gray-800 rounded-lg">
         <div className="flex justify-between text-xs">
-          <span className="text-gray-400">TDEE:</span>
-          <span className="text-white">{data.tdee.toLocaleString()}</span>
+          <span className="text-gray-400">Daily Target:</span>
+          <span className="text-white">{caloriesTarget.toLocaleString()} cal</span>
         </div>
         <div className="flex justify-between text-xs">
-          <span className="text-gray-400">Balance:</span>
+          <span className="text-gray-400">Consumed:</span>
+          <span className="text-white">{caloriesConsumed.toLocaleString()} cal</span>
+        </div>
+        <div className="flex justify-between text-xs">
+          <span className="text-gray-400">Remaining:</span>
           <span className={deficit > 0 ? 'text-green-400' : 'text-red-400'}>
-            {deficit > 0 ? 'Deficit' : 'Surplus'} {Math.abs(deficit)}
+            {deficit > 0 ? `${Math.abs(deficit)} cal` : `${Math.abs(deficit)} over`}
           </span>
         </div>
       </div>

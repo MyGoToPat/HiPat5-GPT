@@ -35,19 +35,34 @@ export const DailySummary: React.FC<DailySummaryProps> = ({
       
       <div className="bg-black/20 rounded-xl p-3 sm:p-4 backdrop-blur-sm">
         <p className="text-white/90 text-sm sm:text-base leading-relaxed mb-3">
-          <span className="font-semibold">{today}</span> - 
+          <span className="font-semibold">{today}</span> -
           {totalCalories > 0 ? (
             <>
-              You've logged {totalCalories} calories today
-              {calorieProgress >= 90 ? " and you're on track with your nutrition goals!" : 
-               calorieProgress >= 50 ? " - keep it up!" : 
-               " - don't forget to log your meals!"}
+              {totalCalories} / {targetCalories} calories
+              {calorieProgress >= 90 ? " - on track!" :
+               calorieProgress >= 50 ? " - keep going!" :
+               " - log more meals!"}
             </>
           ) : (
             "Ready to start tracking your nutrition today!"
           )}
         </p>
-        
+
+        {totalCalories > 0 && (
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="bg-white/10 rounded-lg p-2">
+              <div className="text-xs text-white/70">Calories</div>
+              <div className="text-white font-semibold">{totalCalories} / {targetCalories}</div>
+              <div className="text-xs text-green-300">{targetCalories - totalCalories > 0 ? `${targetCalories - totalCalories} left` : 'Goal met!'}</div>
+            </div>
+            <div className="bg-white/10 rounded-lg p-2">
+              <div className="text-xs text-white/70">Protein</div>
+              <div className="text-white font-semibold">{Math.round(currentProtein)}g / {proteinTarget}g</div>
+              <div className="text-xs text-green-300">{proteinTarget - currentProtein > 0 ? `${Math.round(proteinTarget - currentProtein)}g left` : 'Goal met!'}</div>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 text-green-300 text-xs sm:text-sm">
           <CheckCircle size={16} />
           <span>{goalsCompleted}/{totalGoals} daily goals completed</span>
