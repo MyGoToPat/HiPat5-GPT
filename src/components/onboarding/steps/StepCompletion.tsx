@@ -67,6 +67,27 @@ export const StepCompletion: React.FC = () => {
             }
           }
 
+          // Save unit preferences based on what user selected during onboarding
+          try {
+            const { error: prefsError } = await supabase
+              .from('user_preferences')
+              .upsert({
+                user_id: user.id,
+                unit_system: 'imperial',
+                height_unit: userData.height?.unit === 'cm' ? 'cm' : 'feet',
+                weight_unit: userData.weight?.unit === 'kg' ? 'kg' : 'lbs',
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'user_id'
+              });
+
+            if (prefsError) {
+              console.error('Failed to save unit preferences:', prefsError);
+            }
+          } catch (prefsError) {
+            console.error('Failed to save unit preferences:', prefsError);
+          }
+
           toast.success('Your plan has been saved!');
           // Track completion
           trackTDEEWizardCompleted(

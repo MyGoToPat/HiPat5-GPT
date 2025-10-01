@@ -6,6 +6,7 @@ import { ProgressVisualizations } from './profile/ProgressVisualizations';
 import { AIInsights } from './profile/AIInsights';
 import { CustomizableHeader } from './profile/CustomizableHeader';
 import { TDEEMetricsSection } from './profile/TDEEMetricsSection';
+import { MacrosTab } from './profile/MacrosTab';
 import { getSupabase, getUserProfile, upsertUserProfile } from '../lib/supabase';
 import { getDashboardMetrics } from '../lib/supabase';
 import RequestRoleUpgrade from './settings/RequestRoleUpgrade';
@@ -78,6 +79,7 @@ interface AIInsight {
 
 const tabs = [
   { id: 'profile', label: 'Profile', icon: User },
+  { id: 'macros', label: 'Macros', icon: Flame },
   { id: 'preferences', label: 'Preferences', icon: Settings },
   { id: 'account', label: 'Account', icon: Shield },
   { id: 'usage', label: 'Usage', icon: BarChart3 }
@@ -124,7 +126,7 @@ const QuickActions = () => {
 
 export const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'account' | 'usage'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'macros' | 'preferences' | 'account' | 'usage'>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -335,9 +337,6 @@ export const ProfilePage: React.FC = () => {
 
       {/* Achievement Badges */}
       <AchievementBadges achievements={[]} />
-
-      {/* TDEE & Nutrition Metrics */}
-      <TDEEMetricsSection />
 
       {/* Contact Support */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
@@ -909,6 +908,7 @@ export const ProfilePage: React.FC = () => {
 
         {/* Tab Content */}
         {activeTab === 'profile' && renderProfileTab()}
+        {activeTab === 'macros' && <MacrosTab />}
         {activeTab === 'preferences' && renderPreferencesTab()}
         {activeTab === 'account' && renderAccountTab()}
         {activeTab === 'usage' && renderUsageTab()}
