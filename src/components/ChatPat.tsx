@@ -651,15 +651,19 @@ export const ChatPat: React.FC = () => {
       setInputText('');
 
       // Process meal using TMWYA agents through personality orchestrator
+      console.log('[ChatPat] Processing meal with TMWYA:', { input, userId });
       const result = await processMealWithTMWYA(input, userId, 'text');
+      console.log('[ChatPat] TMWYA result:', result);
 
       if (result.ok && result.analysisResult && result.analysisResult.items.length > 0) {
         // Show verification screen with results
+        console.log('[ChatPat] Showing verification screen');
         setCurrentAnalysisResult(result.analysisResult);
         setShowFoodVerificationScreen(true);
       } else {
         // Fallback to normal chat if processing fails
         const errorMsg = result.error || 'Could not process meal input';
+        console.error('[ChatPat] TMWYA failed:', errorMsg, result);
         toast.error(errorMsg);
 
         // Continue with normal chat processing

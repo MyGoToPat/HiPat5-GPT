@@ -48,16 +48,21 @@ export async function processMealWithTMWYA(
   const supabase = getSupabase();
 
   try {
+    console.log('[TMWYA Client] Invoking edge function:', { userMessage, userId, source });
+
     const { data, error } = await supabase.functions.invoke('tmwya-process-meal', {
       body: { userMessage, userId, source },
     });
 
+    console.log('[TMWYA Client] Edge function response:', { data, error });
+
     if (error) {
-      console.error('[TMWYA] Edge function error:', error);
+      console.error('[TMWYA Client] Edge function error:', error);
       return { ok: false, error: error.message || 'Failed to process meal', step: 'edge_function' };
     }
 
     if (!data || !data.ok) {
+      console.error('[TMWYA Client] Invalid response:', data);
       return { ok: false, error: data?.error || 'Unknown error', step: data?.step || 'unknown' };
     }
 
