@@ -289,9 +289,30 @@ export const ProfilePage: React.FC = () => {
     saveProfile();
   };
 
-  const handleSavePreferences = () => {
-    setPreferences(editedPreferences);
-    // Here you would typically save to backend
+  const handleSavePreferences = async () => {
+    try {
+      const supabase = getSupabase();
+      const user = await supabase.auth.getUser();
+      if (!user.data.user) {
+        throw new Error('No authenticated user');
+      }
+
+      const { upsertUserPreferences } = await import('../lib/supabase');
+      await upsertUserPreferences(user.data.user.id, {
+        theme: editedPreferences.theme,
+        notifications_email: editedPreferences.notifications.email,
+        notifications_push: editedPreferences.notifications.push,
+        notifications_sms: editedPreferences.notifications.sms,
+        voice_speed: editedPreferences.voiceSettings.speed,
+        voice_pitch: editedPreferences.voiceSettings.pitch
+      });
+
+      setPreferences(editedPreferences);
+      toast.success('Preferences saved successfully!');
+    } catch (error) {
+      console.error('Error saving preferences:', error);
+      toast.error('Failed to save preferences');
+    }
   };
 
   const renderProfileTab = () => (

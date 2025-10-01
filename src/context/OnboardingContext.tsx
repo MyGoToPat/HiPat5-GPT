@@ -134,16 +134,74 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   }, [userData, currentStep, calculateMacros]);
 
-  // Placeholder functions for future phases
-  const saveLead = useCallback((name: string, email: string) => {
+  // Save lead for anonymous users
+  const saveLead = useCallback(async (name: string, email: string) => {
     console.log('Saving lead:', name, email);
-    // Logic for Phase 3
+    // TODO: Implement lead capture for anonymous users
   }, []);
 
-  const saveToProfile = useCallback(() => {
-    console.log('Saving to profile...');
-    // Logic for Phase 3
-  }, []);
+  // Save all TDEE onboarding data to user_metrics
+  const saveToProfile = useCallback(async () => {
+    try {
+      const { getSupabase } = await import('../lib/supabase');
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.warn('Cannot save profile: user not authenticated');
+        return;
+      }
+
+      // Calculate age from dateOfBirth if available
+      let age = userData.age;
+      if (!age && userData.dateOfBirth) {
+        const birthDate = new Date(userData.dateOfBirth);
+        const today = new Date();
+        age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+      }
+
+      // Upsert to user_metrics table
+      const { error } = await supabase
+        .from('user_metrics')
+        .upsert({
+          user_id: user.id,
+          bmr: calculatedMacros.chosenBmr ? Math.round(calculatedMacros.chosenBmr) : null,
+          tdee: calculatedMacros.tdee ? Math.round(calculatedMacros.tdee) : null,
+          protein_g: calculatedMacros.proteinG || null,
+          carbs_g: calculatedMacros.carbG || null,
+          fat_g: calculatedMacros.fatG || null,
+          age: age || null,
+          gender: userData.gender || null,
+          height_cm: userData.height?.value || null,
+          weight_kg: userData.weight?.value || null,
+          body_fat_percent: userData.bodyFatPercent || null,
+          activity_level: userData.activityLevel || null,
+          dietary_preference: userData.dietaryPreference || null,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) throw error;
+
+      // Also update the profile name if we have firstName
+      if (userData.firstName) {
+        const { upsertUserProfile } = await import('../lib/supabase');
+        await upsertUserProfile(user.id, {
+          name: userData.firstName
+        });
+      }
+
+      console.log('Successfully saved TDEE data to Supabase');
+    } catch (error) {
+      console.error('Error saving to profile:', error);
+      throw error;
+    }
+  }, [userData, calculatedMacros]);
 
   const value = {
     currentStep,

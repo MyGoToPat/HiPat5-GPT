@@ -94,6 +94,44 @@ export async function upsertUserProfile(user_id: string, profileData: {
   return data;
 }
 
+// User preferences management
+export async function getUserPreferences(user_id: string) {
+  if (!user_id) throw new Error('getUserPreferences: missing user_id');
+  const { data, error } = await supabase
+    .from('user_preferences')
+    .select('*')
+    .eq('user_id', user_id)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function upsertUserPreferences(user_id: string, preferences: {
+  theme?: string;
+  notifications_email?: boolean;
+  notifications_push?: boolean;
+  notifications_sms?: boolean;
+  voice_speed?: number;
+  voice_pitch?: number;
+}) {
+  if (!user_id) throw new Error('upsertUserPreferences: missing user_id');
+
+  const { data, error } = await supabase
+    .from('user_preferences')
+    .upsert({
+      user_id,
+      ...preferences,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'user_id'
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 // ---- BEGIN AUTO-STUBS (do not edit below; regenerated) ----
 export const requestRoleUpgrade = (..._args: any[]): any => { console.warn('[supabase legacy stub] requestRoleUpgrade called'); return undefined as any; };
 export const approveUpgradeRequest = (..._args: any[]): any => { console.warn('[supabase legacy stub] approveUpgradeRequest called'); return undefined as any; };

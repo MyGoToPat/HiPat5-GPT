@@ -55,6 +55,18 @@ export const StepCompletion: React.FC = () => {
           console.error('Failed to save macros:', error);
           toast.error('Failed to save your plan');
         } else {
+          // Also save firstName to profiles if available
+          if (userData.firstName) {
+            const { upsertUserProfile } = await import('../../../lib/supabase');
+            try {
+              await upsertUserProfile(user.id, {
+                name: userData.firstName
+              });
+            } catch (profileError) {
+              console.error('Failed to save name to profile:', profileError);
+            }
+          }
+
           toast.success('Your plan has been saved!');
           // Track completion
           trackTDEEWizardCompleted(
