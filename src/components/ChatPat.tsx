@@ -204,12 +204,16 @@ export const ChatPat: React.FC = () => {
   const isMealText = (input: string): boolean => {
     const lowerInput = input.toLowerCase();
     const mealTriggers = [
-      'i ate', 'i had', 'ate', 'had',
+      'i ate', 'i had', 'just ate', 'just had',
+      'ate a', 'ate an', 'had a', 'had an',
       'breakfast', 'lunch', 'dinner', 'snack',
-      'calories in', 'macros for', 'meal'
+      'for breakfast', 'for lunch', 'for dinner',
+      'calories in', 'macros for', 'log meal', 'log food'
     ];
-    
-    return mealTriggers.some(trigger => lowerInput.includes(trigger));
+
+    const hasTrigger = mealTriggers.some(trigger => lowerInput.includes(trigger));
+    console.log('[ChatPat] isMealText check:', { input: lowerInput, hasTrigger });
+    return hasTrigger;
   };
 
   // Food verification screen handlers
@@ -223,10 +227,15 @@ export const ChatPat: React.FC = () => {
         setShowFoodVerificationScreen(false);
         setCurrentAnalysisResult(null);
         
-        // Add confirmation message to chat
+        // Add concise confirmation message to chat
+        const items = normalizedMeal.mealItems.map(item =>
+          `${item.name}: ${item.macros.kcal}kcal, ${item.macros.protein_g}p, ${item.macros.carbs_g}c, ${item.macros.fat_g}f`
+        ).join('\n');
+
+        const totals = normalizedMeal.mealLog.totals;
         const confirmationMessage: ChatMessage = {
           id: Date.now().toString(),
-          text: `Logged: ${normalizedMeal.mealItems.map(item => `${item.name} (${item.grams}g)`).join(', ')} - ${normalizedMeal.mealLog.totals.kcal} calories total`,
+          text: `Logged:\n${items}\n\nTotal: ${totals.kcal}kcal, ${totals.protein_g}p, ${totals.carbs_g}c, ${totals.fat_g}f`,
           timestamp: new Date(),
           isUser: false
         };
