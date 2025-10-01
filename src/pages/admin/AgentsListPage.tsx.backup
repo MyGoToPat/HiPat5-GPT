@@ -61,9 +61,6 @@ export default function AgentsListPage() {
   // Get orchestrator slug for the current role filter
   const orchestratorSlug = roleFilter ? ROLE_ORCHESTRATORS[roleFilter] : null;
 
-  // Check if current filter is a personality-based agent system (not database agents)
-  const isPersonalityAgentFilter = roleFilter === 'pats-personality' || roleFilter === 'tell-me-what-you-ate';
-
   React.useEffect(() => {
     (async () => {
       // If filtering for personality, use local store
@@ -604,7 +601,7 @@ export default function AgentsListPage() {
                       </td>
                       
                       <td className="px-6 py-4">
-                        {isPersonalityAgentFilter ? (
+                        {roleFilter === 'pats-personality' ? (
                           <button
                             onClick={() => {
                               const agents = getPersonalityAgents();
@@ -679,7 +676,7 @@ export default function AgentsListPage() {
                           
                           <div className="flex items-end gap-2 mt-4">
                             <div className="flex items-end gap-2">
-                              {isPersonalityAgentFilter ? (
+                              {roleFilter === 'pats-personality' ? (
                                 <button
                                   onClick={() => {
                                     const agents = getPersonalityAgents();
@@ -774,29 +771,6 @@ export default function AgentsListPage() {
             }).filter(Boolean) as AgentRow[];
             
             setRows(personalityRows);
-          } else if (roleFilter === 'tell-me-what-you-ate') {
-            // Refresh TMWYA agents
-            const personalityAgents = getPersonalityAgents();
-            const tmwyaAgentIds = Object.keys(personalityAgents)
-              .filter(id => id.startsWith('tmwya-'))
-              .sort((a, b) => (personalityAgents[a].order ?? 0) - (personalityAgents[b].order ?? 0));
-
-            const tmwyaRows: AgentRow[] = tmwyaAgentIds.map(agentId => {
-              const agent = personalityAgents[agentId];
-              return {
-                id: agent.id,
-                slug: agent.id,
-                name: agent.name,
-                enabled: agent.enabled,
-                enabledForPaid: agent.enabledForPaid ?? true,
-                enabledForFreeTrial: agent.enabledForFreeTrial ?? true,
-                order: agent.order,
-                current_version_id: null,
-                versionConfig: { swarm: 'tell-me-what-you-ate' }
-              };
-            });
-
-            setRows(tmwyaRows);
           }
         }} 
       />
