@@ -1,9 +1,10 @@
 import React from 'react';
-import { Calendar, Target, TrendingUp } from 'lucide-react';
+import { Calendar, Target, TrendingUp, Award } from 'lucide-react';
 import { HeatmapCalendar } from './HeatmapCalendar';
 import { FrequencyData } from '../../types/metrics';
 import { CollapsibleTile } from './CollapsibleTile';
 import { DataSourceBadge } from '../../lib/devDataSourceBadge';
+import { calculateFrequencyScore, calculateConsistencyStreak, getScoreColor } from '../../lib/freeScoring';
 
 interface FrequencySectionProps {
   workouts?: Array<{
@@ -22,19 +23,40 @@ export const FrequencySection: React.FC<FrequencySectionProps> = ({
 }) => {
   // Compute workout days from live data
   const data = Array.isArray(workouts) ? workouts : [];
-  
+
   // Calculate workout days this week
   const today = new Date();
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
   const startOfWeekStr = startOfWeek.toISOString().slice(0, 10);
-  
-  const thisWeekWorkouts = data.filter(workout => 
+
+  const thisWeekWorkouts = data.filter(workout =>
     workout.workout_date >= startOfWeekStr
   );
   const workoutDays = thisWeekWorkouts.length;
   const weeklyGoal = 5;
   const actualProgress = (workoutDays / weeklyGoal) * 100;
+
+  // Calculate frequency score and streak
+  const frequencyScoreData = calculateFrequencyScore(data, weeklyGoal);
+  const { currentStreak, bestStreak } = calculateConsistencyStreak(data, weeklyGoal);
+  const scoreColor = getScoreColor(frequencyScoreData.score);
+
+  // Generate sparkline data (last 7 weeks)
+  const sparklineData = Array.from({ length: 7 }, (_, i) => {
+    const weekAgo = new Date(today);
+    weekAgo.setDate(today.getDate() - (6 - i) * 7);
+    const weekStart = new Date(weekAgo);
+    weekStart.setDate(weekAgo.getDate() - weekAgo.getDay());
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+
+    const weekWorkouts = data.filter(w => {
+      const wDate = new Date(w.workout_date);
+      return wDate >= weekStart && wDate <= weekEnd;
+    });
+    return weekWorkouts.length;
+  });
 
   // Transform data for HeatmapCalendar component
   const transformedData: FrequencyData[] = data.map(workout => ({
@@ -158,21 +180,45 @@ export const FrequencySection: React.FC<FrequencySectionProps> = ({
           {/* Heatmap Calendar */}
           <HeatmapCalendar data={transformedData} />
           
-          {/* Weekly stats */}
-          <div className="mt-4 p-3 bg-gray-800 rounded-lg">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-400">This week</span>
-              <div className="flex items-center gap-1 text-pat-purple-400">
-                <TrendingUp size={12} />
-                <span>Track workouts to see trends</span>
+          {/* Weekly stats with streak */}
+          <div className="mt-4 space-y-3">
+            <div className="p-3 bg-gray-800 rounded-lg">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-400">This week</span>
+                <div className="flex items-center gap-1 text-pat-purple-400">
+                  <TrendingUp size={12} />
+                  <span>Score: {frequencyScoreData.score}/100</span>
+                </div>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                <span className="text-white font-medium">{workoutDays} workouts</span>
+                <span className="text-gray-400">
+                  {thisWeekWorkouts.reduce((total, w) => total + w.duration_minutes, 0)} min total
+                </span>
               </div>
             </div>
-            <div className="flex justify-between items-center mt-1">
-              <span className="text-white font-medium">{workoutDays} workouts</span>
-              <span className="text-gray-400">
-                {thisWeekWorkouts.reduce((total, w) => total + w.duration_minutes, 0)} min total
-              </span>
-            </div>
+
+            {/* Consistency Streak */}
+            {currentStreak > 0 && (
+              <div className="p-3 bg-gradient-to-r from-orange-600/20 to-yellow-600/20 border border-orange-500/30 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Award size={20} className="text-orange-400" />
+                    <div>
+                      <div className="text-sm font-semibold text-orange-200">
+                        {currentStreak} Week Streak!
+                      </div>
+                      <div className="text-xs text-orange-300/70">
+                        Best: {bestStreak} weeks
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-orange-400">
+                    🔥
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </>
       ) : (
@@ -195,6 +241,9 @@ export const FrequencySection: React.FC<FrequencySectionProps> = ({
         hoverColor="border-pat-purple-600"
         condensedContent={condensedContent}
         className=""
+        score={frequencyScoreData.score}
+        sparklineData={sparklineData}
+        stateDot={scoreColor}
       >
         {fullContent}
       </CollapsibleTile>

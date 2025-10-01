@@ -88,6 +88,22 @@ export const StepCompletion: React.FC = () => {
             console.error('Failed to save unit preferences:', prefsError);
           }
 
+          // Save FREE baseline (initial scores set to 50 as neutral baseline)
+          try {
+            await supabase
+              .from('user_metrics')
+              .update({
+                frequency_baseline: 50,
+                rest_baseline: 50,
+                energy_baseline: 50,
+                effort_baseline: 50,
+                baseline_captured_at: new Date().toISOString()
+              })
+              .eq('user_id', user.id);
+          } catch (baselineError) {
+            console.error('Failed to save FREE baseline:', baselineError);
+          }
+
           toast.success('Your plan has been saved!');
           // Track completion
           trackTDEEWizardCompleted(
