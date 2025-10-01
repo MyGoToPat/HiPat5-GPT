@@ -587,6 +587,342 @@ Add or improve next steps. Format: "Next: [specific action]. [optional second ac
 };
 
 // ============================================================================
+// TMWYA PIPELINE - 26 Agents for Tell Me What You Ate
+// ============================================================================
+
+// A1: Intent Router (extends role-detector with TMWYA-specific patterns)
+const tmwya_intent_router: AgentConfig = {
+  id: "tmwya-intent-router",
+  name: "TMWYA Intent Router",
+  phase: "pre",
+  enabled: true,
+  order: 30,
+  enabledForPaid: true,
+  enabledForFreeTrial: true,
+  instructions: "Classifies food logging input into: text, voice, barcode, photo. Returns JSON with high confidence.",
+  promptTemplate: `Classify this food logging input.
+
+USER MESSAGE: "{{user_message}}"
+
+TYPES:
+- text: Written food description
+- voice: Dictated food description (may have informal language)
+- barcode: Mentions UPC, barcode, scan
+- photo: Mentions picture, photo, image, camera
+
+OUTPUT JSON:
+{"input_type": "text|voice|barcode|photo", "confidence": 0.0-1.0}`,
+  tone: { preset: "neutral", notes: "Objective classification" },
+  api: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    temperature: 0.1,
+    maxOutputTokens: 50,
+    responseFormat: "json",
+    jsonSchema: '{"type":"object","properties":{"input_type":{"type":"string","enum":["text","voice","barcode","photo"]},"confidence":{"type":"number"}},"required":["input_type","confidence"]}'
+  }
+};
+
+// A2: Utterance Normalizer
+const tmwya_utterance_normalizer: AgentConfig = {
+  id: "tmwya-utterance-normalizer",
+  name: "Utterance Normalizer",
+  phase: "pre",
+  enabled: true,
+  order: 31,
+  enabledForPaid: true,
+  enabledForFreeTrial: true,
+  instructions: "Cleans dictation errors, expands shorthand, normalizes units and numbers for food logging.",
+  promptTemplate: `Clean this food description for parsing.
+
+INPUT: "{{user_message}}"
+
+NORMALIZE:
+- "2" → "two"
+- "tbsp" → "tablespoon"
+- "oz" → "ounce"
+- "w/" → "with"
+- Remove filler words: "um", "uh", "like"
+- Fix dictation errors: "to eggs" → "two eggs"
+
+OUTPUT: Cleaned text only, no explanation.`,
+  tone: { preset: "neutral", notes: "Text normalization" },
+  api: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    temperature: 0.0,
+    maxOutputTokens: 100,
+    responseFormat: "text"
+  }
+};
+
+// A3: Meal NLU Parser (CORE - extracts food items)
+const tmwya_meal_nlu_parser: AgentConfig = {
+  id: "tmwya-meal-nlu-parser",
+  name: "Meal NLU Parser",
+  phase: "pre",
+  enabled: true,
+  order: 32,
+  enabledForPaid: true,
+  enabledForFreeTrial: true,
+  instructions: "Extracts food items, quantities, units, brands, prep methods from natural language. Returns structured JSON.",
+  promptTemplate: `Parse food items from this meal description.
+
+INPUT: "{{user_message}}"
+
+EXTRACT:
+- name: Food item name
+- qty: Numeric quantity (if specified)
+- unit: Unit of measurement (g, oz, cup, piece, serving)
+- brand: Brand name (if mentioned)
+- prep_method: Cooking method (grilled, fried, raw, baked)
+
+RULES:
+- Split compound items: "burger and fries" → 2 items
+- Default qty to 1 if not specified
+- Default unit to "serving" if not specified
+- Detect meal slot from time/context (breakfast, lunch, dinner, snack)
+
+OUTPUT JSON:
+{
+  "items": [{"name": "string", "qty": number, "unit": "string", "brand": "string", "prep_method": "string", "originalText": "string"}],
+  "meal_slot": "breakfast|lunch|dinner|snack|unknown",
+  "confidence": 0.0-1.0,
+  "clarifications_needed": ["array of questions if ambiguous"]
+}`,
+  tone: { preset: "neutral", notes: "Structured data extraction" },
+  api: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    temperature: 0.1,
+    maxOutputTokens: 400,
+    responseFormat: "json"
+  }
+};
+
+// A4: Context Filler
+const tmwya_context_filler: AgentConfig = {
+  id: "tmwya-context-filler",
+  name: "Context Filler",
+  phase: "pre",
+  enabled: true,
+  order: 33,
+  enabledForPaid: true,
+  enabledForFreeTrial: true,
+  instructions: "Backfills missing meal slot, portion sizes, and time based on user defaults and current context.",
+  promptTemplate: `Fill missing context for this meal log.
+
+PARSED ITEMS: {{context.parsedItems}}
+CURRENT TIME: {{context.currentTime}}
+USER DEFAULTS: {{context.userDefaults}}
+
+INFER:
+- meal_slot: Based on time of day
+  - 5-10am: breakfast
+  - 10am-3pm: lunch
+  - 3pm-9pm: dinner
+  - 9pm-5am: snack
+- portion: Use common serving sizes if missing
+  - Egg: 50g
+  - Chicken breast: 150g
+  - Rice: 200g cooked
+  - Banana: 120g
+
+OUTPUT: Enhanced items with inferred values (JSON).`,
+  tone: { preset: "neutral", notes: "Context inference" },
+  api: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    temperature: 0.2,
+    maxOutputTokens: 300,
+    responseFormat: "json"
+  }
+};
+
+// A16: Macro Calculator (CORE - computes nutrition)
+const tmwya_macro_calculator: AgentConfig = {
+  id: "tmwya-macro-calculator",
+  name: "Macro Calculator",
+  phase: "pre",
+  enabled: true,
+  order: 40,
+  enabledForPaid: true,
+  enabledForFreeTrial: true,
+  instructions: "Calculates macros (kcal, protein, carbs, fat) per item and totals. Uses USDA FDC data when available, estimates otherwise.",
+  promptTemplate: `Calculate macros for these food items.
+
+ITEMS: {{context.foodItems}}
+PORTIONS: {{context.portions}}
+
+FOR EACH ITEM:
+1. Lookup nutrition data (USDA preferred)
+2. Scale to actual portion size
+3. Calculate: kcal = (protein × 4) + (carbs × 4) + (fat × 9)
+
+ESTIMATION RULES (if no data):
+- Protein sources: 25-30g protein per 100g
+- Carb sources: 70-80g carbs per 100g
+- Fat sources: 80-100g fat per 100g
+- Mixed foods: Use weighted average
+
+OUTPUT JSON:
+{
+  "items": [{"name": "", "grams": 0, "macros": {"kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0}, "source": "USDA|estimated"}],
+  "totals": {"kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0}
+}`,
+  tone: { preset: "scientist", notes: "Precise calculations" },
+  api: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    temperature: 0.0,
+    maxOutputTokens: 500,
+    responseFormat: "json"
+  }
+};
+
+// A17: Micronutrient Aggregator (DISABLED for Phase 1)
+const tmwya_micronutrient_aggregator: AgentConfig = {
+  id: "tmwya-micronutrient-aggregator",
+  name: "Micronutrient Aggregator",
+  phase: "pre",
+  enabled: false, // Phase 1.1
+  order: 41,
+  enabledForPaid: true,
+  enabledForFreeTrial: false,
+  instructions: "Aggregates fiber, sodium, potassium, key vitamins/minerals. Shows 'unknown' when data missing. Phase 1.1 feature.",
+  promptTemplate: `Coming soon: Micronutrient tracking for fiber, sodium, potassium, vitamins, and minerals.`,
+  tone: { preset: "neutral", notes: "Future feature" },
+  api: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    temperature: 0.0,
+    maxOutputTokens: 50,
+    responseFormat: "text"
+  }
+};
+
+// A18: TEF Engine (Thermic Effect of Food)
+const tmwya_tef_engine: AgentConfig = {
+  id: "tmwya-tef-engine",
+  name: "TEF Engine",
+  phase: "pre",
+  enabled: true,
+  order: 42,
+  enabledForPaid: true,
+  enabledForFreeTrial: true,
+  instructions: "Calculates Thermic Effect of Food (TEF) and net calories. Protein: 25%, Carbs: 8%, Fat: 3%.",
+  promptTemplate: `Calculate TEF for these macros.
+
+TOTALS: {{context.totals}}
+
+FORMULA:
+- TEF_protein = protein_g × 4 × 0.25
+- TEF_carbs = carbs_g × 4 × 0.08
+- TEF_fat = fat_g × 9 × 0.03
+- Total TEF = TEF_protein + TEF_carbs + TEF_fat
+- Net kcal = Total kcal - Total TEF
+
+OUTPUT JSON:
+{
+  "tef_kcal": 0,
+  "net_kcal": 0,
+  "tef_breakdown": {"protein": 0, "carbs": 0, "fat": 0}
+}`,
+  tone: { preset: "scientist", notes: "Metabolic calculations" },
+  api: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    temperature: 0.0,
+    maxOutputTokens: 150,
+    responseFormat: "json"
+  }
+};
+
+// A19: TDEE Engine
+const tmwya_tdee_engine: AgentConfig = {
+  id: "tmwya-tdee-engine",
+  name: "TDEE Engine",
+  phase: "pre",
+  enabled: true,
+  order: 43,
+  enabledForPaid: true,
+  enabledForFreeTrial: true,
+  instructions: "Fetches user TDEE and targets from user_metrics. Compares meal against daily budget.",
+  promptTemplate: `Compare this meal against daily targets.
+
+MEAL: {{context.mealTotals}}
+USER TARGETS: {{context.userMetrics}}
+TODAY CONSUMED: {{context.todayConsumed}}
+
+CALCULATE:
+- Remaining kcal = Target - (Today + This meal)
+- Remaining protein = Protein target - (Today + This meal)
+- Meal as % of daily target
+- On track? (within ±200 kcal and hit protein)
+
+OUTPUT JSON:
+{
+  "meal_kcal": 0,
+  "daily_kcal_target": 0,
+  "daily_kcal_remaining": 0,
+  "meal_as_pct_of_daily": 0,
+  "protein_remaining": 0,
+  "on_track": true|false,
+  "message": "Brief status message"
+}`,
+  tone: { preset: "coach", notes: "Progress tracking" },
+  api: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    temperature: 0.1,
+    maxOutputTokens: 200,
+    responseFormat: "json"
+  }
+};
+
+// A26: Plan Compliance Monitor (Enterprise)
+const tmwya_compliance_monitor: AgentConfig = {
+  id: "tmwya-compliance-monitor",
+  name: "Plan Compliance Monitor",
+  phase: "post",
+  enabled: true,
+  order: 50,
+  enabledForPaid: true,
+  enabledForFreeTrial: false,
+  instructions: "Compares logged meal against mentor plan (if user has active_org_id). Generates gentle nudges and compliance notes for trainers.",
+  promptTemplate: `Check meal compliance with mentor plan.
+
+MEAL: {{context.mealLog}}
+MENTOR PLAN: {{context.mentorPlan}}
+USER HAS PLAN: {{context.hasActivePlan}}
+
+IF NO PLAN:
+Output: "SKIP"
+
+IF HAS PLAN:
+COMPARE:
+- Meal kcal vs plan slot kcal
+- Meal macros vs plan slot macros
+- Timing vs plan schedule
+
+IF WITHIN RANGE (±15%):
+Output: {"status": "compliant", "message": "Great job staying on plan!"}
+
+IF OVER/UNDER:
+Output: {"status": "warning", "message": "This meal is [X] cal over your plan for [meal_slot]. [Gentle suggestion].", "delta": {"kcal_over": X}}
+
+TONE: Supportive, references "Dwayne and I recommend..." for enterprise users.`,
+  tone: { preset: "coach", notes: "Supportive compliance tracking" },
+  api: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    temperature: 0.3,
+    maxOutputTokens: 250,
+    responseFormat: "json"
+  }
+};
+
+// ============================================================================
 // EXPORT DEFAULT REGISTRY
 // ============================================================================
 
@@ -601,6 +937,17 @@ export const defaultPersonalityAgents: Record<string, AgentConfig> = {
   "mmb-expert": mmb_expert,
   "fitness-coach": fitness_coach,
   "nutrition-planner": nutrition_planner,
+
+  // TMWYA Pipeline (Tell Me What You Ate)
+  "tmwya-intent-router": tmwya_intent_router,
+  "tmwya-utterance-normalizer": tmwya_utterance_normalizer,
+  "tmwya-meal-nlu-parser": tmwya_meal_nlu_parser,
+  "tmwya-context-filler": tmwya_context_filler,
+  "tmwya-macro-calculator": tmwya_macro_calculator,
+  "tmwya-micronutrient-aggregator": tmwya_micronutrient_aggregator,
+  "tmwya-tef-engine": tmwya_tef_engine,
+  "tmwya-tdee-engine": tmwya_tdee_engine,
+  "tmwya-compliance-monitor": tmwya_compliance_monitor,
 
   // Response Enhancers
   "evidence-validator": evidence_validator,

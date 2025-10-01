@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, CreditCard as Edit3, ChevronDown, Camera, Barcode, Type, RotateCcw, AlertTriangle } from 'lucide-react';
 import { PortionControls } from './meal/PortionControls';
-import type { 
-  AnalysisResult, 
-  AnalysedFoodItemWithCandidates, 
-  NormalizedMealData, 
-  NormalizedMealLog, 
-  NormalizedMealItem 
+import type {
+  AnalysisResult,
+  AnalysedFoodItemWithCandidates,
+  NormalizedMealData,
+  NormalizedMealLog,
+  NormalizedMealItem,
+  TDEEComparison
 } from '../types/food';
 
 interface SelectedItem {
@@ -30,6 +31,7 @@ interface FoodVerificationScreenProps {
   isLoading?: boolean;
   onRetryAnalysis?: () => void;
   error?: string;
+  tdeeComparison?: TDEEComparison; // TDEE comparison data
 }
 
 export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
@@ -39,7 +41,8 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
   onEditManually,
   isLoading = false,
   onRetryAnalysis,
-  error
+  error,
+  tdeeComparison
 }) => {
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
   const [mealSlot, setMealSlot] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack' | 'unknown'>('unknown');
@@ -497,11 +500,34 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
           </div>
 
           {/* How This Affects Today */}
-          <div className="mt-4 p-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
-            <p className="text-sm text-purple-800">
-              <span className="font-semibold">How this affects today:</span> Remaining ~1,200 kcal, ~75g protein (placeholder)
-            </p>
-          </div>
+          {tdeeComparison && (
+            <div className={`mt-4 p-3 rounded-lg border ${
+              tdeeComparison.on_track
+                ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+                : tdeeComparison.daily_kcal_remaining < 0
+                ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200'
+                : 'bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200'
+            }`}>
+              <p className={`text-sm font-semibold mb-2 ${
+                tdeeComparison.on_track ? 'text-green-800' : tdeeComparison.daily_kcal_remaining < 0 ? 'text-red-800' : 'text-blue-800'
+              }`}>
+                How this affects today:
+              </p>
+              <p className={`text-sm ${
+                tdeeComparison.on_track ? 'text-green-700' : tdeeComparison.daily_kcal_remaining < 0 ? 'text-red-700' : 'text-blue-700'
+              }`}>
+                {tdeeComparison.message}
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                <div className={tdeeComparison.on_track ? 'text-green-700' : 'text-gray-600'}>
+                  Calories: {tdeeComparison.daily_kcal_consumed}/{tdeeComparison.daily_kcal_target}
+                </div>
+                <div className={tdeeComparison.protein_remaining > 0 ? 'text-orange-700' : 'text-green-700'}>
+                  Protein: {Math.round(tdeeComparison.protein_consumed)}g/{tdeeComparison.protein_target}g
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}

@@ -31,6 +31,7 @@ import AgentsListPage from './pages/admin/AgentsListPage';
 import AgentDetailPage from './pages/admin/AgentDetailPage';
 import ShopLensPage from './pages/agents/ShopLensPage';
 import WelcomeBetaPage from './pages/WelcomeBetaPage';
+import { TMWYATestPage } from './pages/TMWYATestPage';
 
 
 function App() {
@@ -62,6 +63,7 @@ function App() {
           <Route path="chat" element={<ChatPage />} />
           <Route path="camera" element={<CameraPage />} />
           <Route path="voice" element={<VoicePage />} />
+          <Route path="tmwya" element={<TMWYATestPage />} />
           <Route
             path="tdee"
             element={<TDEEOnboardingWizard onComplete={() => window.location.href = '/dashboard'} />}
