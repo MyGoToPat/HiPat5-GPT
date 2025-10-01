@@ -5,6 +5,7 @@ import { User } from 'lucide-react';
 export const StepFirstName: React.FC = () => {
   const { userData, updateUserData, setStepValidity, currentStep, isLoggedIn, goToNextStep } = useOnboarding();
   const [firstName, setFirstName] = useState<string>(userData.firstName || '');
+  const hasAutoAdvanced = React.useRef(false);
 
   const validateName = (name: string): boolean => {
     return typeof name === 'string' && name.trim().length > 0;
@@ -19,10 +20,11 @@ export const StepFirstName: React.FC = () => {
     setStepValidity(currentStep, isValid);
   };
 
-  // Auto-skip this step if user is logged in and has a name
+  // Auto-skip this step if user is logged in and has a name (only once, only on step 1)
   React.useEffect(() => {
-    if (isLoggedIn && userData.firstName && validateName(userData.firstName)) {
+    if (currentStep === 1 && !hasAutoAdvanced.current && isLoggedIn && userData.firstName && validateName(userData.firstName)) {
       setStepValidity(currentStep, true);
+      hasAutoAdvanced.current = true;
       // Auto-advance to next step
       setTimeout(() => goToNextStep(), 100);
     }
