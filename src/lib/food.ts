@@ -1,4 +1,5 @@
 import { getSupabase } from './supabase';
+import type { AnalysisResult } from '../types/food';
 
 export async function fetchFoodMacros(
   foodName: string
@@ -28,4 +29,60 @@ export async function fetchFoodMacros(
 
   if (!macros) return { ok: false, error: 'No macro data in edge response' };
   return { ok: true, macros };
+}
+
+/**
+ * Process meal text using TMWYA agents through personality orchestrator
+ * This integrates with Pat's personality system for consistent UX
+ */
+export async function processMealWithTMWYA(
+  userMessage: string,
+  userId: string,
+  source: 'text' | 'voice' | 'photo' | 'barcode' = 'text'
+): Promise<{
+  ok: boolean;
+  analysisResult?: AnalysisResult;
+  error?: string;
+  step?: string;
+}> {
+  const supabase = getSupabase();
+
+  try {
+    const { data, error } = await supabase.functions.invoke('tmwya-process-meal', {
+      body: { userMessage, userId, source },
+    });
+
+    if (error) {
+      console.error('[TMWYA] Edge function error:', error);
+      return { ok: false, error: error.message || 'Failed to process meal', step: 'edge_function' };
+    }
+
+    if (!data || !data.ok) {
+      return { ok: false, error: data?.error || 'Unknown error', step: data?.step || 'unknown' };
+    }
+
+    // Transform response to AnalysisResult format
+    const analysisResult: AnalysisResult = {
+      source,
+      meal_slot: data.meal_slot || 'unknown',
+      items: data.items.map((item: any) => ({
+        name: item.name,
+        originalText: item.originalText,
+        grams: item.grams,
+        macros: item.macros,
+        confidence: item.confidence,
+        candidates: [{
+          name: item.name,
+          macros: item.macros,
+          confidence: item.confidence
+        }]
+      })),
+      originalInput: userMessage
+    };
+
+    return { ok: true, analysisResult };
+  } catch (error: any) {
+    console.error('[TMWYA] Client error:', error);
+    return { ok: false, error: error.message || 'Unknown error', step: 'client' };
+  }
 }

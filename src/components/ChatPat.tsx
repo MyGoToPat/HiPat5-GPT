@@ -4,7 +4,7 @@ import { PatAvatar } from './PatAvatar';
 import { VoiceWaveform } from './VoiceWaveform';
 import { Plus, Mic, Folder, Camera, Image, ArrowUp, Check, X } from 'lucide-react';
 import { FoodVerificationScreen } from './FoodVerificationScreen';
-import { fetchFoodMacros } from '../lib/food';
+import { fetchFoodMacros, processMealWithTMWYA } from '../lib/food';
 import { saveMeal } from '../lib/meals/saveMeal';
 import type { AnalysisResult, NormalizedMealData } from '../types/food';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
@@ -639,8 +639,7 @@ export const ChatPat: React.FC = () => {
   const handleMealTextInput = async (input: string) => {
     try {
       setIsAnalyzingFood(true);
-      const foodPhrases = extractFoodPhrases(input);
-      
+
       // Add user message to chat
       const userMessage: ChatMessage = {
         id: Date.now().toString(),
@@ -650,105 +649,36 @@ export const ChatPat: React.FC = () => {
       };
       setMessages(prev => [...prev, userMessage]);
       setInputText('');
-      
-      // Process each food item
-      const analysisItems = [];
-      
-      for (let i = 0; i < foodPhrases.length; i++) {
-        const foodPhrase = foodPhrases[i];
-        const { cleanName, grams } = parseQuantityAndSize(foodPhrase);
-        
-        try {
-          const macroResult = await fetchFoodMacros(cleanName);
-          
-          if (macroResult.ok && macroResult.macros) {
-            analysisItems.push({
-              name: cleanName,
-              originalText: foodPhrase,
-              grams: grams,
-              macros: {
-                kcal: Number(macroResult.macros.kcal || macroResult.macros.calories) || 0,
-                protein_g: Number(macroResult.macros.protein_g) || 0,
-                carbs_g: Number(macroResult.macros.carbs_g) || 0,
-                fat_g: Number(macroResult.macros.fat_g) || 0,
-              },
-              confidence: Number(macroResult.macros.confidence) || 0.7,
-              candidates: [{
-                name: cleanName,
-                macros: {
-                  kcal: Number(macroResult.macros.kcal || macroResult.macros.calories) || 0,
-                  protein_g: Number(macroResult.macros.protein_g) || 0,
-                  carbs_g: Number(macroResult.macros.carbs_g) || 0,
-                  fat_g: Number(macroResult.macros.fat_g) || 0,
-                },
-                confidence: Number(macroResult.macros.confidence) || 0.7,
-              }]
-            });
-          } else {
-            // Add placeholder item if lookup fails
-            analysisItems.push({
-              name: cleanName,
-              originalText: foodPhrase,
-              grams: grams,
-              macros: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-              confidence: 0.3,
-              candidates: [{
-                name: cleanName,
-                macros: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-                confidence: 0.3,
-              }]
-            });
-          }
-        } catch (error) {
-          console.error(`Error fetching macros for "${cleanName}":`, error);
-          // Add placeholder item on error
-          analysisItems.push({
-            name: cleanName,
-            originalText: foodPhrase,
-            grams: grams,
-            macros: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-            confidence: 0.3,
-            candidates: [{
-              name: cleanName,
-              macros: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-              confidence: 0.3,
-            }]
-          });
-        }
-      }
-      
-      if (analysisItems.length > 0) {
-        // Build analysis result for verification screen
-        const analysisResult: AnalysisResult = {
-          source: 'text',
-          meal_slot: inferMealSlot(),
-          items: analysisItems,
-          originalInput: input
-        };
-        
-        setCurrentAnalysisResult(analysisResult);
+
+      // Process meal using TMWYA agents through personality orchestrator
+      const result = await processMealWithTMWYA(input, userId, 'text');
+
+      if (result.ok && result.analysisResult && result.analysisResult.items.length > 0) {
+        // Show verification screen with results
+        setCurrentAnalysisResult(result.analysisResult);
         setShowFoodVerificationScreen(true);
       } else {
-        // Fallback to normal chat if all lookups fail
-        toast.error('Could not find nutrition info for any of the foods mentioned');
+        // Fallback to normal chat if processing fails
+        const errorMsg = result.error || 'Could not process meal input';
+        toast.error(errorMsg);
+
         // Continue with normal chat processing
         setIsSending(true);
         setIsThinking(true);
-        
-        // Process as normal chat message
+
         setTimeout(() => {
           setIsThinking(false);
           setIsSpeaking(true);
-          
+
           const fallbackResponse: ChatMessage = {
             id: (Date.now() + 1).toString(),
-            text: "I couldn't find nutrition information for that food. You can try describing it differently or use the camera to take a photo.",
+            text: "I couldn't process that meal input. You can try describing it differently or use the camera to take a photo.",
             timestamp: new Date(),
             isUser: false
           };
-          
+
           setMessages(prev => [...prev, fallbackResponse]);
-          
+
           setTimeout(() => {
             setIsSpeaking(false);
             setIsSending(false);
