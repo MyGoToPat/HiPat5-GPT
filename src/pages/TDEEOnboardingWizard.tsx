@@ -14,12 +14,13 @@ import { StepDietaryPreference } from '../components/onboarding/steps/StepDietar
 import { StepReviewInputs } from '../components/onboarding/steps/StepReviewInputs';
 import { StepMacroResults } from '../components/onboarding/steps/StepMacroResults';
 import { StepEmailPrompt } from '../components/onboarding/steps/StepEmailPrompt';
+import { StepCompletion } from '../components/onboarding/steps/StepCompletion';
 
 interface TDEEOnboardingWizardProps {
   onComplete?: () => void;
 }
 const TDEEOnboardingWizardContent: React.FC<{ onComplete?: () => void }> = ({ onComplete }) => {
-  const { currentStep, calculatedMacros } = useOnboarding();
+  const { currentStep, calculatedMacros, isLoggedIn } = useOnboarding();
 
   // Handle wizard completion and mark TDEE as completed in database
   useEffect(() => {
@@ -81,7 +82,10 @@ const TDEEOnboardingWizardContent: React.FC<{ onComplete?: () => void }> = ({ on
       case 10:
         return <OnboardingStep><StepMacroResults /></OnboardingStep>;
       case 11:
-        return <OnboardingStep><StepEmailPrompt /></OnboardingStep>;
+        // Show completion for logged-in users, email capture for anonymous users
+        return <OnboardingStep>
+          {isLoggedIn ? <StepCompletion /> : <StepEmailPrompt />}
+        </OnboardingStep>;
       default:
         return (
           <OnboardingStep>
@@ -90,7 +94,7 @@ const TDEEOnboardingWizardContent: React.FC<{ onComplete?: () => void }> = ({ on
                 {currentStep > 11 ? 'Wizard Complete!' : 'Invalid Step'}
               </h2>
               <p className="text-gray-600">
-                {currentStep > 11 
+                {currentStep > 11
                   ? 'Thank you for using Pat\'s Macro Calculator!'
                   : 'Something went wrong with the wizard navigation.'
                 }
