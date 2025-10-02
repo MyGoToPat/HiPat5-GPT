@@ -97,6 +97,12 @@ export const MacrosTab: React.FC = () => {
           carbs_g: metricsResult.data.carbs_g || 0,
           fat_g: metricsResult.data.fat_g || 0
         });
+        if (metricsResult.data.caloric_goal) {
+          setCaloricGoal(metricsResult.data.caloric_goal as CaloricGoal);
+        }
+        if (metricsResult.data.caloric_adjustment) {
+          setCustomDeficit(metricsResult.data.caloric_adjustment);
+        }
       }
 
       if (prefsResult.data) {
@@ -169,6 +175,29 @@ export const MacrosTab: React.FC = () => {
     }
   };
 
+  const handleSaveCaloricGoal = async () => {
+    try {
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('user_metrics')
+        .update({
+          caloric_goal: caloricGoal,
+          caloric_adjustment: customDeficit
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      toast.success('Caloric goal saved!');
+    } catch (error: any) {
+      console.error('Error saving caloric goal:', error);
+      toast.error('Failed to save caloric goal');
+    }
+  };
+
   const formatWeight = (kg: number | undefined) => {
     if (!kg) return 'N/A';
     if (unitPrefs.weight_unit === 'lbs') {
@@ -188,15 +217,12 @@ export const MacrosTab: React.FC = () => {
     return `${cm.toFixed(1)} cm`;
   };
 
-  const calculateTEF = (tdee: number | undefined, dietPref: string | undefined) => {
-    if (!tdee) return 0;
-    const tefMap = {
-      carnivore_keto: 0.15,
-      ketovore: 0.12,
-      low_carb: 0.10,
-      balanced_omnivore: 0.10
-    };
-    return Math.round(tdee * (tefMap[dietPref as keyof typeof tefMap] || 0.10));
+  const calculateTEF = (protein_g: number | undefined, carbs_g: number | undefined, fat_g: number | undefined) => {
+    if (!protein_g || !carbs_g || !fat_g) return 0;
+    const proteinTEF = (protein_g * 4) * 0.30;
+    const carbsTEF = (carbs_g * 4) * 0.12;
+    const fatTEF = (fat_g * 9) * 0.02;
+    return Math.round(proteinTEF + carbsTEF + fatTEF);
   };
 
   const getAdjustedCalories = () => {
@@ -248,10 +274,11 @@ export const MacrosTab: React.FC = () => {
     );
   }
 
-  const tef = calculateTEF(metrics.tdee, metrics.dietary_preference);
-  const netCalories = (metrics.tdee || 0) - tef;
-  const adjustedCals = getAdjustedCalories();
   const adjustedMacros = getAdjustedMacros();
+  const tef = calculateTEF(adjustedMacros.protein, adjustedMacros.carbs, adjustedMacros.fat);
+  const adjustedCals = getAdjustedCalories();
+  const netCalories = adjustedCals - tef;
+  const totalDeficit = caloricGoal === 'maintenance' ? tef : customDeficit + tef;
 
   return (
     <div className="space-y-6">
@@ -322,6 +349,13 @@ export const MacrosTab: React.FC = () => {
             </div>
           </div>
         )}
+
+        <button
+          onClick={handleSaveCaloricGoal}
+          className="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+        >
+          Save Caloric Goal
+        </button>
       </div>
 
       {/* TDEE Overview */}
@@ -362,7 +396,7 @@ export const MacrosTab: React.FC = () => {
           <div className="bg-gradient-to-r from-orange-600/20 to-red-600/20 rounded-lg p-6 border border-orange-500/30">
             <div className="text-center">
               <div className="text-sm text-orange-300 mb-1">Daily Target (After TEF)</div>
-              <div className="text-5xl font-bold text-white mb-2">{adjustedCals}</div>
+              <div className="text-5xl font-bold text-white mb-2">{netCalories}</div>
               <div className="text-orange-200">calories per day</div>
             </div>
           </div>
@@ -401,14 +435,23 @@ export const MacrosTab: React.FC = () => {
               <span className="text-purple-300 font-medium">-{tef} cal</span>
             </div>
 
+            {caloricGoal !== 'maintenance' && (
+              <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700">
+                <span className="text-gray-300 font-semibold">Total Deficit/Surplus</span>
+                <span className={`font-bold ${caloricGoal === 'deficit' ? 'text-red-400' : 'text-green-400'}`}>
+                  {caloricGoal === 'deficit' ? '-' : '+'}{totalDeficit} cal
+                </span>
+              </div>
+            )}
+
             <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700">
               <span className="text-gray-300 font-semibold">Net Daily Target</span>
-              <span className="text-orange-400 font-bold text-lg">{adjustedCals} cal</span>
+              <span className="text-orange-400 font-bold text-lg">{netCalories} cal</span>
             </div>
           </div>
 
           <div className="text-xs text-gray-500 text-center">
-            TEF is automatically calculated based on your dietary preference and subtracted from your target
+            TEF calculated: Protein (30%), Carbs (12%), Fat (2%) of macro calories
           </div>
         </div>
       </div>
@@ -506,15 +549,28 @@ export const MacrosTab: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-gray-800/50 rounded-lg p-3">
+            <div className="bg-gray-800/50 rounded-lg p-3 space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-400">Total Calories from Macros</span>
                 <span className="text-white font-bold">
                   {Math.round((editMacros.protein_g * 4) + (editMacros.carbs_g * 4) + (editMacros.fat_g * 9))} cal
                 </span>
               </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500">Estimated TEF</span>
+                <span className="text-purple-400">
+                  -{Math.round(((editMacros.protein_g * 4) * 0.30) + ((editMacros.carbs_g * 4) * 0.12) + ((editMacros.fat_g * 9) * 0.02))} cal
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700">
+                <span className="text-gray-300 font-semibold">Net Calories</span>
+                <span className="text-orange-400 font-bold">
+                  {Math.round((editMacros.protein_g * 4) + (editMacros.carbs_g * 4) + (editMacros.fat_g * 9) -
+                    (((editMacros.protein_g * 4) * 0.30) + ((editMacros.carbs_g * 4) * 0.12) + ((editMacros.fat_g * 9) * 0.02)))} cal
+                </span>
+              </div>
               <div className="text-xs text-gray-500 mt-1">
-                Target: {adjustedCals} cal (including TEF adjustment)
+                Target: {netCalories} cal (net after TEF)
               </div>
             </div>
           </div>
