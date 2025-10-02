@@ -427,25 +427,19 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
           })}
         </div>
 
-        {/* Meal Slot Selector */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Meal timing:
-          </label>
-          <div className="grid grid-cols-5 gap-2">
-            {['breakfast', 'lunch', 'dinner', 'snack', 'unknown'].map((slot) => (
-              <button
-                key={slot}
-                onClick={() => setMealSlot(slot as any)}
-                className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                  mealSlot === slot
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                {slot.charAt(0).toUpperCase() + slot.slice(1)}
-              </button>
-            ))}
+        {/* Timestamp Display - Auto-determined, not user-selectable */}
+        <div className="mb-6 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-600">Logged at:</span>
+            <span className="text-sm text-gray-900">
+              {new Date().toLocaleString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+              })}
+            </span>
           </div>
         </div>
 

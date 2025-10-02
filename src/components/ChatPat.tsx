@@ -62,7 +62,8 @@ export const ChatPat: React.FC = () => {
   const [isLoggingActivity, setIsLoggingActivity] = useState(false);
   const [activeAgentSession, setActiveAgentSession] = useState<AgentSession | null>(null);
   const [silentMode, setSilentMode] = useState(false);
-  
+  const [statusText, setStatusText] = useState<string>('');
+
   // Food verification screen state
   const [showFoodVerificationScreen, setShowFoodVerificationScreen] = useState(false);
   const [currentAnalysisResult, setCurrentAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -311,6 +312,7 @@ export const ChatPat: React.FC = () => {
       
       setIsSending(true);
       setIsThinking(true);
+      setStatusText('Thinking...');
       
       // Check if input triggers a specific agent
       
@@ -345,6 +347,7 @@ export const ChatPat: React.FC = () => {
       setTimeout(() => {
         setIsThinking(false);
         setIsSpeaking(true);
+        setStatusText('Responding...');
         
         // Get AI response
         const getAIResponse = async () => {
@@ -479,6 +482,7 @@ export const ChatPat: React.FC = () => {
                     setTimeout(() => {
                       setIsSpeaking(false);
                       setIsSending(false);
+                      setStatusText('');
                     }, responseText.length * 50);
                     
                     return;
@@ -543,6 +547,7 @@ export const ChatPat: React.FC = () => {
                 setIsSending(false);
                 setIsThinking(false);
                 setIsSpeaking(false);
+                setStatusText('');
               },
               onError: (error: string) => {
                 console.error('Streaming error:', error);
@@ -553,6 +558,7 @@ export const ChatPat: React.FC = () => {
                 setIsSending(false);
                 setIsThinking(false);
                 setIsSpeaking(false);
+                setStatusText('');
                 return;
               }
             });
@@ -648,12 +654,14 @@ export const ChatPat: React.FC = () => {
   const handleMealTextInput = async (input: string) => {
     try {
       setIsAnalyzingFood(true);
+      setStatusText('Analyzing your meal...');
 
       // Get authenticated user
       const user = await getSupabase().auth.getUser();
       if (!user.data.user) {
         toast.error('Please log in to track meals');
         setIsAnalyzingFood(false);
+        setStatusText('');
         return;
       }
       const userId = user.data.user.id;
@@ -669,12 +677,14 @@ export const ChatPat: React.FC = () => {
       setInputText('');
 
       // Process meal using TMWYA agents through personality orchestrator
+      setStatusText('Searching for nutrition data...');
       console.log('[ChatPat] Processing meal with TMWYA:', { input, userId });
       const result = await processMealWithTMWYA(input, userId, 'text');
       console.log('[ChatPat] TMWYA result:', result);
 
       if (result.ok && result.analysisResult && result.analysisResult.items.length > 0) {
         // Show verification screen with results
+        setStatusText('');
         console.log('[ChatPat] Showing verification screen');
         setCurrentAnalysisResult(result.analysisResult);
         setShowFoodVerificationScreen(true);
@@ -710,8 +720,10 @@ export const ChatPat: React.FC = () => {
     } catch (error) {
       console.error('Error processing meal text:', error);
       toast.error('Error processing food information');
+      setStatusText('');
     } finally {
       setIsAnalyzingFood(false);
+      setStatusText('');
     }
   };
 
@@ -1221,11 +1233,14 @@ export const ChatPat: React.FC = () => {
               </div>
             ))}
             
-            {/* Typing Indicator */}
-            {isSending && (
+            {/* Status Indicator */}
+            {(isSending || isAnalyzingFood || statusText) && (
               <div className="flex justify-start">
                 <div className="max-w-sm lg:max-w-2xl px-5 py-4 rounded-2xl bg-gray-800 text-gray-100" style={{ maxWidth: '700px' }}>
-                  <p className="text-base text-gray-400 leading-relaxed">Pat is thinking...</p>
+                  <p className="text-base text-gray-400 leading-relaxed flex items-center gap-2">
+                    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                    {statusText || 'Pat is thinking...'}
+                  </p>
                 </div>
               </div>
             )}

@@ -232,14 +232,18 @@ OUTPUT JSON:
 
 /**
  * Resolve food item to macros using Macro Calculator agent prompt
+ * Returns macros for a STANDARD SERVING SIZE (not per 100g)
  */
 async function resolveFoodMacros(
   foodName: string,
   apiKey: string
 ): Promise<{ kcal: number; protein_g: number; carbs_g: number; fat_g: number } | null> {
-  const prompt = `Return nutrition facts per 100g for: ${foodName.trim()} as typically prepared in North America.
+  const prompt = `Return nutrition facts for ONE STANDARD SERVING of: ${foodName.trim()}
 
-OUTPUT JSON with these exact keys:
+For branded/restaurant items (Big Mac, McChicken, etc.), use the official nutrition facts for ONE ITEM.
+For generic foods, use a typical serving size.
+
+OUTPUT JSON:
 {
   "kcal": <number>,
   "protein_g": <number>,
@@ -247,7 +251,7 @@ OUTPUT JSON with these exact keys:
   "fat_g": <number>
 }
 
-If you cannot provide a reasonable estimate, respond with {"error": "unconfident"}.`;
+IMPORTANT: Return actual values. Do NOT return zeros unless the food truly has no macros.`;
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -261,12 +265,13 @@ If you cannot provide a reasonable estimate, respond with {"error": "unconfident
         messages: [
           {
             role: 'system',
-            content: 'You are a nutrition expert. Always respond with valid JSON only. No additional text or explanations.'
+            content: 'You are a nutrition expert with access to branded food databases. Provide accurate nutrition facts for standard serving sizes. Always respond with valid JSON only.'
           },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.3,
+        temperature: 0.1,
         max_tokens: 200,
+        response_format: { type: 'json_object' }
       }),
     });
 
@@ -274,7 +279,6 @@ If you cannot provide a reasonable estimate, respond with {"error": "unconfident
       console.error('[TMWYA] OpenAI macros error:', await response.text());
       return null;
     }
-
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
 
@@ -282,9 +286,20 @@ If you cannot provide a reasonable estimate, respond with {"error": "unconfident
       return null;
     }
 
-    const macros = JSON.parse(content.trim());
+    // Try to extract JSON if wrapped in markdown
+    let jsonContent = content.trim();
+    if (jsonContent.startsWith('```json')) {
+      jsonContent = jsonContent.replace(/```json\n?/g, '').replace(/```/g, '').trim();
+    } else if (jsonContent.startsWith('```')) {
+      jsonContent = jsonContent.replace(/```\n?/g, '').trim();
+    }
 
-    if (macros.error === 'unconfident') {
+    const macros = JSON.parse(jsonContent);
+
+    // Validate that we have actual values (not all zeros)
+    const total = (macros.protein_g || 0) + (macros.carbs_g || 0) + (macros.fat_g || 0);
+    if (total === 0 && macros.kcal === 0) {
+      console.warn('[TMWYA] Received all zeros for:', foodName);
       return null;
     }
 
