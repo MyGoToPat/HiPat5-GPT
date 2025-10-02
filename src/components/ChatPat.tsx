@@ -649,6 +649,15 @@ export const ChatPat: React.FC = () => {
     try {
       setIsAnalyzingFood(true);
 
+      // Get authenticated user
+      const user = await getSupabase().auth.getUser();
+      if (!user.data.user) {
+        toast.error('Please log in to track meals');
+        setIsAnalyzingFood(false);
+        return;
+      }
+      const userId = user.data.user.id;
+
       // Add user message to chat
       const userMessage: ChatMessage = {
         id: Date.now().toString(),
