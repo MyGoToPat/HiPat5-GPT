@@ -281,9 +281,18 @@ export const MacrosTab: React.FC = () => {
   const displayFat = isEditingMacros ? editMacros.fat_g : getAdjustedMacros().fat;
 
   const tef = calculateTEF(displayProtein, displayCarbs, displayFat);
-  const adjustedCals = getAdjustedCalories();
-  const grossCalories = (displayProtein * 4) + (displayCarbs * 4) + (displayFat * 9);
-  const netCalories = grossCalories - tef;
+
+  // Calculate target before TEF (TDEE adjusted for goal)
+  const targetBeforeTEF = caloricGoal === 'maintenance'
+    ? (metrics.tdee || 0)
+    : caloricGoal === 'deficit'
+      ? (metrics.tdee || 0) - customDeficit
+      : (metrics.tdee || 0) + customDeficit;
+
+  // Net Daily Target = Target Before TEF - TEF
+  const netCalories = targetBeforeTEF - tef;
+
+  // Total Deficit/Surplus is just a display value showing the total adjustment
   const totalDeficit = caloricGoal === 'maintenance' ? tef : customDeficit + tef;
 
   return (
@@ -441,6 +450,11 @@ export const MacrosTab: React.FC = () => {
               <span className="text-purple-300 font-medium">-{tef} cal</span>
             </div>
 
+            <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700">
+              <span className="text-gray-300 font-semibold">Net Daily Target</span>
+              <span className="text-orange-400 font-bold text-lg">{netCalories} cal</span>
+            </div>
+
             {caloricGoal !== 'maintenance' && (
               <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700">
                 <span className="text-gray-300 font-semibold">Total Deficit/Surplus</span>
@@ -449,11 +463,6 @@ export const MacrosTab: React.FC = () => {
                 </span>
               </div>
             )}
-
-            <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700">
-              <span className="text-gray-300 font-semibold">Net Daily Target</span>
-              <span className="text-orange-400 font-bold text-lg">{netCalories} cal</span>
-            </div>
           </div>
 
           <div className="text-xs text-gray-500 text-center">
