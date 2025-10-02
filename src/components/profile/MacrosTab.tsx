@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Flame, Target, TrendingUp, Zap, Minus, Plus, Edit2, Scale } from 'lucide-react';
+import { Activity, Flame, Target, TrendingUp, Zap, Minus, Plus, CreditCard as Edit2, Scale } from 'lucide-react';
 import { getSupabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { WeightLogModal } from './WeightLogModal';
