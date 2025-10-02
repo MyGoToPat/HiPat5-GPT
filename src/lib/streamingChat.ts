@@ -31,8 +31,8 @@ export async function callChatStreaming(options: StreamingChatOptions): Promise<
       throw new Error('Supabase configuration missing');
     }
 
-    // We need to use fetch with SSE instead of EventSource for POST requests
-    const response = await fetch(`${supabaseUrl}/functions/v1/openai-chat`, {
+    // Use intelligent-chat endpoint (routes between OpenAI and Gemini)
+    const response = await fetch(`${supabaseUrl}/functions/v1/intelligent-chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -119,7 +119,7 @@ export async function callChatNonStreaming(
       return { ok: false, error: 'Supabase configuration missing' };
     }
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/openai-chat`, {
+    const response = await fetch(`${supabaseUrl}/functions/v1/intelligent-chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
