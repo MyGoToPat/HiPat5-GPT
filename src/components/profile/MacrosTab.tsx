@@ -50,11 +50,17 @@ export const MacrosTab: React.FC = () => {
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [weightLogs, setWeightLogs] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingMacros, setIsEditingMacros] = useState(false);
   const [editForm, setEditForm] = useState({
     weight_kg: 0,
     body_fat_percent: 0,
     activity_level: 'moderate' as const,
     dietary_preference: 'balanced_omnivore' as const
+  });
+  const [editMacros, setEditMacros] = useState({
+    protein_g: 0,
+    carbs_g: 0,
+    fat_g: 0
   });
 
   useEffect(() => {
@@ -85,6 +91,11 @@ export const MacrosTab: React.FC = () => {
           body_fat_percent: metricsResult.data.body_fat_percent || 0,
           activity_level: metricsResult.data.activity_level || 'moderate',
           dietary_preference: metricsResult.data.dietary_preference || 'balanced_omnivore'
+        });
+        setEditMacros({
+          protein_g: metricsResult.data.protein_g || 0,
+          carbs_g: metricsResult.data.carbs_g || 0,
+          fat_g: metricsResult.data.fat_g || 0
         });
       }
 
@@ -127,6 +138,34 @@ export const MacrosTab: React.FC = () => {
     } catch (error: any) {
       console.error('Error updating profile:', error);
       toast.error('Failed to update profile');
+    }
+  };
+
+  const handleSaveMacros = async () => {
+    try {
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const totalCals = (editMacros.protein_g * 4) + (editMacros.carbs_g * 4) + (editMacros.fat_g * 9);
+
+      const { error } = await supabase
+        .from('user_metrics')
+        .update({
+          protein_g: editMacros.protein_g,
+          carbs_g: editMacros.carbs_g,
+          fat_g: editMacros.fat_g
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      toast.success('Macros updated successfully!');
+      setIsEditingMacros(false);
+      loadData();
+    } catch (error: any) {
+      console.error('Error updating macros:', error);
+      toast.error('Failed to update macros');
     }
   };
 
@@ -318,39 +357,168 @@ export const MacrosTab: React.FC = () => {
       {/* Target Calories */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
         <h3 className="text-lg font-semibold text-white mb-4">Target Calories</h3>
-        <div className="bg-gradient-to-r from-orange-600/20 to-red-600/20 rounded-lg p-6 border border-orange-500/30">
-          <div className="text-center">
-            <div className="text-5xl font-bold text-white mb-2">{adjustedCals}</div>
-            <div className="text-orange-200">calories per day</div>
+
+        <div className="space-y-4">
+          <div className="bg-gradient-to-r from-orange-600/20 to-red-600/20 rounded-lg p-6 border border-orange-500/30">
+            <div className="text-center">
+              <div className="text-sm text-orange-300 mb-1">Daily Target (After TEF)</div>
+              <div className="text-5xl font-bold text-white mb-2">{adjustedCals}</div>
+              <div className="text-orange-200">calories per day</div>
+            </div>
+          </div>
+
+          <div className="bg-gray-800/50 rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">TDEE (Base)</span>
+              <span className="text-white font-medium">{metrics.tdee || 0} cal</span>
+            </div>
+
             {caloricGoal !== 'maintenance' && (
-              <div className="mt-2 text-sm text-gray-300">
-                ({caloricGoal === 'deficit' ? '-' : '+'}{customDeficit} from TDEE)
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-400">
+                  {caloricGoal === 'deficit' ? 'Deficit' : 'Surplus'} Amount
+                </span>
+                <span className={`font-medium ${caloricGoal === 'deficit' ? 'text-red-400' : 'text-green-400'}`}>
+                  {caloricGoal === 'deficit' ? '-' : '+'}{customDeficit} cal
+                </span>
               </div>
             )}
+
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">Target (Before TEF)</span>
+              <span className="text-blue-300 font-medium">
+                {caloricGoal === 'maintenance' ? metrics.tdee :
+                  caloricGoal === 'deficit' ? (metrics.tdee || 0) - customDeficit :
+                  (metrics.tdee || 0) + customDeficit} cal
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700">
+              <span className="text-gray-400 flex items-center gap-2">
+                <Zap size={14} className="text-purple-400" />
+                TEF (Thermic Effect)
+              </span>
+              <span className="text-purple-300 font-medium">-{tef} cal</span>
+            </div>
+
+            <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700">
+              <span className="text-gray-300 font-semibold">Net Daily Target</span>
+              <span className="text-orange-400 font-bold text-lg">{adjustedCals} cal</span>
+            </div>
+          </div>
+
+          <div className="text-xs text-gray-500 text-center">
+            TEF is automatically calculated based on your dietary preference and subtracted from your target
           </div>
         </div>
       </div>
 
       {/* Daily Macro Targets */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-        <h3 className="text-lg font-semibold text-white mb-4">Daily Macro Targets</h3>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-red-600/10 rounded-lg p-4 border border-red-500/30">
-            <div className="text-red-300 text-sm mb-1">Protein</div>
-            <div className="text-2xl font-bold text-white">{adjustedMacros.protein}g</div>
-            <div className="text-xs text-red-200 mt-1">{adjustedMacros.protein * 4} cal</div>
-          </div>
-          <div className="bg-blue-600/10 rounded-lg p-4 border border-blue-500/30">
-            <div className="text-blue-300 text-sm mb-1">Carbs</div>
-            <div className="text-2xl font-bold text-white">{adjustedMacros.carbs}g</div>
-            <div className="text-xs text-blue-200 mt-1">{adjustedMacros.carbs * 4} cal</div>
-          </div>
-          <div className="bg-yellow-600/10 rounded-lg p-4 border border-yellow-500/30">
-            <div className="text-yellow-300 text-sm mb-1">Fat</div>
-            <div className="text-2xl font-bold text-white">{adjustedMacros.fat}g</div>
-            <div className="text-xs text-yellow-200 mt-1">{adjustedMacros.fat * 9} cal</div>
-          </div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white">Daily Macro Targets</h3>
+          {!isEditingMacros ? (
+            <button
+              onClick={() => {
+                setEditMacros({
+                  protein_g: adjustedMacros.protein,
+                  carbs_g: adjustedMacros.carbs,
+                  fat_g: adjustedMacros.fat
+                });
+                setIsEditingMacros(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors"
+            >
+              <Edit2 size={16} />
+              Edit
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsEditingMacros(false)}
+                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveMacros}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          )}
         </div>
+
+        {!isEditingMacros ? (
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-red-600/10 rounded-lg p-4 border border-red-500/30">
+              <div className="text-red-300 text-sm mb-1">Protein</div>
+              <div className="text-2xl font-bold text-white">{adjustedMacros.protein}g</div>
+              <div className="text-xs text-red-200 mt-1">{adjustedMacros.protein * 4} cal</div>
+            </div>
+            <div className="bg-blue-600/10 rounded-lg p-4 border border-blue-500/30">
+              <div className="text-blue-300 text-sm mb-1">Carbs</div>
+              <div className="text-2xl font-bold text-white">{adjustedMacros.carbs}g</div>
+              <div className="text-xs text-blue-200 mt-1">{adjustedMacros.carbs * 4} cal</div>
+            </div>
+            <div className="bg-yellow-600/10 rounded-lg p-4 border border-yellow-500/30">
+              <div className="text-yellow-300 text-sm mb-1">Fat</div>
+              <div className="text-2xl font-bold text-white">{adjustedMacros.fat}g</div>
+              <div className="text-xs text-yellow-200 mt-1">{adjustedMacros.fat * 9} cal</div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm text-red-300 mb-2">Protein (g)</label>
+                <input
+                  type="number"
+                  step="1"
+                  value={editMacros.protein_g}
+                  onChange={(e) => setEditMacros({ ...editMacros, protein_g: parseFloat(e.target.value) || 0 })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                />
+                <div className="text-xs text-red-200 mt-1">{Math.round(editMacros.protein_g * 4)} cal</div>
+              </div>
+              <div>
+                <label className="block text-sm text-blue-300 mb-2">Carbs (g)</label>
+                <input
+                  type="number"
+                  step="1"
+                  value={editMacros.carbs_g}
+                  onChange={(e) => setEditMacros({ ...editMacros, carbs_g: parseFloat(e.target.value) || 0 })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                />
+                <div className="text-xs text-blue-200 mt-1">{Math.round(editMacros.carbs_g * 4)} cal</div>
+              </div>
+              <div>
+                <label className="block text-sm text-yellow-300 mb-2">Fat (g)</label>
+                <input
+                  type="number"
+                  step="1"
+                  value={editMacros.fat_g}
+                  onChange={(e) => setEditMacros({ ...editMacros, fat_g: parseFloat(e.target.value) || 0 })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                />
+                <div className="text-xs text-yellow-200 mt-1">{Math.round(editMacros.fat_g * 9)} cal</div>
+              </div>
+            </div>
+
+            <div className="bg-gray-800/50 rounded-lg p-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-400">Total Calories from Macros</span>
+                <span className="text-white font-bold">
+                  {Math.round((editMacros.protein_g * 4) + (editMacros.carbs_g * 4) + (editMacros.fat_g * 9))} cal
+                </span>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Target: {adjustedCals} cal (including TEF adjustment)
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Weight Tracking Section */}
