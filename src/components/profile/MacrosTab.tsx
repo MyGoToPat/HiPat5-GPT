@@ -274,10 +274,16 @@ export const MacrosTab: React.FC = () => {
     );
   }
 
-  const adjustedMacros = getAdjustedMacros();
-  const tef = calculateTEF(adjustedMacros.protein, adjustedMacros.carbs, adjustedMacros.fat);
+  // Use editMacros if editing, otherwise use saved adjustedMacros
+  const displayMacros = isEditingMacros ? editMacros : getAdjustedMacros();
+  const displayProtein = isEditingMacros ? editMacros.protein_g : getAdjustedMacros().protein;
+  const displayCarbs = isEditingMacros ? editMacros.carbs_g : getAdjustedMacros().carbs;
+  const displayFat = isEditingMacros ? editMacros.fat_g : getAdjustedMacros().fat;
+
+  const tef = calculateTEF(displayProtein, displayCarbs, displayFat);
   const adjustedCals = getAdjustedCalories();
-  const netCalories = adjustedCals - tef;
+  const grossCalories = (displayProtein * 4) + (displayCarbs * 4) + (displayFat * 9);
+  const netCalories = grossCalories - tef;
   const totalDeficit = caloricGoal === 'maintenance' ? tef : customDeficit + tef;
 
   return (
@@ -463,10 +469,11 @@ export const MacrosTab: React.FC = () => {
           {!isEditingMacros ? (
             <button
               onClick={() => {
+                const currentMacros = getAdjustedMacros();
                 setEditMacros({
-                  protein_g: adjustedMacros.protein,
-                  carbs_g: adjustedMacros.carbs,
-                  fat_g: adjustedMacros.fat
+                  protein_g: currentMacros.protein,
+                  carbs_g: currentMacros.carbs,
+                  fat_g: currentMacros.fat
                 });
                 setIsEditingMacros(true);
               }}
@@ -497,18 +504,18 @@ export const MacrosTab: React.FC = () => {
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-red-600/10 rounded-lg p-4 border border-red-500/30">
               <div className="text-red-300 text-sm mb-1">Protein</div>
-              <div className="text-2xl font-bold text-white">{adjustedMacros.protein}g</div>
-              <div className="text-xs text-red-200 mt-1">{adjustedMacros.protein * 4} cal</div>
+              <div className="text-2xl font-bold text-white">{displayProtein}g</div>
+              <div className="text-xs text-red-200 mt-1">{Math.round(displayProtein * 4)} cal</div>
             </div>
             <div className="bg-blue-600/10 rounded-lg p-4 border border-blue-500/30">
               <div className="text-blue-300 text-sm mb-1">Carbs</div>
-              <div className="text-2xl font-bold text-white">{adjustedMacros.carbs}g</div>
-              <div className="text-xs text-blue-200 mt-1">{adjustedMacros.carbs * 4} cal</div>
+              <div className="text-2xl font-bold text-white">{displayCarbs}g</div>
+              <div className="text-xs text-blue-200 mt-1">{Math.round(displayCarbs * 4)} cal</div>
             </div>
             <div className="bg-yellow-600/10 rounded-lg p-4 border border-yellow-500/30">
               <div className="text-yellow-300 text-sm mb-1">Fat</div>
-              <div className="text-2xl font-bold text-white">{adjustedMacros.fat}g</div>
-              <div className="text-xs text-yellow-200 mt-1">{adjustedMacros.fat * 9} cal</div>
+              <div className="text-2xl font-bold text-white">{displayFat}g</div>
+              <div className="text-xs text-yellow-200 mt-1">{Math.round(displayFat * 9)} cal</div>
             </div>
           </div>
         ) : (
