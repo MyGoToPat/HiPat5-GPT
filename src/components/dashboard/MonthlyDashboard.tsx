@@ -68,10 +68,23 @@ export const MonthlyDashboard: React.FC<MonthlyDashboardProps> = ({ onBackToDash
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white">Loading monthly data...</p>
+      <div className="min-h-screen bg-gray-950 text-gray-100">
+        {onBackToDashboard && (
+          <div className="p-4">
+            <button
+              onClick={onBackToDashboard}
+              className="p-2 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors"
+              title="Back to Daily Dashboard"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          </div>
+        )}
+        <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 80px)' }}>
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-white">Loading monthly data...</p>
+          </div>
         </div>
       </div>
     );
@@ -79,7 +92,18 @@ export const MonthlyDashboard: React.FC<MonthlyDashboardProps> = ({ onBackToDash
 
   if (monthlyData.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-950 text-gray-100 p-6">
+      <div className="min-h-screen bg-gray-950 text-gray-100">
+        {onBackToDashboard && (
+          <div className="p-4">
+            <button
+              onClick={onBackToDashboard}
+              className="p-2 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors"
+              title="Back to Daily Dashboard"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          </div>
+        )}
         <div className="text-center py-12">
           <Calendar size={48} className="text-gray-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-white mb-2">No Monthly Data Yet</h3>
