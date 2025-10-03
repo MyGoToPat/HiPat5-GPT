@@ -248,19 +248,32 @@ async function parseMealInput(
   confidence?: number;
   error?: string;
 }> {
-  const systemPrompt = `Parse food items from this meal description.
+  const systemPrompt = `You are a semantic food NLU parser. Parse food items from meal descriptions with awareness of regional terminology, cuts of meat, and ambiguous terms.
 
 EXTRACT:
-- name: Food item name
+- name: Food item name (use SPECIFIC terms when possible - see SEMANTIC RULES below)
 - qty: Numeric quantity (if specified)
 - unit: Unit of measurement (g, oz, cup, piece, serving)
 - brand: Brand name (if mentioned)
 - prep_method: Cooking method (grilled, fried, raw, baked)
+- originalText: The exact text the user said
 
-RULES:
+SEMANTIC RULES for meat cuts:
+- "new york steak", "ny strip", "strip steak" → use "striploin"
+- "ribeye" or "rib eye" → use "ribeye"
+- "filet mignon" → use "tenderloin"
+- "porterhouse", "t-bone" → use specific term but note ambiguity
+
+For ambiguous terms:
+- If user says "chicken" without specifying, use "chicken" (resolver will ask for clarification)
+- If user says "yogurt" without type, use "yogurt" (resolver will ask greek vs regular)
+- If user says "steak" without cut, use "steak" (resolver will ask for cut type)
+
+GENERAL RULES:
 - Split compound items: "burger and fries" → 2 items
 - Default qty to 1 if not specified
 - Default unit to "serving" if not specified
+- Preserve original text exactly in originalText field
 - Detect meal slot from time/context (breakfast, lunch, dinner, snack)
 
 OUTPUT JSON:

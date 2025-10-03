@@ -148,16 +148,30 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
   };
 
   const handlePortionChange = (itemIndex: number, portion: { grams: number; macros: any }) => {
-    setSelectedItems(prev => prev.map((item, i) => 
-      i === itemIndex 
-        ? { 
-            ...item, 
-            currentGrams: Number(portion.grams) || 0, 
+    setSelectedItems(prev => prev.map((item, i) =>
+      i === itemIndex
+        ? {
+            ...item,
+            currentGrams: Number(portion.grams) || 0,
             currentMacros: {
               kcal: Number(portion.macros.kcal) || 0,
               protein_g: Number(portion.macros.protein_g) || 0,
               carbs_g: Number(portion.macros.carbs_g) || 0,
               fat_g: Number(portion.macros.fat_g) || 0,
+            }
+          }
+        : item
+    ));
+  };
+
+  const handleManualMacroChange = (itemIndex: number, macroKey: 'kcal' | 'protein_g' | 'carbs_g' | 'fat_g', value: number) => {
+    setSelectedItems(prev => prev.map((item, i) =>
+      i === itemIndex
+        ? {
+            ...item,
+            currentMacros: {
+              ...item.currentMacros,
+              [macroKey]: value
             }
           }
         : item
@@ -399,23 +413,54 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
                           onPortionChange={(portion) => handlePortionChange(index, portion)}
                         />
                         
-                        {/* Current Macros Display */}
-                        <div className="mt-3 grid grid-cols-4 gap-3 text-center">
-                          <div className="p-2 bg-gray-50 rounded">
-                            <div className="text-sm font-semibold text-gray-900">{selectedItem.currentMacros.kcal}</div>
-                            <div className="text-xs text-gray-600">cal</div>
-                          </div>
-                          <div className="p-2 bg-red-50 rounded">
-                            <div className="text-sm font-semibold text-red-700">{selectedItem.currentMacros.protein_g.toFixed(1)}g</div>
-                            <div className="text-xs text-red-600">Protein</div>
-                          </div>
-                          <div className="p-2 bg-blue-50 rounded">
-                            <div className="text-sm font-semibold text-blue-700">{selectedItem.currentMacros.carbs_g.toFixed(1)}g</div>
-                            <div className="text-xs text-blue-600">Carbs</div>
-                          </div>
-                          <div className="p-2 bg-yellow-50 rounded">
-                            <div className="text-sm font-semibold text-yellow-700">{selectedItem.currentMacros.fat_g.toFixed(1)}g</div>
-                            <div className="text-xs text-yellow-600">Fat</div>
+                        {/* Current Macros Display - Editable */}
+                        <div className="mt-3">
+                          <div className="text-xs font-medium text-gray-700 mb-2">Macros (tap to edit manually)</div>
+                          <div className="grid grid-cols-4 gap-3 text-center">
+                            <div className="p-2 bg-gray-50 rounded">
+                              <input
+                                type="number"
+                                value={selectedItem.currentMacros.kcal}
+                                onChange={(e) => handleManualMacroChange(index, 'kcal', parseFloat(e.target.value) || 0)}
+                                className="w-full text-sm font-semibold text-gray-900 bg-transparent text-center border-0 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded p-1"
+                                min="0"
+                                step="1"
+                              />
+                              <div className="text-xs text-gray-600">Calories</div>
+                            </div>
+                            <div className="p-2 bg-red-50 rounded">
+                              <input
+                                type="number"
+                                value={selectedItem.currentMacros.protein_g}
+                                onChange={(e) => handleManualMacroChange(index, 'protein_g', parseFloat(e.target.value) || 0)}
+                                className="w-full text-sm font-semibold text-red-700 bg-transparent text-center border-0 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded p-1"
+                                min="0"
+                                step="0.1"
+                              />
+                              <div className="text-xs text-red-600">Protein</div>
+                            </div>
+                            <div className="p-2 bg-blue-50 rounded">
+                              <input
+                                type="number"
+                                value={selectedItem.currentMacros.carbs_g}
+                                onChange={(e) => handleManualMacroChange(index, 'carbs_g', parseFloat(e.target.value) || 0)}
+                                className="w-full text-sm font-semibold text-blue-700 bg-transparent text-center border-0 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded p-1"
+                                min="0"
+                                step="0.1"
+                              />
+                              <div className="text-xs text-blue-600">Carbs</div>
+                            </div>
+                            <div className="p-2 bg-yellow-50 rounded">
+                              <input
+                                type="number"
+                                value={selectedItem.currentMacros.fat_g}
+                                onChange={(e) => handleManualMacroChange(index, 'fat_g', parseFloat(e.target.value) || 0)}
+                                className="w-full text-sm font-semibold text-yellow-700 bg-transparent text-center border-0 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded p-1"
+                                min="0"
+                                step="0.1"
+                              />
+                              <div className="text-xs text-yellow-600">Fat</div>
+                            </div>
                           </div>
                         </div>
                       </div>
