@@ -9,6 +9,7 @@ import { DailySummary } from './dashboard/DailySummary';
 import { TimePeriodSelector, TimePeriod } from './dashboard/TimePeriodSelector';
 import { WeeklyDashboard } from './dashboard/WeeklyDashboard';
 import { MonthlyDashboard } from './dashboard/MonthlyDashboard';
+import { MealHistoryList } from './dashboard/MealHistoryList';
 import { MetricAlert, CrossMetricInsight } from '../types/metrics';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
 import { getSupabase, getDashboardMetrics, updateDailyActivitySummary, getUserDayBoundaries } from '../lib/supabase';
@@ -44,6 +45,7 @@ export const DashboardPage: React.FC = () => {
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('daily');
+  const [userId, setUserId] = useState<string | null>(null);
   const [dashboardData, setDashboardData] = useState<{
     userMetrics: UserMetricsData | null;
     todaysFoodLogs: FoodEntry[];
@@ -73,6 +75,9 @@ export const DashboardPage: React.FC = () => {
         const supabase = getSupabase();
         const user = await supabase.auth.getUser();
         if (!user.data.user) return;
+
+        // Store user ID for meal history component
+        setUserId(user.data.user.id);
 
         // Update daily activity summary first (idempotent)
         await updateDailyActivitySummary(user.data.user.id);
@@ -261,7 +266,33 @@ export const DashboardPage: React.FC = () => {
               />
               <EffortSection workouts={dashboardData?.workoutLogs || []} />
             </div>
-            
+
+            {/* Meal History */}
+            {userId && (
+              <div className="mt-6">
+                <MealHistoryList
+                  userId={userId}
+                  onMealDeleted={() => {
+                    // Reload dashboard data when a meal is deleted
+                    const loadDashboardData = async () => {
+                      try {
+                        const supabase = getSupabase();
+                        const user = await supabase.auth.getUser();
+                        if (!user.data.user) return;
+                        await updateDailyActivitySummary(user.data.user.id);
+                        const dayBoundaries = await getUserDayBoundaries(user.data.user.id);
+                        const metrics = await getDashboardMetrics(user.data.user.id, dayBoundaries.dayStart, dayBoundaries.dayEnd);
+                        setDashboardData(metrics);
+                      } catch (error) {
+                        console.error('Error reloading dashboard:', error);
+                      }
+                    };
+                    loadDashboardData();
+                  }}
+                />
+              </div>
+            )}
+
             {/* Essential Actions - Restored CTAs */}
             <div className="mt-6 bg-gray-900/50 backdrop-blur-sm rounded-2xl p-4 border border-gray-800">
               <div className="flex items-center justify-center gap-3">
