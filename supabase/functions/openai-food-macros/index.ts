@@ -1,4 +1,8 @@
-import { corsHeaders } from '../_shared/cors.ts';
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+};
 
 interface FoodMacroRequest {
   foodName: string;
@@ -49,8 +53,8 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Construct the nutrition lookup prompt
-    const prompt = `Return the nutrition facts per 100g (calories, protein, carbs, fat) for: ${foodName.trim()} as typically prepared in North America. Respond as JSON with keys: kcal, protein_g, carbs_g, fat_g. If unsure, state your best guess based on recent internet sources. If you cannot provide a reasonable estimate, respond with a JSON object containing a single key 'error' with value 'unconfident'.`;
+    // Construct the nutrition lookup prompt - CRITICAL: Request RAW values
+    const prompt = `Return the nutrition facts per 100g for RAW, UNCOOKED ${foodName.trim()}. CRITICAL: Use RAW ingredient values, NOT cooked or prepared. For example, raw chicken breast is ~165kcal/100g, raw egg is ~143kcal/100g. Respond as JSON with keys: kcal, protein_g, carbs_g, fat_g. If unsure, state your best guess based on USDA database values for RAW ingredients. If you cannot provide a reasonable estimate, respond with a JSON object containing a single key 'error' with value 'unconfident'.`;
 
     // Call OpenAI API
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {

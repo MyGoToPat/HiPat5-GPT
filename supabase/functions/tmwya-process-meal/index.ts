@@ -1,5 +1,10 @@
-import { corsHeaders } from './_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+};
 
 interface TMWYARequest {
   userMessage: string;
@@ -249,6 +254,27 @@ async function checkFoodCache(supabase: any, foodName: string, brand?: string): 
   }
 }
 
+function validateMacros(macros: any, foodName: string): boolean {
+  const { kcal, protein_g, carbs_g, fat_g } = macros;
+  if (kcal > 900) return false;
+  if (protein_g > 100) return false;
+  if (carbs_g > 100) return false;
+  if (fat_g > 100) return false;
+  const calculatedKcal = (protein_g * 4) + (carbs_g * 4) + (fat_g * 9);
+  const calorieDiff = Math.abs(calculatedKcal - kcal);
+  const tolerance = kcal * 0.25;
+  if (calorieDiff > tolerance) {
+    console.warn(`[Validation] Calorie mismatch for ${foodName}: reported ${kcal}, calculated ${Math.round(calculatedKcal)}`);
+    return false;
+  }
+  const foodLower = foodName.toLowerCase();
+  if (foodLower.includes('egg') && !foodLower.includes('cooked') && kcal > 160) {
+    console.warn(`[Validation] Egg appears cooked: ${foodName} = ${kcal}kcal/100g (raw should be ~143)`);
+    return false;
+  }
+  return true;
+}
+
 async function saveFoodCache(supabase: any, foodName: string, macros: any, brand?: string, source = 'llm'): Promise<void> {
   try {
     const cacheId = generateCacheId(foodName, brand);
@@ -272,11 +298,11 @@ async function saveFoodCache(supabase: any, foodName: string, macros: any, brand
 }
 
 async function callGeminiForMacros(supabase: any, foodName: string, geminiApiKey: string, brand?: string): Promise<any> {
-  const prompt = `Return nutrition facts per 100g for: ${foodName.trim()}. JSON only with keys: kcal, protein_g, carbs_g, fat_g.`;
+  const prompt = `Return nutrition facts per 100g for RAW, UNCOOKED ${foodName.trim()}. CRITICAL: Use RAW values, not cooked. JSON only with keys: kcal, protein_g, carbs_g, fat_g.`;
   const startTime = Date.now();
-  
+
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -294,8 +320,14 @@ async function callGeminiForMacros(supabase: any, foodName: string, geminiApiKey
     const total = (macros.protein_g || 0) + (macros.carbs_g || 0) + (macros.fat_g || 0);
     if (total === 0 && macros.kcal === 0) return null;
 
+    const result = { kcal: Number(macros.kcal) || 0, protein_g: Number(macros.protein_g) || 0, carbs_g: Number(macros.carbs_g) || 0, fat_g: Number(macros.fat_g) || 0 };
+    if (!validateMacros(result, foodName)) {
+      console.warn('[Gemini] VALIDATION FAILED:', foodName, result);
+      return null;
+    }
+
     console.log('[Gemini] SUCCESS:', foodName, '(', Date.now() - startTime, 'ms)');
-    return { kcal: Number(macros.kcal) || 0, protein_g: Number(macros.protein_g) || 0, carbs_g: Number(macros.carbs_g) || 0, fat_g: Number(macros.fat_g) || 0 };
+    return result;
   } catch (error) {
     console.error('[Gemini] Error:', error);
     return null;
@@ -314,7 +346,7 @@ async function resolveFoodMacros(supabase: any, foodName: string, openaiApiKey: 
     }
   }
 
-  const prompt = `Return nutrition per 100g for: ${foodName.trim()}. JSON with keys: kcal, protein_g, carbs_g, fat_g.`;
+  const prompt = `Return nutrition per 100g for RAW, UNCOOKED ${foodName.trim()}. CRITICAL: Use RAW ingredient values, NOT cooked or prepared. For example, raw egg is 143kcal per 100g, not cooked egg. JSON with keys: kcal, protein_g, carbs_g, fat_g.`;
   const startTime = Date.now();
 
   try {
@@ -340,6 +372,12 @@ async function resolveFoodMacros(supabase: any, foodName: string, openaiApiKey: 
     if (total === 0 && macros.kcal === 0) return null;
 
     const openaiMacros = { kcal: Number(macros.kcal) || 0, protein_g: Number(macros.protein_g) || 0, carbs_g: Number(macros.carbs_g) || 0, fat_g: Number(macros.fat_g) || 0 };
+
+    if (!validateMacros(openaiMacros, foodName)) {
+      console.warn('[GPT4o] VALIDATION FAILED:', foodName, openaiMacros);
+      return null;
+    }
+
     await saveFoodCache(supabase, foodName, openaiMacros, brand, 'gpt4o');
     console.log('[GPT4o] SUCCESS:', foodName, '(', Date.now() - startTime, 'ms)');
     return openaiMacros;

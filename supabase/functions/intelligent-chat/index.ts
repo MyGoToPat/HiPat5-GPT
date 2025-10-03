@@ -1,4 +1,8 @@
-import { corsHeaders } from '../_shared/cors.ts';
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+};
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -156,7 +160,7 @@ async function callGemini(messages: ChatMessage[], geminiApiKey: string) {
   const fullPrompt = `${systemPrompt}\n\n${conversationHistory}`;
 
   const geminiResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
     {
       method: 'POST',
       headers: {
