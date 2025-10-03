@@ -79,8 +79,10 @@ export const TalkingPatPage1: React.FC = () => {
     }
   ];
 
-  // Get conversation starters from agents
-  const conversationStarters = ConversationAgentManager.getAgents().slice(0, 5);
+  // Get conversation starters - only show working features
+  const workingAgentIds = ['meal-tracker', 'visual-meal-tracker'];
+  const conversationStarters = ConversationAgentManager.getAgents()
+    .filter(agent => workingAgentIds.includes(agent.id));
 
   // Calculate Pat's mood
   const getPatMood = () => {

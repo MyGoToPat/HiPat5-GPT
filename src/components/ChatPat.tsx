@@ -305,9 +305,10 @@ export const ChatPat: React.FC = () => {
     return PatMoodCalculator.calculateMood(userMetrics, mockAlerts);
   };
 
-  // Get intelligent conversation starters from agents
+  // Get intelligent conversation starters - only show working features
+  const workingAgentIds = ['meal-tracker', 'visual-meal-tracker'];
   const starterChips = ConversationAgentManager.getAgents()
-    .slice(0, 5)
+    .filter(agent => workingAgentIds.includes(agent.id))
     .map(agent => agent.title);
 
   const plusMenuOptions = [
@@ -1228,7 +1229,8 @@ export const ChatPat: React.FC = () => {
     <div className="h-screen bg-pat-gradient text-white flex flex-col pt-[44px]">
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto px-4 py-6">
-          {messages.length === 1 && !isTyping && (
+          {/* Always show conversation bubble prompts for available features */}
+          {!isTyping && starterChips.length > 0 && (
             <div className={`mb-6 transition-opacity duration-300 ${isTyping ? 'opacity-0' : 'opacity-100'}`}>
               <div className="flex flex-wrap gap-2 mb-4">
                 {starterChips.map((chip, index) => (
