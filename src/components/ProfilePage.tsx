@@ -106,8 +106,9 @@ const QuickActions = () => {
         <div className="text-green-300 font-medium text-sm">Log Meal</div>
         <div className="text-green-200 text-xs">Track your nutrition</div>
       </button>
-      <button 
-        onClick={() => navigate('/chat')}
+      {/* Chat with Pat - Opens voice page with conversation bubbles */}
+      <button
+        onClick={() => navigate('/voice')}
         className="p-4 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg text-left transition-colors"
       >
         <div className="text-blue-300 font-medium text-sm">Chat with Pat</div>
@@ -354,8 +355,9 @@ export const ProfilePage: React.FC = () => {
               I'm here to help you get the most out of your health journey. You can reach out to our support team or chat with me directly.
             </p>
             <div className="flex gap-3">
-              <button 
-                onClick={() => navigate('/chat')}
+              {/* Chat with Pat - Opens voice page with conversation bubbles */}
+              <button
+                onClick={() => navigate('/voice')}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 Chat with Pat
