@@ -223,7 +223,8 @@ export const ChatPat: React.FC = () => {
       'ate a', 'ate an', 'had a', 'had an',
       'breakfast', 'lunch', 'dinner', 'snack',
       'for breakfast', 'for lunch', 'for dinner',
-      'calories in', 'macros for', 'log meal', 'log food'
+      'calories in', 'macros for', 'macros of', 'log meal', 'log food',
+      'tell me the macros', 'what are the macros', 'how many calories'
     ];
 
     const hasTrigger = mealTriggers.some(trigger => lowerInput.includes(trigger));
@@ -345,11 +346,12 @@ export const ChatPat: React.FC = () => {
       const saveUserMessage = async () => {
         try {
           // Fire-and-forget save - don't block UI
-          ChatManager.saveMessage({
-            thread_id: threadId,
-            role: "user",
-            content: newMessage.text
-          });
+          await ChatManager.saveMessage(
+            userId,
+            threadId,
+            newMessage.text,
+            'user'
+          );
         } catch (error) {
           // Silently fail - persistence is optional
           console.warn('User message save skipped:', error);
@@ -602,11 +604,12 @@ export const ChatPat: React.FC = () => {
             // Save AI response to database
             try {
               // Fire-and-forget save - don't block UI
-              ChatManager.saveMessage({
-                thread_id: threadId,
-                role: "assistant",
-                content: finalStreamingResponse.text
-              });
+              await ChatManager.saveMessage(
+                userId,
+                threadId,
+                finalStreamingResponse.text,
+                'pat'
+              );
             } catch (error) {
               // Silently fail - persistence is optional
               console.warn('AI response save skipped:', error);
