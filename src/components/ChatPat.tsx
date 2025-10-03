@@ -219,21 +219,37 @@ export const ChatPat: React.FC = () => {
   };
 
 
-  // Helper function to detect meal-related text
+  // Helper function to detect FOOD LOGGING (not questions about food)
   const isMealText = (input: string): boolean => {
     const lowerInput = input.toLowerCase();
-    const mealTriggers = [
+
+    // CRITICAL: Only trigger food logging for STATEMENTS about eating, NOT QUESTIONS
+    const foodLoggingTriggers = [
       'i ate', 'i had', 'just ate', 'just had',
       'ate a', 'ate an', 'had a', 'had an',
-      'breakfast', 'lunch', 'dinner', 'snack',
-      'for breakfast', 'for lunch', 'for dinner',
-      'calories in', 'macros for', 'macros of', 'log meal', 'log food',
-      'tell me the macros', 'what are the macros', 'how many calories'
+      'log meal', 'log food', 'track meal', 'track food'
     ];
 
-    const hasTrigger = mealTriggers.some(trigger => lowerInput.includes(trigger));
-    console.log('[ChatPat] isMealText check:', { input: lowerInput, hasTrigger });
-    return hasTrigger;
+    // Exclude questions - these should go to Pat as normal chat
+    const questionPhrases = [
+      'tell me', 'what are', 'how many', 'macros for', 'calories in',
+      'what is', 'can you tell', 'give me', 'show me'
+    ];
+
+    const hasLoggingTrigger = foodLoggingTriggers.some(trigger => lowerInput.includes(trigger));
+    const hasQuestionPhrase = questionPhrases.some(phrase => lowerInput.includes(phrase));
+
+    // Only log food if it's a logging statement AND NOT a question
+    const shouldLogFood = hasLoggingTrigger && !hasQuestionPhrase;
+
+    console.log('[ChatPat] isMealText check:', {
+      input: lowerInput.substring(0, 50),
+      hasLoggingTrigger,
+      hasQuestionPhrase,
+      shouldLogFood
+    });
+
+    return shouldLogFood;
   };
 
   // Food verification screen handlers
