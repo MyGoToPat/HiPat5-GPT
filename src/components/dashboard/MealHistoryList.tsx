@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, Clock } from 'lucide-react';
-import { getSupabase } from '../../lib/supabase';
+import { getSupabase, getUserDayBoundaries } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
 interface MealLog {
@@ -39,17 +39,24 @@ export const MealHistoryList: React.FC<MealHistoryListProps> = ({ userId, onMeal
       setIsLoading(true);
       const supabase = getSupabase();
 
-      // Get UTC date at start of today (00:00:00)
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayUTC = today.toISOString();
+      // Get timezone-aware day boundaries (same as DashboardPage)
+      const dayBoundaries = await getUserDayBoundaries(userId);
 
-      // Query for all meals from today (using >= to include all meals from 00:00:00 onwards)
+      if (!dayBoundaries) {
+        console.error('Could not get day boundaries for user');
+        setMeals([]);
+        return;
+      }
+
+      console.log('Day boundaries:', dayBoundaries);
+
+      // Query for all meals within today's boundaries (timezone-aware)
       const { data: mealLogs, error } = await supabase
         .from('meal_logs')
         .select('id, ts, meal_slot, totals')
         .eq('user_id', userId)
-        .gte('ts', todayUTC)
+        .gte('ts', dayBoundaries.day_start)
+        .lte('ts', dayBoundaries.day_end)
         .order('ts', { ascending: false });
 
       if (error) {
