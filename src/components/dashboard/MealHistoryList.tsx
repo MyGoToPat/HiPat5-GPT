@@ -39,15 +39,25 @@ export const MealHistoryList: React.FC<MealHistoryListProps> = ({ userId, onMeal
       setIsLoading(true);
       const supabase = getSupabase();
 
+      // Get UTC date at start of today (00:00:00)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayUTC = today.toISOString();
+
+      // Query for all meals from today (using >= to include all meals from 00:00:00 onwards)
       const { data: mealLogs, error } = await supabase
         .from('meal_logs')
         .select('id, ts, meal_slot, totals')
         .eq('user_id', userId)
-        .gte('ts', new Date(new Date().setHours(0, 1, 0, 0)).toISOString())
+        .gte('ts', todayUTC)
         .order('ts', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error loading meals:', error);
+        throw error;
+      }
 
+      console.log('Loaded meals for today:', mealLogs?.length || 0, 'meals');
       setMeals(mealLogs || []);
     } catch (error) {
       console.error('Error loading meals:', error);
