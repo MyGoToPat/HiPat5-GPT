@@ -772,8 +772,8 @@ OUTPUT JSON:
 }`,
   tone: { preset: "scientist", notes: "Precise calculations" },
   api: {
-    provider: "openai",
-    model: "gpt-4o-mini",
+    provider: "gemini",
+    model: "gemini-1.5-flash",
     temperature: 0.0,
     maxOutputTokens: 500,
     responseFormat: "json"
