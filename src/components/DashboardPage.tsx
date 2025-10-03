@@ -68,22 +68,21 @@ export const DashboardPage: React.FC = () => {
     // Cross-metric insights to be loaded from backend
   ];
 
-  // Load dashboard data
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      try {
-        const supabase = getSupabase();
-        const user = await supabase.auth.getUser();
-        if (!user.data.user) return;
+  // Extracted load function to be reused
+  const loadDashboardData = async () => {
+    try {
+      const supabase = getSupabase();
+      const user = await supabase.auth.getUser();
+      if (!user.data.user) return;
 
-        // Store user ID for meal history component
-        setUserId(user.data.user.id);
+      // Store user ID for meal history component
+      setUserId(user.data.user.id);
 
-        // Update daily activity summary first (idempotent)
-        await updateDailyActivitySummary(user.data.user.id);
+      // Update daily activity summary first (idempotent)
+      await updateDailyActivitySummary(user.data.user.id);
 
-        // Get timezone-aware day boundaries (12:01 AM - 11:59:59 PM user local time)
-        const dayBoundaries = await getUserDayBoundaries(user.data.user.id);
+      // Get timezone-aware day boundaries (12:01 AM - 11:59:59 PM user local time)
+      const dayBoundaries = await getUserDayBoundaries(user.data.user.id);
 
         // Prepare date ranges for other queries
         const workoutStartDate = new Date();
@@ -153,15 +152,17 @@ export const DashboardPage: React.FC = () => {
           sleepLogs: sleepLogsResult.data || []
         });
 
-        console.log('Dashboard data loaded:', { workouts: workoutLogsResult.data?.length, sleep: sleepLogsResult.data?.length });
+      console.log('Dashboard data loaded:', { workouts: workoutLogsResult.data?.length, sleep: sleepLogsResult.data?.length });
 
-      } catch (error) {
-        console.error('Error loading dashboard data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  // Load dashboard data on mount
+  useEffect(() => {
     loadDashboardData();
   }, []);
 
@@ -246,12 +247,12 @@ export const DashboardPage: React.FC = () => {
               <FrequencySection workouts={dashboardData?.workoutLogs || []} />
               <RestSection sleepLogs={dashboardData?.sleepLogs || []} />
               <EnergySection
-                energyData={dashboardData ? {
+                energyData={dashboardData && dashboardData.totalMacros ? {
                   date: new Date().toISOString().split('T')[0],
-                  calories: dashboardData.totalCalories,
-                  protein_g: dashboardData.totalMacros.protein,
-                  carb_g: dashboardData.totalMacros.carbs,
-                  fat_g: dashboardData.totalMacros.fat,
+                  calories: dashboardData.totalCalories || 0,
+                  protein_g: dashboardData.totalMacros?.protein || 0,
+                  carb_g: dashboardData.totalMacros?.carbs || 0,
+                  fat_g: dashboardData.totalMacros?.fat || 0,
                   salt_g: 2.3, // Mock for now
                   water_l: 3.2, // Mock for now
                   first_meal_time: '08:30', // Mock for now
@@ -272,23 +273,7 @@ export const DashboardPage: React.FC = () => {
               <div className="mt-6">
                 <MealHistoryList
                   userId={userId}
-                  onMealDeleted={() => {
-                    // Reload dashboard data when a meal is deleted
-                    const loadDashboardData = async () => {
-                      try {
-                        const supabase = getSupabase();
-                        const user = await supabase.auth.getUser();
-                        if (!user.data.user) return;
-                        await updateDailyActivitySummary(user.data.user.id);
-                        const dayBoundaries = await getUserDayBoundaries(user.data.user.id);
-                        const metrics = await getDashboardMetrics(user.data.user.id, dayBoundaries.dayStart, dayBoundaries.dayEnd);
-                        setDashboardData(metrics);
-                      } catch (error) {
-                        console.error('Error reloading dashboard:', error);
-                      }
-                    };
-                    loadDashboardData();
-                  }}
+                  onMealDeleted={loadDashboardData}
                 />
               </div>
             )}
