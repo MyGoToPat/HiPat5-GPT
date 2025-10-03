@@ -13,7 +13,7 @@ import { MetricAlert, CrossMetricInsight } from '../types/metrics';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
 import { getSupabase, getDashboardMetrics, updateDailyActivitySummary, getUserDayBoundaries } from '../lib/supabase';
 import type { FoodEntry } from '../types/food';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface UserMetricsData {
   tdee?: number;
@@ -41,6 +41,7 @@ interface SleepLogData {
 }
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('daily');
   const [dashboardData, setDashboardData] = useState<{
@@ -51,6 +52,10 @@ export const DashboardPage: React.FC = () => {
     workoutLogs: WorkoutLogData[];
     sleepLogs: SleepLogData[];
   } | null>(null);
+
+  useEffect(() => {
+    setTimePeriod('daily');
+  }, [location.key]);
   
   const [alerts, setAlerts] = useState<MetricAlert[]>([
     // Alerts will be loaded from backend in future
@@ -188,11 +193,11 @@ export const DashboardPage: React.FC = () => {
   }
 
   if (timePeriod === 'weekly') {
-    return <WeeklyDashboard />;
+    return <WeeklyDashboard onBackToDashboard={() => setTimePeriod('daily')} />;
   }
 
   if (timePeriod === 'monthly') {
-    return <MonthlyDashboard />;
+    return <MonthlyDashboard onBackToDashboard={() => setTimePeriod('daily')} />;
   }
 
   return (

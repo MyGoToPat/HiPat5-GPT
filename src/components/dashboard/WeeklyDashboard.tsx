@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, TrendingUp, TrendingDown, Minus, ArrowLeft } from 'lucide-react';
 import { LineChart } from './charts/LineChart';
 import { BarChart } from './charts/BarChart';
 import { getWeeklyData, getWeekBoundaries, WeeklyData } from '../../lib/timeAggregation';
 import { getSupabase } from '../../lib/supabase';
 
-export const WeeklyDashboard: React.FC = () => {
+interface WeeklyDashboardProps {
+  onBackToDashboard?: () => void;
+}
+
+export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({ onBackToDashboard }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [weeklyData, setWeeklyData] = useState<WeeklyData[]>([]);
   const [currentWeekIndex, setCurrentWeekIndex] = useState(0);
@@ -132,15 +136,26 @@ export const WeeklyDashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-950 text-gray-100 py-4 pb-20">
       <div className="px-4 sm:px-6">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-white">Weekly Trends</h2>
-            {currentWeek && (
-              <p className="text-gray-400 text-sm mt-1">
+          <div className="flex items-center gap-3">
+            {onBackToDashboard && (
+              <button
+                onClick={onBackToDashboard}
+                className="p-2 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors"
+                title="Back to Daily Dashboard"
+              >
+                <ArrowLeft size={20} />
+              </button>
+            )}
+            <div>
+              <h2 className="text-2xl font-bold text-white">Weekly Trends</h2>
+              {currentWeek && (
+                <p className="text-gray-400 text-sm mt-1">
                 {new Date(currentWeek.week_start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
                 {' - '}
-                {new Date(currentWeek.week_end_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-              </p>
-            )}
+                  {new Date(currentWeek.week_end_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

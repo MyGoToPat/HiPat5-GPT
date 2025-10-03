@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, TrendingUp, TrendingDown, Minus, ArrowLeft } from 'lucide-react';
 import { LineChart } from './charts/LineChart';
 import { BarChart } from './charts/BarChart';
 import { getMonthlyData, MonthlyData } from '../../lib/timeAggregation';
 import { getSupabase } from '../../lib/supabase';
 
-export const MonthlyDashboard: React.FC = () => {
+interface MonthlyDashboardProps {
+  onBackToDashboard?: () => void;
+}
+
+export const MonthlyDashboard: React.FC<MonthlyDashboardProps> = ({ onBackToDashboard }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [currentMonthIndex, setCurrentMonthIndex] = useState(0);
@@ -127,13 +131,24 @@ export const MonthlyDashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-950 text-gray-100 py-4 pb-20">
       <div className="px-4 sm:px-6">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-white">Monthly Trends</h2>
-            {currentMonth && (
-              <p className="text-gray-400 text-sm mt-1">
-                {currentMonth.month} {currentMonth.year}
-              </p>
+          <div className="flex items-center gap-3">
+            {onBackToDashboard && (
+              <button
+                onClick={onBackToDashboard}
+                className="p-2 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors"
+                title="Back to Daily Dashboard"
+              >
+                <ArrowLeft size={20} />
+              </button>
             )}
+            <div>
+              <h2 className="text-2xl font-bold text-white">Monthly Trends</h2>
+              {currentMonth && (
+                <p className="text-gray-400 text-sm mt-1">
+                  {currentMonth.month} {currentMonth.year}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
