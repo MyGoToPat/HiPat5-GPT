@@ -12,7 +12,8 @@ export const ROUTE_REGISTRY: Record<string, RegistryEntry> = {
   tmwya: {
     type: "role",
     patterns: [
-      /\b(i\s+ate|i\s+had|ate|eaten|eating|consumed|meal|meals|food|foods|calories?|macros?|protein|carbs?|carbohydrates?|fat|nutrition|nutritional|breakfast|lunch|dinner|snack|calories\s+in|macros\s+for)\b/i,
+      // ONLY trigger for actual LOGGING intent, not questions about macros
+      /\b(i\s+ate|i\s+had|i\s+just\s+ate|i\s+just\s+had|i\s+consumed|log\s+(my\s+)?(meal|food|breakfast|lunch|dinner|snack))\b/i,
     ],
   },
   workout: {
