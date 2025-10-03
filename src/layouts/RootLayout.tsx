@@ -40,7 +40,11 @@ export default function RootLayout() {
     let active = true;
     (async () => {
       try {
-        const state = await ChatManager.loadChatState?.();
+        const supabase = getSupabase();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!active || !user) return;
+
+        const state = await ChatManager.loadChatState?.(user.id);
         if (!active || !state) return;
 
         // Defensive normalization across possible shapes:
