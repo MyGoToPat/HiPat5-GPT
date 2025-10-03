@@ -78,7 +78,7 @@ export const DashboardPage: React.FC = () => {
         // Fetch all data in parallel
         const [
           metricsResult,
-          foodLogsResult,
+          mealLogsResult,
           workoutLogsResult,
           sleepLogsResult
         ] = await Promise.all([
@@ -88,16 +88,16 @@ export const DashboardPage: React.FC = () => {
             .select('*')
             .eq('user_id', user.data.user.id)
             .maybeSingle(),
-          
-          // Today's food logs
+
+          // Today's meal logs
           supabase
-            .from('food_logs')
+            .from('meal_logs')
             .select('*')
             .eq('user_id', user.data.user.id)
-            .gte('created_at', `${today}T00:00:00.000Z`)
-            .lt('created_at', `${today}T23:59:59.999Z`)
-            .order('created_at', { ascending: false }),
-          
+            .gte('ts', `${today}T00:00:00.000Z`)
+            .lt('ts', `${today}T23:59:59.999Z`)
+            .order('ts', { ascending: false }),
+
           // Workout logs for dashboard
           supabase
             .from('workout_logs')
@@ -105,7 +105,7 @@ export const DashboardPage: React.FC = () => {
             .eq('user_id', user.data.user.id)
             .gte('workout_date', workoutStartDate.toISOString().slice(0, 10))
             .order('workout_date', { ascending: true }),
-          
+
           // Sleep logs for dashboard
           supabase
             .from('sleep_logs')
@@ -115,21 +115,21 @@ export const DashboardPage: React.FC = () => {
             .order('sleep_date', { ascending: true })
         ]);
 
-        // Calculate totals
-        const foodLogs = foodLogsResult.data || [];
-        const totalCalories = foodLogs.reduce((sum, log) => sum + (log.macros?.kcal || 0), 0);
-        const totalMacros = foodLogs.reduce(
+        // Calculate totals from meal_logs (totals field contains the macros)
+        const mealLogs = mealLogsResult.data || [];
+        const totalCalories = mealLogs.reduce((sum, log) => sum + (log.totals?.kcal || 0), 0);
+        const totalMacros = mealLogs.reduce(
           (totals, log) => ({
-            protein: totals.protein + (log.macros?.protein_g || 0),
-            carbs: totals.carbs + (log.macros?.carbs_g || 0),
-            fat: totals.fat + (log.macros?.fat_g || 0)
+            protein: totals.protein + (log.totals?.protein_g || 0),
+            carbs: totals.carbs + (log.totals?.carbs_g || 0),
+            fat: totals.fat + (log.totals?.fat_g || 0)
           }),
           { protein: 0, carbs: 0, fat: 0 }
         );
 
         setDashboardData({
           userMetrics: metricsResult.data,
-          todaysFoodLogs: foodLogs,
+          todaysFoodLogs: mealLogs,
           totalCalories,
           totalMacros,
           workoutLogs: workoutLogsResult.data || [],
