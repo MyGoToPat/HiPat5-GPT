@@ -30,7 +30,7 @@ interface TMWYAResponse {
 }
 
 /**
- * TMWYA Edge Function
+ * TMWYA Edge Function v2.0 - Cache-First Implementation
  *
  * Uses personality agents from registry to process meal input.
  * Integrates with Pat's personality orchestrator for consistent experience.
@@ -39,11 +39,13 @@ interface TMWYAResponse {
  * 1. Intent Router - Classify input type
  * 2. Utterance Normalizer - Clean dictation errors
  * 3. Meal NLU Parser - Extract food items
- * 4. Macro Calculator - Get nutrition data
+ * 4. Macro Calculator - Get nutrition data (CACHE FIRST, then Gemini, then GPT-4o)
  * 5. Return structured data for verification
  */
 
 Deno.serve(async (req: Request) => {
+  console.log('[TMWYA v2.0] Cache-first version starting...');
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, {
