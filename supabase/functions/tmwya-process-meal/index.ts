@@ -65,8 +65,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get OpenAI API key
+    // Get API keys
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+
     if (!openaiApiKey) {
       return new Response(
         JSON.stringify({ ok: false, error: 'OpenAI API key not configured', step: 'config' }),
@@ -75,6 +77,10 @@ Deno.serve(async (req: Request) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
+    }
+
+    if (!geminiApiKey) {
+      console.warn('[TMWYA] Gemini API key not configured - will use GPT-4o only');
     }
 
     // Initialize Supabase client
@@ -103,10 +109,16 @@ Deno.serve(async (req: Request) => {
 
     console.log('[TMWYA] Parsed items:', parseResult.items.length);
 
-    // Step 2: Resolve each food item and get macros (per 100g)
+    // Step 2: Resolve each food item and get macros (per 100g) using cache-first strategy
     const resolvedItems = await Promise.all(
       parseResult.items.map(async (item) => {
-        const macroPer100g = await resolveFoodMacros(item.name, openaiApiKey);
+        const macroPer100g = await resolveFoodMacros(
+          supabase,
+          item.name,
+          openaiApiKey,
+          geminiApiKey,
+          item.brand
+        );
 
         if (!macroPer100g) {
           return {
@@ -262,20 +274,231 @@ OUTPUT JSON:
 }
 
 /**
- * Resolve food item to macros using Macro Calculator agent prompt
+ * Generate cache ID for food item
+ */
+function generateCacheId(foodName: string, brand?: string): string {
+  const normalizedName = foodName.toLowerCase().trim().replace(/\s+/g, '_');
+  const normalizedBrand = brand ? brand.toLowerCase().trim().replace(/\s+/g, '_') : 'generic';
+  return `${normalizedName}:${normalizedBrand}:100g`;
+}
+
+/**
+ * Check food cache before calling LLM
+ */
+async function checkFoodCache(
+  supabase: any,
+  foodName: string,
+  brand?: string
+): Promise<{ kcal: number; protein_g: number; carbs_g: number; fat_g: number } | null> {
+  try {
+    const cacheId = generateCacheId(foodName, brand);
+
+    const { data, error } = await supabase
+      .from('food_cache')
+      .select('macros, access_count')
+      .eq('id', cacheId)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
+
+    if (error) {
+      console.warn('[TMWYA Cache] Lookup error:', error);
+      return null;
+    }
+
+    if (data && data.macros) {
+      // Update access count and last_accessed
+      await supabase
+        .from('food_cache')
+        .update({
+          access_count: (data.access_count || 0) + 1,
+          last_accessed: new Date().toISOString()
+        })
+        .eq('id', cacheId);
+
+      // Log cache hit analytics
+      await supabase.rpc('log_food_cache_event', {
+        p_event_type: 'cache_hit',
+        p_food_name: foodName,
+        p_brand: brand || null,
+        p_cache_id: cacheId,
+        p_provider: 'cache',
+        p_response_time_ms: 10,
+        p_estimated_cost_usd: 0.0
+      }).catch((err: any) => console.warn('[Analytics] Failed to log cache hit:', err));
+
+      console.log('[TMWYA Cache] HIT:', foodName);
+      return {
+        kcal: data.macros.kcal,
+        protein_g: data.macros.protein_g,
+        carbs_g: data.macros.carbs_g,
+        fat_g: data.macros.fat_g
+      };
+    }
+
+    // Log cache miss analytics
+    await supabase.rpc('log_food_cache_event', {
+      p_event_type: 'cache_miss',
+      p_food_name: foodName,
+      p_brand: brand || null,
+      p_cache_id: null,
+      p_provider: null,
+      p_response_time_ms: null,
+      p_estimated_cost_usd: null
+    }).catch((err: any) => console.warn('[Analytics] Failed to log cache miss:', err));
+
+    console.log('[TMWYA Cache] MISS:', foodName);
+    return null;
+  } catch (error) {
+    console.error('[TMWYA Cache] Error:', error);
+    return null;
+  }
+}
+
+/**
+ * Save food macros to cache
+ */
+async function saveFoodCache(
+  supabase: any,
+  foodName: string,
+  macros: { kcal: number; protein_g: number; carbs_g: number; fat_g: number },
+  brand?: string,
+  source: string = 'llm'
+): Promise<void> {
+  try {
+    const cacheId = generateCacheId(foodName, brand);
+
+    await supabase
+      .from('food_cache')
+      .upsert({
+        id: cacheId,
+        name: foodName,
+        brand: brand || null,
+        serving_size: '100g',
+        grams_per_serving: 100,
+        macros: macros,
+        source_db: source,
+        confidence: 0.85,
+        access_count: 1,
+        last_accessed: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      });
+
+    console.log('[TMWYA Cache] SAVED:', foodName);
+  } catch (error) {
+    console.error('[TMWYA Cache] Save error:', error);
+  }
+}
+
+/**
+ * Call Gemini API for nutrition data
+ */
+async function callGeminiForMacros(
+  supabase: any,
+  foodName: string,
+  geminiApiKey: string,
+  brand?: string
+): Promise<{ kcal: number; protein_g: number; carbs_g: number; fat_g: number } | null> {
+  const prompt = `Return the nutrition facts per 100g for: ${foodName.trim()} as typically prepared in North America. Respond ONLY with valid JSON using these exact keys: kcal, protein_g, carbs_g, fat_g. Example: {"kcal": 165, "protein_g": 31, "carbs_g": 0, "fat_g": 3.6}`;
+
+  const startTime = Date.now();
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 150,
+            responseMimeType: 'application/json'
+          }
+        })
+      }
+    );
+
+    const responseTime = Date.now() - startTime;
+
+    if (!response.ok) {
+      console.error('[TMWYA Gemini] Error:', await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!content) return null;
+
+    const macros = JSON.parse(content);
+
+    // Validate non-zero values
+    const total = (macros.protein_g || 0) + (macros.carbs_g || 0) + (macros.fat_g || 0);
+    if (total === 0 && macros.kcal === 0) {
+      console.warn('[TMWYA Gemini] All zeros for:', foodName);
+      return null;
+    }
+
+    // Log Gemini API call analytics (estimated cost: ~$0.0001)
+    await supabase.rpc('log_food_cache_event', {
+      p_event_type: 'gemini_call',
+      p_food_name: foodName,
+      p_brand: brand || null,
+      p_cache_id: null,
+      p_provider: 'gemini',
+      p_response_time_ms: responseTime,
+      p_estimated_cost_usd: 0.0001
+    }).catch((err: any) => console.warn('[Analytics] Failed to log Gemini call:', err));
+
+    console.log('[TMWYA Gemini] SUCCESS:', foodName);
+    return {
+      kcal: Number(macros.kcal) || 0,
+      protein_g: Number(macros.protein_g) || 0,
+      carbs_g: Number(macros.carbs_g) || 0,
+      fat_g: Number(macros.fat_g) || 0
+    };
+  } catch (error) {
+    console.error('[TMWYA Gemini] Error:', error);
+    return null;
+  }
+}
+
+/**
+ * Resolve food item to macros with cache-first strategy and Gemini fallback
  * Returns macros PER 100G to match the chat query database
  */
 async function resolveFoodMacros(
+  supabase: any,
   foodName: string,
-  apiKey: string
+  openaiApiKey: string,
+  geminiApiKey?: string,
+  brand?: string
 ): Promise<{ kcal: number; protein_g: number; carbs_g: number; fat_g: number } | null> {
+  // Step 1: Check cache first
+  const cachedMacros = await checkFoodCache(supabase, foodName, brand);
+  if (cachedMacros) {
+    return cachedMacros;
+  }
+
+  // Step 2: Try Gemini (cheaper and faster)
+  if (geminiApiKey) {
+    const geminiMacros = await callGeminiForMacros(supabase, foodName, geminiApiKey, brand);
+    if (geminiMacros) {
+      // Save to cache for future use
+      await saveFoodCache(supabase, foodName, geminiMacros, brand, 'gemini');
+      return geminiMacros;
+    }
+  }
+
+  // Step 3: Fallback to GPT-4o if Gemini fails
   const prompt = `Return the nutrition facts per 100g (calories, protein, carbs, fat) for: ${foodName.trim()} as typically prepared in North America. Respond as JSON with keys: kcal, protein_g, carbs_g, fat_g. If unsure, state your best guess based on recent internet sources. If you cannot provide a reasonable estimate, respond with a JSON object containing a single key 'error' with value 'unconfident'.`;
 
+  const startTime = Date.now();
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -292,8 +515,10 @@ async function resolveFoodMacros(
       }),
     });
 
+    const responseTime = Date.now() - startTime;
+
     if (!response.ok) {
-      console.error('[TMWYA] OpenAI macros error:', await response.text());
+      console.error('[TMWYA GPT4o] Fallback error:', await response.text());
       return null;
     }
     const data = await response.json();
@@ -316,16 +541,33 @@ async function resolveFoodMacros(
     // Validate that we have actual values (not all zeros)
     const total = (macros.protein_g || 0) + (macros.carbs_g || 0) + (macros.fat_g || 0);
     if (total === 0 && macros.kcal === 0) {
-      console.warn('[TMWYA] Received all zeros for:', foodName);
+      console.warn('[TMWYA GPT4o] All zeros for:', foodName);
       return null;
     }
 
-    return {
+    const openaiMacros = {
       kcal: Number(macros.kcal) || 0,
       protein_g: Number(macros.protein_g) || 0,
       carbs_g: Number(macros.carbs_g) || 0,
-      fat_g: Number(macros.fat_g) || 0,
+      fat_g: Number(macros.fat_g) || 0
     };
+
+    // Log GPT-4o API call analytics (estimated cost: ~$0.002)
+    await supabase.rpc('log_food_cache_event', {
+      p_event_type: 'gpt4o_call',
+      p_food_name: foodName,
+      p_brand: brand || null,
+      p_cache_id: null,
+      p_provider: 'gpt4o',
+      p_response_time_ms: responseTime,
+      p_estimated_cost_usd: 0.002
+    }).catch((err: any) => console.warn('[Analytics] Failed to log GPT-4o call:', err));
+
+    // Save GPT-4o result to cache
+    await saveFoodCache(supabase, foodName, openaiMacros, brand, 'gpt4o');
+    console.log('[TMWYA GPT4o] FALLBACK SUCCESS:', foodName);
+
+    return openaiMacros;
   } catch (error) {
     console.error('[TMWYA] Macro resolution error:', error);
     return null;
