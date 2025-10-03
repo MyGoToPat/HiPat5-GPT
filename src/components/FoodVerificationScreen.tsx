@@ -532,17 +532,7 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
           >
             Cancel
           </button>
-          
-          {onEditManually && (
-            <button
-              onClick={onEditManually}
-              className="flex items-center gap-2 px-4 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors"
-            >
-              <Edit3 size={16} />
-              Edit Manually
-            </button>
-          )}
-          
+
           <button
             onClick={handleConfirm}
             disabled={selectedItems.filter(item => item.include).length === 0}

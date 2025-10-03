@@ -11,6 +11,8 @@ interface TMWYAResponse {
   ok: boolean;
   items?: Array<{
     name: string;
+    qty: number;
+    unit: string;
     grams: number;
     macros: {
       kcal: number;
@@ -20,6 +22,7 @@ interface TMWYAResponse {
     };
     confidence: number;
     originalText: string;
+    brand?: string;
   }>;
   meal_slot?: string;
   error?: string;
@@ -100,17 +103,45 @@ Deno.serve(async (req: Request) => {
 
     console.log('[TMWYA] Parsed items:', parseResult.items.length);
 
-    // Step 2: Resolve each food item and get macros
+    // Step 2: Resolve each food item and get macros (per 100g)
     const resolvedItems = await Promise.all(
       parseResult.items.map(async (item) => {
-        const macros = await resolveFoodMacros(item.name, openaiApiKey);
+        const macroPer100g = await resolveFoodMacros(item.name, openaiApiKey);
+
+        if (!macroPer100g) {
+          return {
+            name: item.name,
+            qty: item.qty || 1,
+            unit: item.unit || 'serving',
+            grams: calculateGrams(item.qty || 1, item.unit || 'serving'),
+            macros: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+            confidence: 0.3,
+            originalText: item.originalText || item.name,
+            brand: item.brand,
+          };
+        }
+
+        // Calculate grams based on qty and unit
+        const totalGrams = calculateGrams(item.qty || 1, item.unit || 'serving', item.name);
+
+        // Scale macros based on actual grams
+        const ratio = totalGrams / 100;
+        const scaledMacros = {
+          kcal: Math.round(macroPer100g.kcal * ratio * 10) / 10,
+          protein_g: Math.round(macroPer100g.protein_g * ratio * 10) / 10,
+          carbs_g: Math.round(macroPer100g.carbs_g * ratio * 10) / 10,
+          fat_g: Math.round(macroPer100g.fat_g * ratio * 10) / 10,
+        };
 
         return {
           name: item.name,
-          grams: calculateGrams(item.qty || 1, item.unit || 'serving'),
-          macros: macros || { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-          confidence: macros ? 0.8 : 0.3,
+          qty: item.qty || 1,
+          unit: item.unit || 'serving',
+          grams: totalGrams,
+          macros: scaledMacros,
+          confidence: 0.8,
           originalText: item.originalText || item.name,
+          brand: item.brand,
         };
       })
     );
@@ -232,26 +263,13 @@ OUTPUT JSON:
 
 /**
  * Resolve food item to macros using Macro Calculator agent prompt
- * Returns macros for a STANDARD SERVING SIZE (not per 100g)
+ * Returns macros PER 100G to match the chat query database
  */
 async function resolveFoodMacros(
   foodName: string,
   apiKey: string
 ): Promise<{ kcal: number; protein_g: number; carbs_g: number; fat_g: number } | null> {
-  const prompt = `Return nutrition facts for ONE STANDARD SERVING of: ${foodName.trim()}
-
-For branded/restaurant items (Big Mac, McChicken, etc.), use the official nutrition facts for ONE ITEM.
-For generic foods, use a typical serving size.
-
-OUTPUT JSON:
-{
-  "kcal": <number>,
-  "protein_g": <number>,
-  "carbs_g": <number>,
-  "fat_g": <number>
-}
-
-IMPORTANT: Return actual values. Do NOT return zeros unless the food truly has no macros.`;
+  const prompt = `Return the nutrition facts per 100g (calories, protein, carbs, fat) for: ${foodName.trim()} as typically prepared in North America. Respond as JSON with keys: kcal, protein_g, carbs_g, fat_g. If unsure, state your best guess based on recent internet sources. If you cannot provide a reasonable estimate, respond with a JSON object containing a single key 'error' with value 'unconfident'.`;
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -265,13 +283,12 @@ IMPORTANT: Return actual values. Do NOT return zeros unless the food truly has n
         messages: [
           {
             role: 'system',
-            content: 'You are a nutrition expert with access to branded food databases. Provide accurate nutrition facts for standard serving sizes. Always respond with valid JSON only.'
+            content: 'You are a nutrition expert. Always respond with valid JSON only. No additional text or explanations.'
           },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.1,
-        max_tokens: 200,
-        response_format: { type: 'json_object' }
+        temperature: 0.3,
+        max_tokens: 200
       }),
     });
 
@@ -317,9 +334,11 @@ IMPORTANT: Return actual values. Do NOT return zeros unless the food truly has n
 
 /**
  * Calculate grams from quantity + unit
+ * Enhanced version with better food-specific defaults
  */
-function calculateGrams(qty: number, unit: string): number {
+function calculateGrams(qty: number, unit: string, foodName?: string): number {
   const unitLower = unit.toLowerCase();
+  const foodLower = (foodName || '').toLowerCase();
 
   const conversions: Record<string, number> = {
     'g': 1,
@@ -327,20 +346,50 @@ function calculateGrams(qty: number, unit: string): number {
     'grams': 1,
     'oz': 28.35,
     'ounce': 28.35,
+    'ounces': 28.35,
     'lb': 453.59,
+    'lbs': 453.59,
     'pound': 453.59,
+    'pounds': 453.59,
     'cup': 240,
+    'cups': 240,
     'tbsp': 15,
     'tablespoon': 15,
+    'tablespoons': 15,
     'tsp': 5,
     'teaspoon': 5,
-    'piece': 100,
-    'serving': 100,
-    'slice': 30,
+    'teaspoons': 5,
+    'ml': 1,
+    'l': 1000,
+    'liter': 1000,
+    // Food-specific defaults
     'egg': 50,
+    'eggs': 50,
+    'large egg': 50,
+    'large eggs': 50,
+    'slice': 30,
+    'slices': 30,
+    'piece': 100,
+    'pieces': 100,
+    'serving': 100,
+    'servings': 100,
     'banana': 120,
-    'apple': 180
+    'bananas': 120,
+    'apple': 180,
+    'apples': 180,
+    'steak': 225,  // typical 8oz steak portion
   };
+
+  // Check for food-specific units first
+  if (foodLower.includes('egg')) {
+    return 50 * qty;  // Large egg = 50g
+  }
+
+  // Check if unit mentions a specific weight
+  const ozMatch = unitLower.match(/(\d+)\s*oz/);
+  if (ozMatch) {
+    return parseFloat(ozMatch[1]) * 28.35 * qty;
+  }
 
   return (conversions[unitLower] || 100) * qty;
 }
