@@ -8,7 +8,7 @@ import { EffortSection } from './dashboard/EffortSection';
 import { DailySummary } from './dashboard/DailySummary';
 import { MetricAlert, CrossMetricInsight } from '../types/metrics';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
-import { getSupabase, getDashboardMetrics, updateDailyActivitySummary } from '../lib/supabase';
+import { getSupabase, getDashboardMetrics, updateDailyActivitySummary, getUserDayBoundaries } from '../lib/supabase';
 import type { FoodEntry } from '../types/food';
 import { useNavigate } from 'react-router-dom';
 
@@ -68,8 +68,10 @@ export const DashboardPage: React.FC = () => {
         // Update daily activity summary first (idempotent)
         await updateDailyActivitySummary(user.data.user.id);
 
-        // Prepare date ranges
-        const today = new Date().toISOString().split('T')[0];
+        // Get timezone-aware day boundaries (12:01 AM - 11:59:59 PM user local time)
+        const dayBoundaries = await getUserDayBoundaries(user.data.user.id);
+
+        // Prepare date ranges for other queries
         const workoutStartDate = new Date();
         workoutStartDate.setDate(workoutStartDate.getDate() - 48); // Last 49 days for heatmap
         const sleepStartDate = new Date();
@@ -89,14 +91,15 @@ export const DashboardPage: React.FC = () => {
             .eq('user_id', user.data.user.id)
             .maybeSingle(),
 
-          // Today's meal logs
-          supabase
+          // Today's meal logs using timezone-aware boundaries
+          // This ensures meals from 12:01 AM to 12:00 PM (midnight) in user's local timezone
+          dayBoundaries ? supabase
             .from('meal_logs')
             .select('*')
             .eq('user_id', user.data.user.id)
-            .gte('ts', `${today}T00:00:00.000Z`)
-            .lt('ts', `${today}T23:59:59.999Z`)
-            .order('ts', { ascending: false }),
+            .gte('ts', dayBoundaries.day_start)
+            .lte('ts', dayBoundaries.day_end)
+            .order('ts', { ascending: false }) : Promise.resolve({ data: [], error: null }),
 
           // Workout logs for dashboard
           supabase

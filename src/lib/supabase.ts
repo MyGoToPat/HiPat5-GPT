@@ -132,6 +132,32 @@ export async function upsertUserPreferences(user_id: string, preferences: {
   return data;
 }
 
+// Timezone-aware date boundaries for queries
+export async function getUserDayBoundaries(user_id: string, local_date?: string) {
+  if (!user_id) throw new Error('getUserDayBoundaries: missing user_id');
+
+  const { data, error } = await supabase.rpc('get_user_day_boundaries', {
+    p_user_id: user_id,
+    p_local_date: local_date || null
+  });
+
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
+// Get timezone-aware local date for user
+export async function getUserLocalDate(user_id: string, utc_timestamp?: string) {
+  if (!user_id) throw new Error('getUserLocalDate: missing user_id');
+
+  const { data, error } = await supabase.rpc('get_user_local_date', {
+    p_user_id: user_id,
+    p_utc_timestamp: utc_timestamp || new Date().toISOString()
+  });
+
+  if (error) throw error;
+  return data;
+}
+
 // ---- BEGIN AUTO-STUBS (do not edit below; regenerated) ----
 export const requestRoleUpgrade = (..._args: any[]): any => { console.warn('[supabase legacy stub] requestRoleUpgrade called'); return undefined as any; };
 export const approveUpgradeRequest = (..._args: any[]): any => { console.warn('[supabase legacy stub] approveUpgradeRequest called'); return undefined as any; };

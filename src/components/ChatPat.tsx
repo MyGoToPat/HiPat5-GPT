@@ -115,7 +115,7 @@ export const ChatPat: React.FC = () => {
     // Handle URL params for thread loading
     const newParam = searchParams.get('new');
     const threadParam = searchParams.get('t');
-    
+
     if (newParam === '1') {
       // Start new chat
       const newId = newThreadId();
@@ -125,7 +125,7 @@ export const ChatPat: React.FC = () => {
       setIsLoadingChat(false);
       return;
     }
-    
+
     if (threadParam) {
       // Load existing thread
       const thread = getThread(threadParam);
@@ -144,13 +144,27 @@ export const ChatPat: React.FC = () => {
         return;
       }
     }
-    
-    // Default: load chat state
+
+    // Default: load chat state with session management
     const loadInitialChatState = async () => {
       try {
-        const state = await ChatManager.loadChatState();
-        setChatState(state);
-        setMessages(state.currentMessages);
+        const supabase = getSupabase();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          // Load or create active session
+          const session = await ChatManager.ensureActiveSession(user.id);
+          setActiveChatId(session.id);
+          setThreadId(session.id);
+
+          // Load session messages
+          const chatStateData = await ChatManager.loadChatState(user.id);
+          setChatState(chatStateData);
+          setMessages(chatStateData.currentMessages);
+        } else {
+          // Not logged in, use default
+          setMessages(ChatManager.getInitialMessages());
+        }
       } catch (error) {
         console.error('Error loading chat state:', error);
       } finally {

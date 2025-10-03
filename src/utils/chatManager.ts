@@ -1,63 +1,104 @@
-// Lightweight, defensive chat persistence wrapper.
-// If SAVE_TO_DB=false, we no-op. If insert fails, we swallow the error and keep UI responsive.
-
-import { getSupabase } from '../lib/supabase';
-
-const SAVE_TO_DB = false; // UI-only by default. Flip to true after we align table columns.
+// Chat persistence wrapper using new session-based system
+import { ChatSessions } from '../lib/chatSessions';
+import type { ChatSession, ChatMessage } from '../lib/chatSessions';
 
 export type ChatMessageRow = {
   thread_id: string;
   role: "user" | "assistant" | "system";
   content: string;
-  // Optional metadata bag we can safely store if the column exists.
-  // If your table has jsonb "metadata", uncomment it below and include it in upsert.
-  // metadata?: Record<string, any>;
 };
 
-async function insertRow(row: ChatMessageRow) {
-  const supabase = getSupabase();
-  // NOTE: Only send columns we are sure exist: thread_id, role, content, created_at (server default).
-  // DO NOT send user_id (column not present in your table).
-  const { error } = await supabase
-    .from("chat_messages")
-    .insert({
-      thread_id: row.thread_id,
-      role: row.role,
-      content: row.content,
-      // metadata: row.metadata ?? null,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-}
-
 export const ChatManager = {
-  async saveMessage(row: ChatMessageRow) {
-    if (!SAVE_TO_DB) return; // UI-only mode prevents fatal failures.
+  async ensureActiveSession(userId: string): Promise<ChatSession> {
     try {
-      await insertRow(row);
-    } catch (e) {
-      // Log but DO NOT propagate. We never block UX on persistence.
-      console.warn("chat save skipped:", e);
+      return await ChatSessions.getOrCreateActiveSession(userId, 'user_chat');
+    } catch (error) {
+      console.error('Failed to ensure active session:', error);
+      throw error;
     }
   },
 
-  // Keep existing methods for backward compatibility
-  async loadChatState() {
-    return {
-      currentMessages: this.getInitialMessages(),
-      chatHistories: [],
-      activeChatId: null
-    };
+  async saveMessage(
+    userId: string,
+    sessionId: string,
+    text: string,
+    sender: 'user' | 'pat' | 'system'
+  ): Promise<ChatMessage | null> {
+    try {
+      return await ChatSessions.saveMessage({
+        sessionId,
+        userId,
+        sender,
+        text
+      });
+    } catch (error) {
+      console.warn('Chat message save failed:', error);
+      return null;
+    }
+  },
+
+  async loadChatState(userId: string) {
+    try {
+      const activeSession = await ChatSessions.getActiveSession(userId);
+      if (activeSession) {
+        const messages = await ChatSessions.getSessionMessages(activeSession.id);
+        return {
+          currentMessages: messages.map(msg => ({
+            id: msg.id,
+            text: msg.text,
+            timestamp: new Date(msg.timestamp),
+            isUser: msg.sender === 'user'
+          })),
+          chatHistories: [],
+          activeChatId: activeSession.id
+        };
+      }
+
+      return {
+        currentMessages: this.getInitialMessages(),
+        chatHistories: [],
+        activeChatId: null
+      };
+    } catch (error) {
+      console.error('Failed to load chat state:', error);
+      return {
+        currentMessages: this.getInitialMessages(),
+        chatHistories: [],
+        activeChatId: null
+      };
+    }
   },
 
   async saveNewChat(messages: any[]) {
     return null;
   },
 
-  async loadChatMessages(chatHistoryId: string) {
-    return [];
+  async loadChatMessages(sessionId: string): Promise<ChatMessage[]> {
+    try {
+      return await ChatSessions.getSessionMessages(sessionId);
+    } catch (error) {
+      console.error('Failed to load chat messages:', error);
+      return [];
+    }
+  },
+
+  async closeSession(sessionId: string, summary?: string) {
+    try {
+      await ChatSessions.closeSession(sessionId, summary);
+    } catch (error) {
+      console.error('Failed to close session:', error);
+    }
+  },
+
+  subscribeToMessages(
+    sessionId: string,
+    onMessage: (message: ChatMessage) => void
+  ) {
+    return ChatSessions.subscribeToSessionMessages(
+      sessionId,
+      onMessage,
+      (error) => console.error('Realtime subscription error:', error)
+    );
   },
 
   generateChatTitle(messages: any[]) {
