@@ -53,6 +53,7 @@ interface UserPreferences {
     speed: number;
     pitch: number;
   };
+  weekStartDay: 'sunday' | 'monday';
 }
 
 interface Achievement {
@@ -155,7 +156,8 @@ export const ProfilePage: React.FC = () => {
     voiceSettings: {
       speed: 1.0,
       pitch: 1.0
-    }
+    },
+    weekStartDay: 'sunday'
   });
 
   const [editedProfile, setEditedProfile] = useState<UserProfile | null>(null);
@@ -306,7 +308,8 @@ export const ProfilePage: React.FC = () => {
         notifications_push: editedPreferences.notifications.push,
         notifications_sms: editedPreferences.notifications.sms,
         voice_speed: editedPreferences.voiceSettings.speed,
-        voice_pitch: editedPreferences.voiceSettings.pitch
+        voice_pitch: editedPreferences.voiceSettings.pitch,
+        week_start_day: editedPreferences.weekStartDay
       });
 
       setPreferences(editedPreferences);
@@ -405,6 +408,41 @@ export const ProfilePage: React.FC = () => {
                   }`}
                 >
                   <Icon size={16} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Dashboard Settings */}
+      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+        <h3 className="text-lg font-semibold text-white mb-4">
+          <BarChart3 size={20} className="inline mr-2" />
+          Dashboard
+        </h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-3">Week Start Day</label>
+            <p className="text-gray-400 text-sm mb-3">Choose which day starts your week in weekly trends and reports</p>
+            <div className="flex gap-3">
+              {[
+                { value: 'sunday', label: 'Sunday' },
+                { value: 'monday', label: 'Monday' }
+              ].map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => {
+                    setEditedPreferences({ ...editedPreferences, weekStartDay: value as any });
+                    handleSavePreferences();
+                  }}
+                  className={`flex-1 px-4 py-3 rounded-lg border transition-colors ${
+                    editedPreferences.weekStartDay === value
+                      ? 'bg-blue-600 border-blue-500 text-white'
+                      : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
                   {label}
                 </button>
               ))}

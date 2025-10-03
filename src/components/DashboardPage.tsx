@@ -6,6 +6,9 @@ import { RestSection } from './dashboard/RestSection';
 import { EnergySection } from './dashboard/EnergySection';
 import { EffortSection } from './dashboard/EffortSection';
 import { DailySummary } from './dashboard/DailySummary';
+import { TimePeriodSelector, TimePeriod } from './dashboard/TimePeriodSelector';
+import { WeeklyDashboard } from './dashboard/WeeklyDashboard';
+import { MonthlyDashboard } from './dashboard/MonthlyDashboard';
 import { MetricAlert, CrossMetricInsight } from '../types/metrics';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
 import { getSupabase, getDashboardMetrics, updateDailyActivitySummary, getUserDayBoundaries } from '../lib/supabase';
@@ -39,6 +42,7 @@ interface SleepLogData {
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('daily');
   const [dashboardData, setDashboardData] = useState<{
     userMetrics: UserMetricsData | null;
     todaysFoodLogs: FoodEntry[];
@@ -183,9 +187,20 @@ export const DashboardPage: React.FC = () => {
     );
   }
 
+  if (timePeriod === 'weekly') {
+    return <WeeklyDashboard />;
+  }
+
+  if (timePeriod === 'monthly') {
+    return <MonthlyDashboard />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 relative pt-[44px]">
       <div className="relative">
+        <div className="flex justify-center pt-4 pb-2">
+          <TimePeriodSelector selected={timePeriod} onChange={setTimePeriod} />
+        </div>
         {/* Animated Pat Avatar in corner */}
         <div className="absolute top-4 right-4 z-10">
           <button 
