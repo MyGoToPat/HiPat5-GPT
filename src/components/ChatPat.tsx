@@ -53,6 +53,7 @@ export const ChatPat: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>(chatState.currentMessages);
   const [isLoadingChat, setIsLoadingChat] = useState(true);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -152,6 +153,9 @@ export const ChatPat: React.FC = () => {
         const { data: { user } } = await supabase.auth.getUser();
 
         if (user) {
+          // Store userId in state for chat message persistence
+          setUserId(user.id);
+
           // Load or create active session
           const session = await ChatManager.ensureActiveSession(user.id);
           setActiveChatId(session.id);
@@ -346,7 +350,12 @@ export const ChatPat: React.FC = () => {
       // Save user message to database
       const saveUserMessage = async () => {
         try {
-          // Fire-and-forget save - don't block UI
+          if (!userId) {
+            console.error('CRITICAL: userId is undefined, cannot save chat message');
+            toast.error('Chat history not saving - please refresh');
+            return;
+          }
+
           await ChatManager.saveMessage(
             userId,
             threadId,
@@ -354,8 +363,7 @@ export const ChatPat: React.FC = () => {
             'user'
           );
         } catch (error) {
-          // Silently fail - persistence is optional
-          console.warn('User message save skipped:', error);
+          console.error('Failed to save user message:', error);
         }
       };
       saveUserMessage();
@@ -604,7 +612,11 @@ export const ChatPat: React.FC = () => {
             
             // Save AI response to database
             try {
-              // Fire-and-forget save - don't block UI
+              if (!userId) {
+                console.error('CRITICAL: userId is undefined, cannot save AI response');
+                return;
+              }
+
               await ChatManager.saveMessage(
                 userId,
                 threadId,
@@ -612,8 +624,7 @@ export const ChatPat: React.FC = () => {
                 'pat'
               );
             } catch (error) {
-              // Silently fail - persistence is optional
-              console.warn('AI response save skipped:', error);
+              console.error('Failed to save AI response:', error);
             }
 
             // Track first chat message
@@ -776,18 +787,17 @@ export const ChatPat: React.FC = () => {
     if (triggeredAgent) {
       const title = triggeredAgent.title;
       
-      if (title.startsWith("Tell me")) {
-        // "Tell me what you ate" -> "How do I tell you what I ate?"
-        const restOfTitle = title.substring(8).toLowerCase(); // Remove "Tell me "
-        userMessage = `How do I tell you ${restOfTitle}?`;
+      if (title === "Tell me what you ate") {
+        // Trigger TMWYA food logging flow by asking user for food input
+        userMessage = "What did you eat?";
       } else if (title.startsWith("Show me")) {
-        // "Show me what you're eating" -> "How do I show you what I'm eating?"
+        // "Show me what you're eating" -> Open camera
         const restOfTitle = title.substring(8).toLowerCase(); // Remove "Show me "
         userMessage = `How do I show you ${restOfTitle}?`;
       } else if (title === "Need a meal idea?") {
-        userMessage = "How do I get a meal idea?";
+        userMessage = "Can you suggest a meal idea?";
       } else if (title === "Find nearby restaurants") {
-        userMessage = "How do I find nearby restaurants?";
+        userMessage = "Can you find nearby restaurants?";
       }
       // For any other cases, userMessage remains as chipText (default)
     }
