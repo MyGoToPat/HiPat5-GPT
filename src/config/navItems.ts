@@ -11,8 +11,7 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   // Primary
-  // New chat opens voice page with conversation bubbles (same as "Chat with Pat")
-  { key: 'chat-new',    label: 'New chat',        path: '/voice',            section: 'primary' },
+  { key: 'chat-new',    label: 'New chat',        path: '/chat?new=1',       section: 'primary' },
   { key: 'talk',        label: 'Talk With Pat',   path: '/voice',            section: 'primary', requirePrivilege: 'voice.use' },
   { key: 'dashboard',   label: 'Dashboard',       path: '/dashboard',        section: 'primary' },
   { key: 'profile',     label: 'Profile',         path: '/profile',          section: 'primary' },
