@@ -682,6 +682,25 @@ export const ChatPat: React.FC = () => {
       const result = await processMealWithTMWYA(input, userId, 'text');
       console.log('[ChatPat] TMWYA result:', result);
 
+      // Check if Pat needs clarification
+      if (result.ok && result.needsClarification && result.clarificationPrompt) {
+        setStatusText('');
+        console.log('[ChatPat] Needs clarification:', result.clarificationPrompt);
+
+        // Add Pat's clarification question as a message
+        const clarificationMessage: ChatMessage = {
+          id: Date.now().toString(),
+          text: result.clarificationPrompt,
+          timestamp: new Date(),
+          isUser: false
+        };
+
+        setMessages(prev => [...prev, clarificationMessage]);
+        setIsSpeaking(false);
+        setIsSending(false);
+        return; // Wait for user's clarification response
+      }
+
       if (result.ok && result.analysisResult && result.analysisResult.items.length > 0) {
         // Show verification screen with results
         setStatusText('');

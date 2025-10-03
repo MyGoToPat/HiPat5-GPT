@@ -1,6 +1,37 @@
 import { getSupabase } from './supabase';
 import type { AnalysisResult } from '../types/food';
 
+/**
+ * Save user's food terminology preference after clarification
+ * This teaches Pat the user's personal food vocabulary
+ */
+export async function saveUserFoodPreference(
+  userId: string,
+  termUsed: string,
+  resolvedTo: string
+): Promise<void> {
+  const supabase = getSupabase();
+
+  try {
+    await supabase
+      .from('user_food_preferences')
+      .upsert({
+        user_id: userId,
+        term_used: termUsed.toLowerCase().trim(),
+        resolved_to: resolvedTo.toLowerCase().trim(),
+        confirmed_at: new Date().toISOString(),
+        use_count: 1,
+        last_used: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,term_used'
+      });
+
+    console.log('[Food Preference] Saved:', termUsed, '→', resolvedTo);
+  } catch (error) {
+    console.error('[Food Preference] Save error:', error);
+  }
+}
+
 export async function fetchFoodMacros(
   foodName: string
 ): Promise<{ ok: boolean; macros?: any; error?: string }> {
@@ -44,6 +75,8 @@ export async function processMealWithTMWYA(
   analysisResult?: AnalysisResult;
   error?: string;
   step?: string;
+  needsClarification?: boolean;
+  clarificationPrompt?: string;
 }> {
   const supabase = getSupabase();
 
@@ -66,6 +99,17 @@ export async function processMealWithTMWYA(
       return { ok: false, error: data?.error || 'Unknown error', step: data?.step || 'unknown' };
     }
 
+    // Check if clarification is needed
+    if (data.needsClarification) {
+      console.log('[TMWYA Client] Clarification needed:', data.clarificationPrompt);
+      return {
+        ok: true,
+        needsClarification: true,
+        clarificationPrompt: data.clarificationPrompt,
+        step: 'needs_clarification'
+      };
+    }
+
     // Transform response to AnalysisResult format
     const analysisResult: AnalysisResult = {
       source,
@@ -85,7 +129,7 @@ export async function processMealWithTMWYA(
       originalInput: userMessage
     };
 
-    return { ok: true, analysisResult };
+    return { ok: true, analysisResult, needsClarification: false };
   } catch (error: any) {
     console.error('[TMWYA] Client error:', error);
     return { ok: false, error: error.message || 'Unknown error', step: 'client' };

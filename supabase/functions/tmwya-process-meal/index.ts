@@ -23,10 +23,14 @@ interface TMWYAResponse {
     confidence: number;
     originalText: string;
     brand?: string;
+    needsClarification?: boolean;
+    suggestions?: string[];
   }>;
   meal_slot?: string;
   error?: string;
   step?: string;
+  needsClarification?: boolean;
+  clarificationPrompt?: string;
 }
 
 /**
@@ -111,12 +115,20 @@ Deno.serve(async (req: Request) => {
 
     console.log('[TMWYA] Parsed items:', parseResult.items.length);
 
-    // Step 2: Resolve each food item and get macros (per 100g) using cache-first strategy
+    // Step 2: Resolve food names using aliases and user preferences, then get macros
     const resolvedItems = await Promise.all(
       parseResult.items.map(async (item) => {
+        // Resolve food name (handles aliases and user preferences)
+        const resolution = await resolveFoodName(supabase, item.name, userId);
+        const resolvedName = resolution.resolvedName;
+
+        // If low confidence, mark for clarification but continue processing
+        const needsClarification = resolution.confidence < 0.8 && resolution.suggestions;
+
+        // Get macros using resolved name
         const macroPer100g = await resolveFoodMacros(
           supabase,
-          item.name,
+          resolvedName,
           openaiApiKey,
           geminiApiKey,
           item.brand
@@ -124,7 +136,7 @@ Deno.serve(async (req: Request) => {
 
         if (!macroPer100g) {
           return {
-            name: item.name,
+            name: resolvedName,
             qty: item.qty || 1,
             unit: item.unit || 'serving',
             grams: calculateGrams(item.qty || 1, item.unit || 'serving'),
@@ -132,11 +144,13 @@ Deno.serve(async (req: Request) => {
             confidence: 0.3,
             originalText: item.originalText || item.name,
             brand: item.brand,
+            needsClarification,
+            suggestions: resolution.suggestions,
           };
         }
 
         // Calculate grams based on qty and unit
-        const totalGrams = calculateGrams(item.qty || 1, item.unit || 'serving', item.name);
+        const totalGrams = calculateGrams(item.qty || 1, item.unit || 'serving', resolvedName);
 
         // Scale macros based on actual grams
         const ratio = totalGrams / 100;
@@ -148,26 +162,46 @@ Deno.serve(async (req: Request) => {
         };
 
         return {
-          name: item.name,
+          name: resolvedName,
           qty: item.qty || 1,
           unit: item.unit || 'serving',
           grams: totalGrams,
           macros: scaledMacros,
-          confidence: 0.8,
+          confidence: resolution.confidence,
           originalText: item.originalText || item.name,
           brand: item.brand,
+          needsClarification,
+          suggestions: resolution.suggestions,
         };
       })
     );
 
     console.log('[TMWYA] Resolved items:', resolvedItems.length);
 
-    // Return structured result for verification screen
+    // Check if any items need clarification
+    const itemsNeedingClarification = resolvedItems.filter(item => item.needsClarification);
+    const needsClarification = itemsNeedingClarification.length > 0;
+
+    // Build clarification prompt if needed
+    let clarificationPrompt = '';
+    if (needsClarification) {
+      const itemPrompts = itemsNeedingClarification.map(item => {
+        if (item.suggestions && item.suggestions.length > 1) {
+          return `Did you mean **${item.suggestions[0]}** or **${item.suggestions[1]}** when you said "${item.originalText}"?`;
+        }
+        return `I'm not 100% sure about "${item.originalText}". Did you mean **${item.name}**?`;
+      });
+      clarificationPrompt = itemPrompts.join(' ');
+    }
+
+    // Return structured result
     const response: TMWYAResponse = {
       ok: true,
       items: resolvedItems,
       meal_slot: parseResult.meal_slot || determineMealSlot(),
-      step: 'verification_ready'
+      step: needsClarification ? 'needs_clarification' : 'verification_ready',
+      needsClarification,
+      clarificationPrompt
     };
 
     return new Response(
@@ -282,6 +316,79 @@ function generateCacheId(foodName: string, brand?: string): string {
   const normalizedName = foodName.toLowerCase().trim().replace(/\s+/g, '_');
   const normalizedBrand = brand ? brand.toLowerCase().trim().replace(/\s+/g, '_') : 'generic';
   return `${normalizedName}:${normalizedBrand}:100g`;
+}
+
+/**
+ * Resolve food name using aliases and user preferences
+ * Returns: { resolvedName: string, confidence: number, suggestions?: string[] }
+ */
+async function resolveFoodName(
+  supabase: any,
+  foodName: string,
+  userId: string
+): Promise<{ resolvedName: string; confidence: number; suggestions?: string[] }> {
+  const lowerName = foodName.toLowerCase().trim();
+
+  // Step 1: Check user's personal preferences first (highest priority)
+  const { data: userPref } = await supabase
+    .from('user_food_preferences')
+    .select('resolved_to, use_count')
+    .eq('user_id', userId)
+    .eq('term_used', lowerName)
+    .maybeSingle();
+
+  if (userPref) {
+    // Update use count and last_used
+    await supabase
+      .from('user_food_preferences')
+      .update({
+        use_count: (userPref.use_count || 0) + 1,
+        last_used: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('term_used', lowerName);
+
+    console.log('[Food Resolution] User preference HIT:', lowerName, '→', userPref.resolved_to);
+    return { resolvedName: userPref.resolved_to, confidence: 1.0 };
+  }
+
+  // Step 2: Check global aliases
+  const { data: aliases } = await supabase
+    .from('food_aliases')
+    .select('canonical_name, confidence, alias_type')
+    .eq('alias_name', lowerName);
+
+  if (aliases && aliases.length > 0) {
+    // If multiple matches, return for clarification
+    if (aliases.length > 1) {
+      const suggestions = aliases.map((a: any) => a.canonical_name);
+      console.log('[Food Resolution] Multiple aliases found:', suggestions);
+      return {
+        resolvedName: aliases[0].canonical_name,
+        confidence: 0.5,
+        suggestions
+      };
+    }
+
+    // Single match with good confidence
+    const alias = aliases[0];
+    if (alias.confidence >= 0.8) {
+      console.log('[Food Resolution] Alias HIT:', lowerName, '→', alias.canonical_name);
+      return { resolvedName: alias.canonical_name, confidence: alias.confidence };
+    }
+
+    // Low confidence - ask for clarification
+    console.log('[Food Resolution] Low confidence alias:', lowerName, '→', alias.canonical_name);
+    return {
+      resolvedName: alias.canonical_name,
+      confidence: alias.confidence,
+      suggestions: [alias.canonical_name, lowerName]
+    };
+  }
+
+  // Step 3: No match - use original name
+  console.log('[Food Resolution] No alias found, using original:', lowerName);
+  return { resolvedName: lowerName, confidence: 1.0 };
 }
 
 /**
