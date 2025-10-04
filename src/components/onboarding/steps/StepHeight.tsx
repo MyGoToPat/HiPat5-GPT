@@ -28,7 +28,7 @@ export const StepHeight: React.FC = () => {
       // Set default values and update user data immediately
       const defaultCm = convertToMetric(5, 1);
       setCentimeters(Math.round(defaultCm));
-      updateUserData('height', { value: defaultCm, unit: 'cm' });
+      updateUserData('height', { value: defaultCm, unit: 'feet' }); // Default to imperial
       setStepValidity(currentStep, true);
     }
   }, [userData.height]);
@@ -42,9 +42,11 @@ export const StepHeight: React.FC = () => {
     return totalInches * 2.54;
   };
 
-  const updateHeightData = (cm: number) => {
+  const updateHeightData = (cm: number, currentUnit: 'imperial' | 'metric') => {
     const isValid = validateHeight(cm);
-    updateUserData('height', isValid ? { value: cm, unit: 'cm' } : undefined);
+    // Save with the actual unit the user selected
+    const unitToSave = currentUnit === 'metric' ? 'cm' : 'feet';
+    updateUserData('height', isValid ? { value: cm, unit: unitToSave } : undefined);
     setStepValidity(currentStep, isValid);
   };
 
@@ -52,29 +54,29 @@ export const StepHeight: React.FC = () => {
     setFeet(value);
     const cm = convertToMetric(value, inches);
     setCentimeters(Math.round(cm));
-    updateHeightData(cm);
+    updateHeightData(cm, unit);
   };
     
   const handleInchesChange = (value: number) => {
     setInches(value);
     const cm = convertToMetric(feet, value);
     setCentimeters(Math.round(cm));
-    updateHeightData(cm);
+    updateHeightData(cm, unit);
   };
 
   const handleCentimetersChange = (value: number) => {
     setCentimeters(value);
     const cm = value;
-    
+
     if (cm > 0) {
       // Convert to feet and inches
       const totalInches = cm / 2.54;
       const feetValue = Math.floor(totalInches / 12);
       const inchesValue = Math.round(totalInches % 12);
-      
+
       setFeet(feetValue);
       setInches(inchesValue);
-      updateHeightData(cm);
+      updateHeightData(cm, unit);
     }
   };
 

@@ -53,7 +53,7 @@ export const MacrosTab: React.FC = () => {
   const [weightLogs, setWeightLogs] = useState<any[]>([]);
   const [showBodyFatModal, setShowBodyFatModal] = useState(false);
   const [bodyFatLogs, setBodyFatLogs] = useState<any[]>([]);
-  const [weightDisplayUnit, setWeightDisplayUnit] = useState<'lbs' | 'kg'>('lbs');
+  const [weightDisplayUnit, setWeightDisplayUnit] = useState<'lbs' | 'kg'>('lbs'); // Will be set from preferences
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingMacros, setIsEditingMacros] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -113,6 +113,10 @@ export const MacrosTab: React.FC = () => {
 
       if (prefsResult.data) {
         setUnitPrefs(prefsResult.data);
+        // Set weight display unit from preferences
+        if (prefsResult.data.weight_unit) {
+          setWeightDisplayUnit(prefsResult.data.weight_unit);
+        }
       }
 
       if (weightLogsResult.data) {
