@@ -53,8 +53,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Construct the nutrition lookup prompt - CRITICAL: Request RAW values
-    const prompt = `Return the nutrition facts per 100g for RAW, UNCOOKED ${foodName.trim()}. CRITICAL: Use RAW ingredient values, NOT cooked or prepared. For example, raw chicken breast is ~165kcal/100g, raw egg is ~143kcal/100g. Respond as JSON with keys: kcal, protein_g, carbs_g, fat_g. If unsure, state your best guess based on USDA database values for RAW ingredients. If you cannot provide a reasonable estimate, respond with a JSON object containing a single key 'error' with value 'unconfident'.`;
+    // Construct the nutrition lookup prompt
+    // For branded foods (Big Mac, Whopper, etc.), use actual restaurant values
+    // For raw ingredients, use per 100g RAW values
+    const isBrandedFood = /big mac|whopper|quarter pounder|mcdonalds|burger king|wendys|subway|chipotle|starbucks/i.test(foodName.trim());
+
+    const prompt = isBrandedFood
+      ? `Return the actual nutrition facts for ${foodName.trim()} as served by the restaurant. Use real menu data. For example, a Big Mac is ~550kcal total, not per 100g. Respond as JSON with keys: kcal, protein_g, carbs_g, fat_g for the ENTIRE item as served.`
+      : `Return the nutrition facts per 100g for RAW, UNCOOKED ${foodName.trim()}. CRITICAL: Use RAW ingredient values, NOT cooked or prepared. For example, raw chicken breast is ~165kcal/100g, raw egg is ~143kcal/100g. Respond as JSON with keys: kcal, protein_g, carbs_g, fat_g. If unsure, state your best guess based on USDA database values for RAW ingredients. If you cannot provide a reasonable estimate, respond with a JSON object containing a single key 'error' with value 'unconfident'.`;
 
     // Call OpenAI API
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {

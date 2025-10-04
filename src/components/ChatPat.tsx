@@ -520,11 +520,8 @@ export const ChatPat: React.FC = () => {
                   if (pipelineResult.ok) {
                     let responseText = pipelineResult.answer;
 
-                    // Format macro responses as bullets if it contains nutritional data
-                    if (responseText.includes('kcal') || responseText.includes('calories') || responseText.includes('protein')) {
-                      // Add log prompt at the end
-                      responseText = responseText + '\n\n💬 Just say "Log" and I will log this as a meal!';
-                    }
+                    // Pat's response already includes "Log" for macro responses
+                    // Do NOT add extra instructions
                     
                     const patResponse: ChatMessage = {
                       id: (Date.now() + 1).toString(),
@@ -637,10 +634,8 @@ export const ChatPat: React.FC = () => {
                 console.log("[chat:res] Streaming complete");
                 streamingText = fullText;
 
-                // Format macro responses with log prompt
-                if (fullText.includes('kcal') || fullText.includes('calories') || fullText.includes('protein')) {
-                  fullText = fullText + '\n\n💬 Just say "Log" and I will log this as a meal!';
-                }
+                // Pat's response already includes "Log" for macro responses
+                // Do NOT add extra instructions
 
                 setMessages(prev =>
                   prev.map(msg =>
