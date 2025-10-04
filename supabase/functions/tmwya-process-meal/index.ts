@@ -335,18 +335,22 @@ async function callGeminiForMacros(supabase: any, foodName: string, geminiApiKey
 }
 
 async function resolveFoodMacros(supabase: any, foodName: string, openaiApiKey: string, geminiApiKey?: string, brand?: string): Promise<any> {
-  const cachedMacros = await checkFoodCache(supabase, foodName, brand);
-  if (cachedMacros) return cachedMacros;
+  // CRITICAL FIX: Skip cache and Gemini to ensure consistency with chat responses
+  // Use GPT-4o directly for reliable, validated nutrition data
+  // Cache was causing inconsistent data between chat and verification screen
 
-  if (geminiApiKey) {
-    const geminiMacros = await callGeminiForMacros(supabase, foodName, geminiApiKey, brand);
-    if (geminiMacros) {
-      await saveFoodCache(supabase, foodName, geminiMacros, brand, 'gemini');
-      return geminiMacros;
-    }
-  }
+  // const cachedMacros = await checkFoodCache(supabase, foodName, brand);
+  // if (cachedMacros) return cachedMacros;
 
-  const prompt = `Return nutrition per 100g for RAW, UNCOOKED ${foodName.trim()}. CRITICAL: Use RAW ingredient values, NOT cooked or prepared. For example, raw egg is 143kcal per 100g, not cooked egg. JSON with keys: kcal, protein_g, carbs_g, fat_g.`;
+  // if (geminiApiKey) {
+  //   const geminiMacros = await callGeminiForMacros(supabase, foodName, geminiApiKey, brand);
+  //   if (geminiMacros) {
+  //     await saveFoodCache(supabase, foodName, geminiMacros, brand, 'gemini');
+  //     return geminiMacros;
+  //   }
+  // }
+
+  const prompt = `Return nutrition per 100g for RAW, UNCOOKED ${foodName.trim()}. CRITICAL: Use RAW ingredient values, NOT cooked or prepared. For example, raw egg is 143kcal per 100g, raw chicken breast is ~165kcal/100g. JSON with keys: kcal, protein_g, carbs_g, fat_g.`;
   const startTime = Date.now();
 
   try {

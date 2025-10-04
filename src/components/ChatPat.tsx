@@ -340,12 +340,31 @@ export const ChatPat: React.FC = () => {
 
   const handleSendMessage = () => {
     if (inputText.trim()) {
+      // Check for "log" command to log previous macro discussion
+      const lowerInput = inputText.toLowerCase().trim();
+      if (lowerInput === 'log' || lowerInput === 'log it') {
+        // Find the last Pat response with macro data
+        const lastPatMessage = [...messages].reverse().find(m => !m.isUser && (m.text.includes('kcal') || m.text.includes('calories')));
+        if (lastPatMessage) {
+          // Extract food description from previous user message
+          const lastUserMessage = [...messages].reverse().find(m => m.isUser);
+          if (lastUserMessage) {
+            // Trigger meal logging with the previous food discussion
+            handleMealTextInput(`I ate ${lastUserMessage.text}`);
+            return;
+          }
+        }
+        // If no macro data found, let Pat know
+        toast.error('No recent macro discussion to log. Ask me about food first!');
+        return;
+      }
+
       // Check for meal-related text before processing chat
       if (isMealText(inputText)) {
         handleMealTextInput(inputText);
         return;
       }
-      
+
       setIsSending(true);
       setIsThinking(true);
       setStatusText('Thinking...');
@@ -358,8 +377,16 @@ export const ChatPat: React.FC = () => {
         timestamp: new Date(),
         isUser: true
       };
-      
-      setMessages(prev => [...prev, newMessage]);
+
+      // Add thinking indicator immediately below user message
+      const thinkingMessage: ChatMessage = {
+        id: `thinking-${Date.now()}`,
+        text: '✨ Thinking...',
+        timestamp: new Date(),
+        isUser: false
+      };
+
+      setMessages(prev => [...prev, newMessage, thinkingMessage]);
       setInputText('');
       setIsTyping(false);
       
@@ -471,9 +498,15 @@ export const ChatPat: React.FC = () => {
                       }
                     }
                   });
-                  
+
                   if (pipelineResult.ok) {
-                    const responseText = pipelineResult.answer;
+                    let responseText = pipelineResult.answer;
+
+                    // Format macro responses as bullets if it contains nutritional data
+                    if (responseText.includes('kcal') || responseText.includes('calories') || responseText.includes('protein')) {
+                      // Add log prompt at the end
+                      responseText = responseText + '\n\n💬 Just say "Log" and I will log this as a meal!';
+                    }
                     
                     const patResponse: ChatMessage = {
                       id: (Date.now() + 1).toString(),
@@ -481,8 +514,9 @@ export const ChatPat: React.FC = () => {
                       timestamp: new Date(),
                       isUser: false
                     };
-                    
-                    setMessages(prev => [...prev, patResponse]);
+
+                    // Remove thinking message and add actual response
+                    setMessages(prev => prev.filter(m => !m.id.startsWith('thinking-')).concat(patResponse));
                     
                     // Continue with existing save logic...
                     const finalMessages = [...messages, newMessage, patResponse];
@@ -500,10 +534,16 @@ export const ChatPat: React.FC = () => {
                     upsertThread(threadToSave);
                     
                     try {
-                      const newChatId = await ChatManager.saveMessage(activeChatId, patResponse);
-                      if (newChatId && !activeChatId) {
-                        setActiveChatId(newChatId);
+                      if (!userId) {
+                        console.error('CRITICAL: userId is undefined, cannot save AI response');
+                        return;
                       }
+                      await ChatManager.saveMessage(
+                        userId,
+                        threadId,
+                        patResponse.text,
+                        'pat'
+                      );
                     } catch (error) {
                       console.error('Error saving AI response:', error);
                     }
@@ -559,8 +599,8 @@ export const ChatPat: React.FC = () => {
               isUser: false
             };
 
-            // Add empty message first
-            setMessages(prev => [...prev, patResponse]);
+            // Remove thinking message and add empty streaming message
+            setMessages(prev => prev.filter(m => !m.id.startsWith('thinking-')).concat(patResponse));
 
             // Use streaming for real-time typing effect
             await callChatStreaming({
@@ -578,6 +618,12 @@ export const ChatPat: React.FC = () => {
               onComplete: (fullText: string) => {
                 console.log("[chat:res] Streaming complete");
                 streamingText = fullText;
+
+                // Format macro responses with log prompt
+                if (fullText.includes('kcal') || fullText.includes('calories') || fullText.includes('protein')) {
+                  fullText = fullText + '\n\n💬 Just say "Log" and I will log this as a meal!';
+                }
+
                 setMessages(prev =>
                   prev.map(msg =>
                     msg.id === streamingMessageId
