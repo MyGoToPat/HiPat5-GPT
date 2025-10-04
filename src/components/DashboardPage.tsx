@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PatAvatar } from './PatAvatar';
-import { MessageSquare, Mic } from 'lucide-react';
+import { MessageSquare, Mic, Check, X } from 'lucide-react';
 import { FrequencySection } from './dashboard/FrequencySection';
 import { RestSection } from './dashboard/RestSection';
 import { EnergySection } from './dashboard/EnergySection';
@@ -15,6 +15,7 @@ import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
 import { getSupabase, getDashboardMetrics, updateDailyActivitySummary, getUserDayBoundaries } from '../lib/supabase';
 import type { FoodEntry } from '../types/food';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface UserMetricsData {
   tdee?: number;
@@ -46,6 +47,8 @@ export const DashboardPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('daily');
   const [userId, setUserId] = useState<string | null>(null);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [successData, setSuccessData] = useState<{ kcal: number; items: number } | null>(null);
   const [dashboardData, setDashboardData] = useState<{
     userMetrics: UserMetricsData | null;
     todaysFoodLogs: FoodEntry[];
@@ -206,8 +209,49 @@ export const DashboardPage: React.FC = () => {
     return <MonthlyDashboard onBackToDashboard={() => setTimePeriod('daily')} />;
   }
 
+  // Check if meal was just logged
+  useEffect(() => {
+    if (location.state?.mealJustLogged) {
+      setShowSuccessBanner(true);
+      setSuccessData({
+        kcal: location.state.mealCalories || 0,
+        items: location.state.mealItems || 1
+      });
+
+      const timer = setTimeout(() => setShowSuccessBanner(false), 5000);
+      navigate(location.pathname, { replace: true, state: {} });
+      return () => clearTimeout(timer);
+    }
+  }, [location.state, navigate, location.pathname]);
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 relative pt-[44px]">
+      {/* Success Banner */}
+      <AnimatePresence>
+        {showSuccessBanner && successData && (
+          <motion.div
+            initial={{ opacity: 0, y: -100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -100 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4"
+          >
+            <div className="bg-gradient-to-r from-green-600 to-green-500 rounded-2xl shadow-2xl p-4 flex items-center gap-4">
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <Check size={24} className="text-white" strokeWidth={3} />
+              </div>
+              <div className="flex-1">
+                <p className="text-white font-semibold">Meal Successfully Logged</p>
+                <p className="text-white/90 text-sm">{successData.kcal} kcal • {successData.items} item{successData.items > 1 ? 's' : ''}</p>
+              </div>
+              <button onClick={() => setShowSuccessBanner(false)} className="text-white/80 hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="relative">
         <div className="flex justify-center pt-4 pb-2">
           <TimePeriodSelector selected={timePeriod} onChange={setTimePeriod} />

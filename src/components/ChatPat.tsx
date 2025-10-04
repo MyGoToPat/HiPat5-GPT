@@ -4,6 +4,7 @@ import { PatAvatar } from './PatAvatar';
 import { VoiceWaveform } from './VoiceWaveform';
 import { Plus, Mic, Folder, Camera, Image, ArrowUp, Check, X } from 'lucide-react';
 import { FoodVerificationScreen } from './FoodVerificationScreen';
+import { MealSuccessTransition } from './MealSuccessTransition';
 import { fetchFoodMacros, processMealWithTMWYA } from '../lib/food';
 import { saveMeal } from '../lib/meals/saveMeal';
 import type { AnalysisResult, NormalizedMealData } from '../types/food';
@@ -20,12 +21,12 @@ import { callChat } from '../lib/chat';
 import { callChatStreaming } from '../lib/streamingChat';
 import { trackFirstChatMessage } from '../lib/analytics';
 import { updateDailyActivitySummary, checkAndAwardAchievements } from '../lib/supabase';
-import { 
-  getThread, 
-  upsertThread, 
-  makeTitleFrom, 
+import {
+  getThread,
+  upsertThread,
+  makeTitleFrom,
   newThreadId,
-  type ChatThread 
+  type ChatThread
 } from '../lib/history';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../lib/supabase';
@@ -252,37 +253,55 @@ export const ChatPat: React.FC = () => {
     return shouldLogFood;
   };
 
+  // Success transition state
+  const [showSuccessTransition, setShowSuccessTransition] = useState(false);
+  const [successMealData, setSuccessMealData] = useState<{ kcal: number; items: number } | null>(null);
+
   // Food verification screen handlers
   const handleConfirmVerification = async (normalizedMeal: NormalizedMealData) => {
     try {
       setIsLoggingActivity(true);
       const result = await saveMeal(normalizedMeal);
-      
+
       if (result.ok) {
-        toast.success('Meal logged successfully!');
+        const totals = normalizedMeal.mealLog.totals;
+
+        // Close verification screen
         setShowFoodVerificationScreen(false);
         setCurrentAnalysisResult(null);
-        
-        // Add concise confirmation message to chat
-        const items = normalizedMeal.mealItems.map(item =>
-          `${item.name}: ${item.macros.kcal}kcal, ${item.macros.protein_g}p, ${item.macros.carbs_g}c, ${item.macros.fat_g}f`
-        ).join('\n');
 
-        const totals = normalizedMeal.mealLog.totals;
-        const confirmationMessage: ChatMessage = {
-          id: Date.now().toString(),
-          text: `Logged:\n${items}\n\nTotal: ${totals.kcal}kcal, ${totals.protein_g}p, ${totals.carbs_g}c, ${totals.fat_g}f`,
-          timestamp: new Date(),
-          isUser: false
-        };
-        setMessages(prev => [...prev, confirmationMessage]);
+        // Show success transition
+        setSuccessMealData({
+          kcal: Math.round(totals.kcal),
+          items: normalizedMeal.mealItems.length
+        });
+        setShowSuccessTransition(true);
+
+        // Haptic feedback on mobile
+        if ('vibrate' in navigator) {
+          navigator.vibrate(50);
+        }
+
+        // Auto-redirect to dashboard after 2 seconds
+        setTimeout(() => {
+          setShowSuccessTransition(false);
+          setSuccessMealData(null);
+          navigate('/dashboard', {
+            state: {
+              mealJustLogged: true,
+              mealCalories: totals.kcal,
+              mealItems: normalizedMeal.mealItems.length
+            }
+          });
+        }, 2000);
+
       } else {
         toast.error(result.error || 'Failed to save meal');
+        setIsLoggingActivity(false);
       }
     } catch (error) {
       console.error('Error saving meal:', error);
       toast.error('Failed to save meal');
-    } finally {
       setIsLoggingActivity(false);
     }
   };
@@ -1286,7 +1305,28 @@ export const ChatPat: React.FC = () => {
     );
   }
 
-  // Show Food Verification Screen if active  
+  // Show Success Transition (after meal logged)
+  if (showSuccessTransition && successMealData) {
+    return (
+      <MealSuccessTransition
+        kcal={successMealData.kcal}
+        items={successMealData.items}
+        onSkip={() => {
+          setShowSuccessTransition(false);
+          setSuccessMealData(null);
+          navigate('/dashboard', {
+            state: {
+              mealJustLogged: true,
+              mealCalories: successMealData.kcal,
+              mealItems: successMealData.items
+            }
+          });
+        }}
+      />
+    );
+  }
+
+  // Show Food Verification Screen if active
   if (showFoodVerificationScreen && currentAnalysisResult) {
     return (
       <FoodVerificationScreen
