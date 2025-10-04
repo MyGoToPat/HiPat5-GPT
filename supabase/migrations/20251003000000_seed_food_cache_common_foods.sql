@@ -49,9 +49,9 @@ VALUES
   ('shrimp:generic:100g', 'shrimp', null, '100g', 100, '{"kcal": 99, "protein_g": 24, "carbs_g": 0.2, "fat_g": 0.3}'::jsonb, 'USDA', '175180', 0.95, now() + interval '90 days'),
   ('tilapia:generic:100g', 'tilapia', null, '100g', 100, '{"kcal": 128, "protein_g": 26, "carbs_g": 0, "fat_g": 2.7}'::jsonb, 'USDA', '175185', 0.95, now() + interval '90 days'),
 
-  -- Eggs & Dairy
-  ('eggs:generic:100g', 'eggs', null, '100g', 100, '{"kcal": 155, "protein_g": 13, "carbs_g": 1.1, "fat_g": 11}'::jsonb, 'USDA', '173424', 0.95, now() + interval '90 days'),
-  ('whole_eggs:generic:100g', 'whole eggs', null, '100g', 100, '{"kcal": 155, "protein_g": 13, "carbs_g": 1.1, "fat_g": 11}'::jsonb, 'USDA', '173424', 0.95, now() + interval '90 days'),
+  -- Eggs & Dairy (RAW values - CRITICAL: These are uncooked)
+  ('eggs:generic:100g', 'eggs', null, '100g', 100, '{"kcal": 143, "protein_g": 12.6, "carbs_g": 0.7, "fat_g": 9.5}'::jsonb, 'USDA', '173424', 0.95, now() + interval '90 days'),
+  ('whole_eggs:generic:100g', 'whole eggs', null, '100g', 100, '{"kcal": 143, "protein_g": 12.6, "carbs_g": 0.7, "fat_g": 9.5}'::jsonb, 'USDA', '173424', 0.95, now() + interval '90 days'),
   ('egg_whites:generic:100g', 'egg whites', null, '100g', 100, '{"kcal": 52, "protein_g": 11, "carbs_g": 0.7, "fat_g": 0.2}'::jsonb, 'USDA', '173423', 0.95, now() + interval '90 days'),
 
   -- Grains & Carbs
