@@ -39,7 +39,7 @@ interface TMWYAResponse {
 }
 
 Deno.serve(async (req: Request) => {
-  console.log('[TMWYA] GPT-4o only version - no Gemini, no cache');
+  console.log('[TMWYA] GPT-4o ONLY - No Gemini, No Cache');
 
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -62,6 +62,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    console.log('[TMWYA] API Key check:', openaiApiKey ? 'Found' : 'NOT FOUND');
 
     if (!openaiApiKey) {
       return new Response(
