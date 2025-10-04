@@ -111,13 +111,15 @@ export const ChatSessions = {
   }): Promise<ChatMessage> {
     const supabase = getSupabase();
 
-    const { data, error } = await supabase
+    const { data, error} = await supabase
       .from('chat_messages')
       .insert({
+        chat_history_id: message.sessionId, // Use chat_history_id (NOT NULL column)
         session_id: message.sessionId,
         user_id: message.userId,
         sender: message.sender,
         text: message.text,
+        is_user: message.sender === 'user', // Add required is_user field
         timestamp: new Date().toISOString()
       })
       .select()
