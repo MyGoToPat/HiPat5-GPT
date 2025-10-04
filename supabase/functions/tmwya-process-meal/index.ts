@@ -38,12 +38,8 @@ interface TMWYAResponse {
   clarificationPrompt?: string;
 }
 
-/**
- * TMWYA Edge Function v2.1 - Cache-First with Semantic Resolution
- */
-
 Deno.serve(async (req: Request) => {
-  console.log('[TMWYA v2.1] Cache-first + semantic version starting...');
+  console.log('[TMWYA] GPT-4o only version - no Gemini, no cache');
 
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -66,7 +62,6 @@ Deno.serve(async (req: Request) => {
     }
 
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
     if (!openaiApiKey) {
       return new Response(
@@ -97,13 +92,11 @@ Deno.serve(async (req: Request) => {
 
     const resolvedItems = await Promise.all(
       parseResult.items.map(async (item) => {
-        const resolution = await resolveFoodName(supabase, item.name, userId);
-        const needsClarification = resolution.confidence < 0.8 && resolution.suggestions;
-        const macroPer100g = await resolveFoodMacros(supabase, resolution.resolvedName, openaiApiKey, geminiApiKey, item.brand);
+        const macroPer100g = await getFoodMacros(item.name, openaiApiKey, item.brand);
 
         if (!macroPer100g) {
           return {
-            name: resolution.resolvedName,
+            name: item.name,
             qty: item.qty || 1,
             unit: item.unit || 'serving',
             grams: calculateGrams(item.qty || 1, item.unit || 'serving'),
@@ -111,12 +104,10 @@ Deno.serve(async (req: Request) => {
             confidence: 0.3,
             originalText: item.originalText || item.name,
             brand: item.brand,
-            needsClarification,
-            suggestions: resolution.suggestions,
           };
         }
 
-        const totalGrams = calculateGrams(item.qty || 1, item.unit || 'serving', resolution.resolvedName);
+        const totalGrams = calculateGrams(item.qty || 1, item.unit || 'serving', item.name);
         const ratio = totalGrams / 100;
         const scaledMacros = {
           kcal: Math.round(macroPer100g.kcal * ratio * 10) / 10,
@@ -126,41 +117,23 @@ Deno.serve(async (req: Request) => {
         };
 
         return {
-          name: resolution.resolvedName,
+          name: item.name,
           qty: item.qty || 1,
           unit: item.unit || 'serving',
           grams: totalGrams,
           macros: scaledMacros,
-          confidence: resolution.confidence,
+          confidence: 0.9,
           originalText: item.originalText || item.name,
           brand: item.brand,
-          needsClarification,
-          suggestions: resolution.suggestions,
         };
       })
     );
-
-    const itemsNeedingClarification = resolvedItems.filter(item => item.needsClarification);
-    const needsClarification = itemsNeedingClarification.length > 0;
-
-    let clarificationPrompt = '';
-    if (needsClarification) {
-      const itemPrompts = itemsNeedingClarification.map(item => {
-        if (item.suggestions && item.suggestions.length > 1) {
-          return `Did you mean **${item.suggestions[0]}** or **${item.suggestions[1]}** when you said "${item.originalText}"?`;
-        }
-        return `I'm not 100% sure about "${item.originalText}". Did you mean **${item.name}**?`;
-      });
-      clarificationPrompt = itemPrompts.join(' ');
-    }
 
     const response: TMWYAResponse = {
       ok: true,
       items: resolvedItems,
       meal_slot: parseResult.meal_slot || determineMealSlot(),
-      step: needsClarification ? 'needs_clarification' : 'verification_ready',
-      needsClarification,
-      clarificationPrompt
+      step: 'verification_ready',
     };
 
     return new Response(JSON.stringify(response), {
@@ -203,162 +176,14 @@ async function parseMealInput(message: string, apiKey: string): Promise<any> {
   }
 }
 
-function generateCacheId(foodName: string, brand?: string): string {
-  const normalizedName = foodName.toLowerCase().trim().replace(/\s+/g, '_');
-  const normalizedBrand = brand ? brand.toLowerCase().trim().replace(/\s+/g, '_') : 'generic';
-  return `${normalizedName}:${normalizedBrand}:100g`;
-}
-
-async function resolveFoodName(supabase: any, foodName: string, userId: string): Promise<any> {
-  const lowerName = foodName.toLowerCase().trim();
-
-  const { data: userPref } = await supabase.from('user_food_preferences').select('resolved_to, use_count').eq('user_id', userId).eq('term_used', lowerName).maybeSingle();
-  if (userPref) {
-    await supabase.from('user_food_preferences').update({ use_count: (userPref.use_count || 0) + 1, last_used: new Date().toISOString() }).eq('user_id', userId).eq('term_used', lowerName);
-    console.log('[Resolution] User pref HIT:', lowerName, '→', userPref.resolved_to);
-    return { resolvedName: userPref.resolved_to, confidence: 1.0 };
-  }
-
-  const { data: aliases } = await supabase.from('food_aliases').select('canonical_name, confidence').eq('alias_name', lowerName);
-  if (aliases && aliases.length > 0) {
-    if (aliases.length > 1) {
-      return { resolvedName: aliases[0].canonical_name, confidence: 0.5, suggestions: aliases.map((a: any) => a.canonical_name) };
-    }
-    const alias = aliases[0];
-    if (alias.confidence >= 0.8) {
-      console.log('[Resolution] Alias HIT:', lowerName, '→', alias.canonical_name);
-      return { resolvedName: alias.canonical_name, confidence: alias.confidence };
-    }
-    return { resolvedName: alias.canonical_name, confidence: alias.confidence, suggestions: [alias.canonical_name, lowerName] };
-  }
-
-  return { resolvedName: lowerName, confidence: 1.0 };
-}
-
-async function checkFoodCache(supabase: any, foodName: string, brand?: string): Promise<any> {
-  try {
-    const cacheId = generateCacheId(foodName, brand);
-    const { data, error } = await supabase.from('food_cache').select('macros, access_count').eq('id', cacheId).gt('expires_at', new Date().toISOString()).maybeSingle();
-
-    if (error || !data || !data.macros) {
-      console.log('[Cache] MISS:', foodName);
-      return null;
-    }
-
-    await supabase.from('food_cache').update({ access_count: (data.access_count || 0) + 1, last_accessed: new Date().toISOString() }).eq('id', cacheId);
-    console.log('[Cache] HIT:', foodName);
-    return { kcal: data.macros.kcal, protein_g: data.macros.protein_g, carbs_g: data.macros.carbs_g, fat_g: data.macros.fat_g };
-  } catch (error) {
-    console.error('[Cache] Error:', error);
-    return null;
-  }
-}
-
-function validateMacros(macros: any, foodName: string): boolean {
-  const { kcal, protein_g, carbs_g, fat_g } = macros;
-  if (kcal > 900) return false;
-  if (protein_g > 100) return false;
-  if (carbs_g > 100) return false;
-  if (fat_g > 100) return false;
-  const calculatedKcal = (protein_g * 4) + (carbs_g * 4) + (fat_g * 9);
-  const calorieDiff = Math.abs(calculatedKcal - kcal);
-  const tolerance = kcal * 0.25;
-  if (calorieDiff > tolerance) {
-    console.warn(`[Validation] Calorie mismatch for ${foodName}: reported ${kcal}, calculated ${Math.round(calculatedKcal)}`);
-    return false;
-  }
-  const foodLower = foodName.toLowerCase();
-  if (foodLower.includes('egg') && !foodLower.includes('cooked') && kcal > 160) {
-    console.warn(`[Validation] Egg appears cooked: ${foodName} = ${kcal}kcal/100g (raw should be ~143)`);
-    return false;
-  }
-  return true;
-}
-
-async function saveFoodCache(supabase: any, foodName: string, macros: any, brand?: string, source = 'llm'): Promise<void> {
-  try {
-    const cacheId = generateCacheId(foodName, brand);
-    await supabase.from('food_cache').upsert({
-      id: cacheId,
-      name: foodName,
-      brand: brand || null,
-      serving_size: '100g',
-      grams_per_serving: 100,
-      macros,
-      source_db: source,
-      confidence: 0.85,
-      access_count: 1,
-      last_accessed: new Date().toISOString(),
-      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    });
-    console.log('[Cache] SAVED:', foodName);
-  } catch (error) {
-    console.error('[Cache] Save error:', error);
-  }
-}
-
-async function callGeminiForMacros(supabase: any, foodName: string, geminiApiKey: string, brand?: string): Promise<any> {
-  const prompt = `Return nutrition per 100g for RAW, UNCOOKED ${foodName.trim()}. CRITICAL: Use RAW ingredient values, NOT cooked or prepared. For example, raw egg is 143kcal per 100g, raw chicken breast is ~165kcal/100g. JSON with keys: kcal, protein_g, carbs_g, fat_g.`;
-  const startTime = Date.now();
-
-  try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 150, responseMimeType: 'application/json' }
-      })
-    });
-
-    if (!response.ok) return null;
-    const data = await response.json();
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!content) return null;
-
-    const macros = JSON.parse(content);
-    const total = (macros.protein_g || 0) + (macros.carbs_g || 0) + (macros.fat_g || 0);
-    if (total === 0 && macros.kcal === 0) return null;
-
-    const result = { kcal: Number(macros.kcal) || 0, protein_g: Number(macros.protein_g) || 0, carbs_g: Number(macros.carbs_g) || 0, fat_g: Number(macros.fat_g) || 0 };
-    if (!validateMacros(result, foodName)) {
-      console.warn('[Gemini] VALIDATION FAILED:', foodName, result);
-      return null;
-    }
-
-    console.log('[Gemini] SUCCESS:', foodName, '(', Date.now() - startTime, 'ms)');
-    return result;
-  } catch (error) {
-    console.error('[Gemini] Error:', error);
-    return null;
-  }
-}
-
-async function resolveFoodMacros(supabase: any, foodName: string, openaiApiKey: string, geminiApiKey?: string, brand?: string): Promise<any> {
-  // Multi-tier resolution strategy:
-  // 1. Check cache first (FREE, instant)
-  // 2. Try Gemini with validation (95% cheaper than GPT-4o)
-  // 3. Fallback to GPT-4o if needed (most reliable)
-  // All responses validated before caching to ensure consistency
-
-  const cachedMacros = await checkFoodCache(supabase, foodName, brand);
-  if (cachedMacros) return cachedMacros;
-
-  if (geminiApiKey) {
-    const geminiMacros = await callGeminiForMacros(supabase, foodName, geminiApiKey, brand);
-    if (geminiMacros) {
-      await saveFoodCache(supabase, foodName, geminiMacros, brand, 'gemini');
-      return geminiMacros;
-    }
-  }
-
+async function getFoodMacros(foodName: string, apiKey: string, brand?: string): Promise<any> {
   const prompt = `Return nutrition per 100g for RAW, UNCOOKED ${foodName.trim()}. CRITICAL: Use RAW ingredient values, NOT cooked or prepared. For example, raw egg is 143kcal per 100g, raw chicken breast is ~165kcal/100g. JSON with keys: kcal, protein_g, carbs_g, fat_g.`;
   const startTime = Date.now();
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [{ role: 'system', content: 'Nutrition expert. JSON only.' }, { role: 'user', content: prompt }],
@@ -377,16 +202,10 @@ async function resolveFoodMacros(supabase: any, foodName: string, openaiApiKey: 
     const total = (macros.protein_g || 0) + (macros.carbs_g || 0) + (macros.fat_g || 0);
     if (total === 0 && macros.kcal === 0) return null;
 
-    const openaiMacros = { kcal: Number(macros.kcal) || 0, protein_g: Number(macros.protein_g) || 0, carbs_g: Number(macros.carbs_g) || 0, fat_g: Number(macros.fat_g) || 0 };
+    const result = { kcal: Number(macros.kcal) || 0, protein_g: Number(macros.protein_g) || 0, carbs_g: Number(macros.carbs_g) || 0, fat_g: Number(macros.fat_g) || 0 };
 
-    if (!validateMacros(openaiMacros, foodName)) {
-      console.warn('[GPT4o] VALIDATION FAILED:', foodName, openaiMacros);
-      return null;
-    }
-
-    await saveFoodCache(supabase, foodName, openaiMacros, brand, 'gpt4o');
     console.log('[GPT4o] SUCCESS:', foodName, '(', Date.now() - startTime, 'ms)');
-    return openaiMacros;
+    return result;
   } catch (error) {
     console.error('[GPT4o] Error:', error);
     return null;

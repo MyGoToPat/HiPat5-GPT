@@ -50,25 +50,30 @@ COMMUNICATION STYLE (Spartan & Precise):
 - Simple queries: 20-50 words maximum
 - Complex topics: Up to 300 words when depth is required
 
+FORMATTING REQUIREMENTS:
+- When providing nutritional macros, ALWAYS use bullet points with this format:
+  • Calories: XXX kcal
+  • Protein: XX g
+  • Carbs: XX g
+  • Fat: XX g
+- Use bullet points (•) not hyphens for macro lists
+- Keep macro responses concise and scannable
+
 When providing information from recent research or web sources, ALWAYS include citations with links.`;
 
-/**
- * Classify user query to determine if it needs internet access
- */
 function classifyQuery(userMessage: string): QueryClassification {
   const message = userMessage.toLowerCase();
 
-  // Strong indicators for internet search (supplements, current info, research)
   const internetKeywords = [
     'supplement', 'research', 'study', 'clinical trial', 'latest', 'recent',
     'current', '2024', '2025', 'new', 'brand', 'product', 'review',
     'nmn', 'creatine', 'turkesterone', 'ashwagandha', 'whey', 'protein powder',
     'pre-workout', 'bcaa', 'glutamine', 'compare', 'vs', 'best',
     'what do you think about', 'tell me about', 'effective', 'worth it',
-    'does it work', 'science behind', 'evidence for'
+    'does it work', 'science behind', 'evidence for', 'mcdonalds', 'burger king',
+    'wendys', 'taco bell', 'chipotle', 'subway', 'starbucks', 'dunkin', 'fast food'
   ];
 
-  // Strong indicators for static knowledge (no internet needed)
   const staticKeywords = [
     'i ate', 'i had', 'breakfast', 'lunch', 'dinner', 'calories in',
     'macro', 'macros', 'protein', 'carbs', 'fat', 'chicken breast',
@@ -77,22 +82,19 @@ function classifyQuery(userMessage: string): QueryClassification {
     'tdee', 'bmr', 'body fat', 'muscle gain', 'weight loss'
   ];
 
-  // Check for internet indicators
   const internetScore = internetKeywords.reduce((score, keyword) => {
     return score + (message.includes(keyword) ? 1 : 0);
   }, 0);
 
-  // Check for static knowledge indicators
   const staticScore = staticKeywords.reduce((score, keyword) => {
     return score + (message.includes(keyword) ? 1 : 0);
   }, 0);
 
-  // Decision logic
   if (internetScore > staticScore && internetScore > 0) {
     return {
       needsInternet: true,
       confidence: Math.min(internetScore / 3, 1),
-      reasoning: 'Query about supplements, research, or current information',
+      reasoning: 'Query about supplements, brands, or current information',
       provider: 'gemini'
     };
   }
@@ -106,7 +108,6 @@ function classifyQuery(userMessage: string): QueryClassification {
     };
   }
 
-  // Default to OpenAI for ambiguous queries (faster, cheaper)
   return {
     needsInternet: false,
     confidence: 0.5,
@@ -115,9 +116,6 @@ function classifyQuery(userMessage: string): QueryClassification {
   };
 }
 
-/**
- * Call OpenAI API (existing implementation)
- */
 async function callOpenAI(messages: ChatMessage[], stream: boolean, openaiApiKey: string) {
   const messagesWithSystem: ChatMessage[] = [
     { role: 'system', content: PAT_SYSTEM_PROMPT },
@@ -142,11 +140,7 @@ async function callOpenAI(messages: ChatMessage[], stream: boolean, openaiApiKey
   return openaiResponse;
 }
 
-/**
- * Call Gemini API with Google Search grounding
- */
 async function callGemini(messages: ChatMessage[], geminiApiKey: string) {
-  // Combine system prompt and messages
   const systemPrompt = PAT_SYSTEM_PROMPT;
   const conversationHistory = messages.map(msg => {
     if (msg.role === 'user') {
@@ -191,7 +185,6 @@ async function callGemini(messages: ChatMessage[], geminiApiKey: string) {
 
   const geminiData = await geminiResponse.json();
 
-  // Extract text from Gemini response
   const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
   const groundingMetadata = geminiData.candidates?.[0]?.groundingMetadata;
 
@@ -199,7 +192,6 @@ async function callGemini(messages: ChatMessage[], geminiApiKey: string) {
     throw new Error('No response from Gemini');
   }
 
-  // Add source citations if grounding was used
   let finalContent = content;
   if (groundingMetadata?.webSearchQueries && groundingMetadata.webSearchQueries.length > 0) {
     finalContent += '\n\n---\n*Sources: Based on current web search*';
@@ -218,7 +210,6 @@ async function callGemini(messages: ChatMessage[], geminiApiKey: string) {
 }
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 200,
@@ -239,7 +230,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get API keys from environment
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
@@ -257,7 +247,6 @@ Deno.serve(async (req: Request) => {
       console.warn('Gemini API key not configured - falling back to OpenAI only');
     }
 
-    // Get the last user message for classification
     const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
 
     if (!lastUserMessage) {
@@ -270,7 +259,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Classify the query
     const classification = classifyQuery(lastUserMessage.content);
 
     console.log('Query Classification:', {
@@ -281,9 +269,7 @@ Deno.serve(async (req: Request) => {
       query: lastUserMessage.content.substring(0, 100)
     });
 
-    // Route to appropriate AI provider
     if (classification.needsInternet && geminiApiKey) {
-      // Use Gemini with Google Search
       try {
         const geminiResult = await callGemini(messages, geminiApiKey);
 
@@ -309,11 +295,9 @@ Deno.serve(async (req: Request) => {
         );
       } catch (error) {
         console.error('Gemini error, falling back to OpenAI:', error);
-        // Fall through to OpenAI
       }
     }
 
-    // Use OpenAI (default or fallback)
     if (stream) {
       const openaiResponse = await callOpenAI(messages, true, openaiApiKey);
 
@@ -330,7 +314,6 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      // Create readable stream for SSE
       const reader = openaiResponse.body?.getReader();
       const decoder = new TextDecoder();
 
@@ -393,7 +376,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Non-streaming OpenAI
     const openaiResponse = await callOpenAI(messages, false, openaiApiKey);
 
     if (!openaiResponse.ok) {
