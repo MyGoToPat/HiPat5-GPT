@@ -246,6 +246,47 @@ export const MacrosTab: React.FC = () => {
     return `${cm.toFixed(1)} cm`;
   };
 
+  // Handler to update unit preferences in database
+  const handleUnitChange = async (newWeightUnit: 'lbs' | 'kg') => {
+    try {
+      setWeightDisplayUnit(newWeightUnit);
+
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Determine height unit based on weight unit (unified system)
+      const newHeightUnit = newWeightUnit === 'lbs' ? 'feet' : 'cm';
+      const newUnitSystem = newWeightUnit === 'lbs' ? 'imperial' : 'metric';
+
+      // Save to database
+      const { error } = await supabase
+        .from('user_preferences')
+        .upsert({
+          user_id: user.id,
+          weight_unit: newWeightUnit,
+          height_unit: newHeightUnit,
+          unit_system: newUnitSystem,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) throw error;
+
+      // Update local state
+      setUnitPrefs({
+        weight_unit: newWeightUnit,
+        height_unit: newHeightUnit
+      });
+
+      toast.success(`Units changed to ${newUnitSystem === 'imperial' ? 'Imperial (lbs/ft)' : 'Metric (kg/cm)'}`);
+    } catch (error: any) {
+      console.error('Error saving unit preference:', error);
+      toast.error('Failed to save unit preference');
+    }
+  };
+
   const calculateTEF = (protein_g: number | undefined, carbs_g: number | undefined, fat_g: number | undefined) => {
     if (!protein_g || !carbs_g || !fat_g) return 0;
     const proteinTEF = (protein_g * 4) * 0.30;
@@ -632,7 +673,7 @@ export const MacrosTab: React.FC = () => {
             </h3>
             <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1">
               <button
-                onClick={() => setWeightDisplayUnit('lbs')}
+                onClick={() => handleUnitChange('lbs')}
                 className={`px-3 py-1 text-xs rounded-md transition-colors ${
                   weightDisplayUnit === 'lbs'
                     ? 'bg-blue-600 text-white'
@@ -642,7 +683,7 @@ export const MacrosTab: React.FC = () => {
                 lbs
               </button>
               <button
-                onClick={() => setWeightDisplayUnit('kg')}
+                onClick={() => handleUnitChange('kg')}
                 className={`px-3 py-1 text-xs rounded-md transition-colors ${
                   weightDisplayUnit === 'kg'
                     ? 'bg-blue-600 text-white'
