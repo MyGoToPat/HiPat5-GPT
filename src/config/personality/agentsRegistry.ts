@@ -923,6 +923,58 @@ TONE: Supportive, references "Dwayne and I recommend..." for enterprise users.`,
 };
 
 // ============================================================================
+// MACRO FORMATTER - Ensures consistent bullet format for all macro responses
+// ============================================================================
+
+const macro_formatter: AgentConfig = {
+  id: "macro-formatter",
+  name: "Macro Formatter",
+  phase: "post",
+  enabled: true,
+  order: 22,
+  enabledForPaid: true,
+  enabledForFreeTrial: true,
+  instructions: "Validates and enforces bullet format for all macro responses. Ensures Chat and TMWYA use identical formatting.",
+  promptTemplate: `CRITICAL: Check if this response contains macro/nutrition data.
+
+Draft response:
+"""
+{{draft}}
+"""
+
+IF response contains macros (calories, protein, carbs, fat):
+  ENFORCE this exact format:
+  • Calories: XXX kcal
+  • Protein: XX g
+  • Carbs: XX g
+  • Fat: XX g
+
+  Log
+
+RULES:
+- Use bullet character "•" (NOT dash, asterisk, or hyphen)
+- Space after bullet: "• " (bullet + space)
+- Capitalize labels: "Calories", "Protein", "Carbs", "Fat"
+- Include units: "kcal" for calories, "g" for macros
+- Add blank line before "Log"
+- NO extra text, explanations, or suggestions
+- ONLY macros + "Log"
+
+IF response does NOT contain macros:
+  Return draft unchanged.
+
+Output the formatted response.`,
+  tone: { preset: "neutral", notes: "Strict formatting enforcement" },
+  api: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    temperature: 0.1,
+    maxOutputTokens: 300,
+    responseFormat: "text"
+  }
+};
+
+// ============================================================================
 // EXPORT DEFAULT REGISTRY
 // ============================================================================
 
@@ -953,5 +1005,6 @@ export const defaultPersonalityAgents: Record<string, AgentConfig> = {
   "evidence-validator": evidence_validator,
   "clarity-enforcer": clarity_enforcer,
   "conciseness-filter": conciseness_filter,
+  "macro-formatter": macro_formatter,
   "actionizer": actionizer
 };

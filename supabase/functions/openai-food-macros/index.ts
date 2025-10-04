@@ -1,3 +1,5 @@
+import { createClient } from 'npm:@supabase/supabase-js@2.53.0';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -13,14 +15,12 @@ interface MacroResponse {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
-}
-
-interface ErrorResponse {
-  error: string;
+  confidence?: number;
+  source?: string;
+  basis?: string;
 }
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 200,
@@ -41,57 +41,21 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get OpenAI API key from environment
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
+    // Call the unified nutrition-resolver edge function
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Construct the nutrition lookup prompt
-    // For branded foods (Big Mac, Whopper, etc.), use actual restaurant values
-    // For raw ingredients, use per 100g RAW values
-    const isBrandedFood = /big mac|whopper|quarter pounder|mcdonalds|burger king|wendys|subway|chipotle|starbucks/i.test(foodName.trim());
+    console.log('[openai-food-macros] Calling nutrition-resolver for:', foodName);
 
-    const prompt = isBrandedFood
-      ? `Return the actual nutrition facts for ${foodName.trim()} as served by the restaurant. Use real menu data. For example, a Big Mac is ~550kcal total, not per 100g. Respond as JSON with keys: kcal, protein_g, carbs_g, fat_g for the ENTIRE item as served.`
-      : `Return the nutrition facts per 100g for RAW, UNCOOKED ${foodName.trim()}. CRITICAL: Use RAW ingredient values, NOT cooked or prepared. For example, raw chicken breast is ~165kcal/100g, raw egg is ~143kcal/100g. Respond as JSON with keys: kcal, protein_g, carbs_g, fat_g. If unsure, state your best guess based on USDA database values for RAW ingredients. If you cannot provide a reasonable estimate, respond with a JSON object containing a single key 'error' with value 'unconfident'.`;
-
-    // Call OpenAI API
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a nutrition expert. Always respond with valid JSON only. No additional text or explanations.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 200,
-        temperature: 0.3,
-      }),
+    const { data: resolverData, error: resolverError } = await supabase.functions.invoke('nutrition-resolver', {
+      body: { foodName, useCache: true }
     });
 
-    if (!openaiResponse.ok) {
-      const errorData = await openaiResponse.text();
-      console.error('OpenAI API error:', errorData);
-      
+    if (resolverError) {
+      console.error('[openai-food-macros] Resolver error:', resolverError);
       return new Response(
-        JSON.stringify({ error: 'Unable to fetch nutrition data right now' }),
+        JSON.stringify({ error: resolverError.message || 'Failed to resolve nutrition data' }),
         {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -99,47 +63,18 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const openaiData = await openaiResponse.json();
-    const assistantMessage = openaiData.choices?.[0]?.message?.content;
-
-    if (!assistantMessage) {
+    if (!resolverData) {
       return new Response(
-        JSON.stringify({ error: 'No response from nutrition service' }),
+        JSON.stringify({ error: 'No data returned from nutrition resolver' }),
         {
           status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    // Parse the JSON response
-    let macroData: MacroResponse | ErrorResponse;
-    try {
-      macroData = JSON.parse(assistantMessage.trim());
-    } catch (parseError) {
-      console.error('Failed to parse OpenAI response:', assistantMessage);
-      return new Response(
-        JSON.stringify({ error: 'Invalid response format from nutrition service' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    // Check if OpenAI indicated uncertainty
-    if ('error' in macroData && macroData.error === 'unconfident') {
-      return new Response(
-        JSON.stringify({ error: 'unconfident', message: 'Could not find reliable nutrition data for this food' }),
-        {
-          status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
 
     // Validate macro data structure
-    const macro = macroData as MacroResponse;
+    const macro = resolverData as MacroResponse;
     if (typeof macro.kcal !== 'number' || 
         typeof macro.protein_g !== 'number' || 
         typeof macro.carbs_g !== 'number' || 
@@ -153,8 +88,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Log the query for analytics
-    console.log('Food Macro Lookup:', {
+    console.log('[openai-food-macros] Resolved macros:', {
       foodName: foodName.trim(),
       result: macro,
       timestamp: new Date().toISOString()
@@ -169,7 +103,7 @@ Deno.serve(async (req: Request) => {
     );
 
   } catch (error) {
-    console.error('Error in openai-food-macros function:', error);
+    console.error('[openai-food-macros] Error:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       {

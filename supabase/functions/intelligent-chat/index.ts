@@ -1,3 +1,5 @@
+import { createClient } from 'npm:@supabase/supabase-js@2.53.0';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -59,19 +61,37 @@ For all other questions, respond conversationally but concisely (under 200 words
 
 NEVER mention TDEE calculator unless user specifically asks about calorie needs or weight goals.`;
 
+// Extract food name from macro query
+function extractFoodName(message: string): string | null {
+  // "macros for chicken breast" -> "chicken breast"
+  let match = message.match(/macros?\s+(?:of|for|in)\s+(.+?)(?:\?|$)/i);
+  if (match) return match[1].trim();
+
+  // "calories in salmon" -> "salmon"
+  match = message.match(/calories?\s+(?:in|for|of)\s+(.+?)(?:\?|$)/i);
+  if (match) return match[1].trim();
+
+  // "nutrition for rice" -> "rice"
+  match = message.match(/nutrition\s+(?:in|for|of)\s+(.+?)(?:\?|$)/i);
+  if (match) return match[1].trim();
+
+  return null;
+}
+
 function classifyQuery(userMessage: string): QueryClassification {
   const message = userMessage.toLowerCase();
 
-  // Detect macro requests - these should ALWAYS use OpenAI for consistent formatting
+  // Detect macro requests - these should ALWAYS use nutrition-resolver
   const isMacroRequest =
     /(?:give me|show me|what are|tell me|what's)?\s*(?:the)?\s*macros?\s+(?:of|for|in)/i.test(message) ||
-    /calories?\s+(?:in|for|of)/i.test(message);
+    /calories?\s+(?:in|for|of)/i.test(message) ||
+    /nutrition\s+(?:in|for|of)/i.test(message);
 
   if (isMacroRequest) {
     return {
       needsInternet: false,
       confidence: 1.0,
-      reasoning: 'Macro request - use OpenAI for bullet-only response',
+      reasoning: 'Macro request - use nutrition-resolver',
       provider: 'openai'
     };
   }
@@ -225,6 +245,42 @@ Deno.serve(async (req: Request) => {
       reasoning: classification.reasoning,
       query: lastUserMessage.content.substring(0, 100)
     });
+
+    // CRITICAL: Intercept macro queries and use nutrition-resolver for consistency
+    if (classification.reasoning.includes('nutrition-resolver')) {
+      const foodName = extractFoodName(lastUserMessage.content);
+
+      if (foodName) {
+        console.log('[intelligent-chat] Intercepting macro request for:', foodName);
+
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        const { data: macros, error: macroError } = await supabase.functions.invoke('nutrition-resolver', {
+          body: { foodName, useCache: true }
+        });
+
+        if (!macroError && macros) {
+          // Format response in Pat's bullet style
+          const response = `• Calories: ${macros.kcal} kcal\n• Protein: ${macros.protein_g} g\n• Carbs: ${macros.carbs_g} g\n• Fat: ${macros.fat_g} g\n\nLog`;
+
+          console.log('[intelligent-chat] Returning unified macro response');
+
+          return new Response(
+            JSON.stringify({
+              message: response,
+              usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+              provider: 'nutrition-resolver',
+              classification: classification
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } else {
+          console.warn('[intelligent-chat] Nutrition resolver failed, falling back to OpenAI:', macroError);
+        }
+      }
+    }
 
     // Use Gemini for internet-required queries
     if (classification.needsInternet && geminiApiKey) {
