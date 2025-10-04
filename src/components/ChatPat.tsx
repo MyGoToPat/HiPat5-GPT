@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PatAvatar } from './PatAvatar';
 import { VoiceWaveform } from './VoiceWaveform';
+import { TDEEPromptBubble } from './TDEEPromptBubble';
 import { Plus, Mic, Folder, Camera, Image, ArrowUp, Check, X } from 'lucide-react';
 import { FoodVerificationScreen } from './FoodVerificationScreen';
 import { MealSuccessTransition } from './MealSuccessTransition';
@@ -33,6 +34,7 @@ import { getSupabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { useRole } from '../hooks/useRole';
 import { isPrivileged } from '../utils/rbac';
+import { AnimatePresence } from 'framer-motion';
 
 export const ChatPat: React.FC = () => {
   const navigate = useNavigate();
@@ -65,6 +67,7 @@ export const ChatPat: React.FC = () => {
   const [activeAgentSession, setActiveAgentSession] = useState<AgentSession | null>(null);
   const [silentMode, setSilentMode] = useState(false);
   const [statusText, setStatusText] = useState<string>('');
+  const [showTDEEBubble, setShowTDEEBubble] = useState(false);
 
   // Food verification screen state
   const [showFoodVerificationScreen, setShowFoodVerificationScreen] = useState(false);
@@ -156,6 +159,11 @@ export const ChatPat: React.FC = () => {
         if (user) {
           // Store userId in state for chat message persistence
           setUserId(user.id);
+
+          // Check TDEE completion status
+          const { getUserContextFlags } = await import('../lib/personality/contextChecker');
+          const contextFlags = await getUserContextFlags(user.id);
+          setShowTDEEBubble(!contextFlags.hasTDEE);
 
           // Load or create active session
           const session = await ChatManager.ensureActiveSession(user.id);
@@ -1354,6 +1362,19 @@ export const ChatPat: React.FC = () => {
     <div className="h-screen bg-pat-gradient text-white flex flex-col pt-[44px]">
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto px-4 py-6">
+          {/* TDEE Prompt Bubble - Always visible at top until completed */}
+          <AnimatePresence>
+            {showTDEEBubble && (
+              <div className="mb-6">
+                <TDEEPromptBubble
+                  onClick={() => {
+                    navigate('/onboarding/tdee');
+                  }}
+                />
+              </div>
+            )}
+          </AnimatePresence>
+
           {/* Always show conversation bubble prompts for available features */}
           {!isTyping && starterChips.length > 0 && (
             <div className={`mb-6 transition-opacity duration-300 ${isTyping ? 'opacity-0' : 'opacity-100'}`}>

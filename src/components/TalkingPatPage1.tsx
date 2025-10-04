@@ -7,6 +7,8 @@ import { MetricAlert } from '../types/metrics';
 import { ConversationAgentManager } from '../utils/conversationAgents';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useNavigate } from 'react-router-dom';
+import { TDEEPromptBubble } from './TDEEPromptBubble';
+import { getSupabase } from '../lib/supabase';
 
 export const TalkingPatPage1: React.FC = () => {
   const navigate = useNavigate();
@@ -20,6 +22,7 @@ export const TalkingPatPage1: React.FC = () => {
   const [speechPauseTimer, setSpeechPauseTimer] = useState<NodeJS.Timeout | null>(null);
   const [lastSpeechTime, setLastSpeechTime] = useState<number>(0);
   const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [showTDEEBubble, setShowTDEEBubble] = useState(false);
 
   // Speech recognition hook
   const speechRecognition = useSpeechRecognition({
@@ -239,6 +242,26 @@ export const TalkingPatPage1: React.FC = () => {
     }
   };
 
+  // Check TDEE completion status
+  useEffect(() => {
+    async function checkTDEEStatus() {
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      try {
+        const { getUserContextFlags } = await import('../lib/personality/contextChecker');
+        const contextFlags = await getUserContextFlags(user.id);
+        setShowTDEEBubble(!contextFlags.hasTDEE);
+      } catch (error) {
+        console.error('Error checking TDEE status:', error);
+      }
+    }
+
+    checkTDEEStatus();
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -320,9 +343,16 @@ export const TalkingPatPage1: React.FC = () => {
           </div>
         </div>
         
+        {/* TDEE Prompt Bubble - Above Conversation Bubbles */}
+        {showTDEEBubble && showConversationBubbles && !isListening && (
+          <div className="mt-auto px-4 flex-shrink-0">
+            <TDEEPromptBubble onClick={() => navigate('/tdee')} />
+          </div>
+        )}
+
         {/* Conversation Bubbles - Above Bottom Navigation */}
         {showConversationBubbles && !isListening && (
-          <div className="mt-auto pb-4 px-4 flex-shrink-0">
+          <div className={`${showTDEEBubble ? 'pb-4' : 'mt-auto pb-4'} px-4 flex-shrink-0`}>
             <div key="conversation-starters-list" className="flex gap-3 overflow-x-auto desktop-scrollbar pb-2">
             {conversationStarters.map((agent, index) => (
               <button
