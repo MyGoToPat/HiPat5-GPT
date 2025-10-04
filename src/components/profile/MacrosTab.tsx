@@ -53,6 +53,7 @@ export const MacrosTab: React.FC = () => {
   const [weightLogs, setWeightLogs] = useState<any[]>([]);
   const [showBodyFatModal, setShowBodyFatModal] = useState(false);
   const [bodyFatLogs, setBodyFatLogs] = useState<any[]>([]);
+  const [weightDisplayUnit, setWeightDisplayUnit] = useState<'lbs' | 'kg'>('lbs');
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingMacros, setIsEditingMacros] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -298,11 +299,11 @@ export const MacrosTab: React.FC = () => {
     );
   }
 
-  // Use editMacros if editing, otherwise use saved adjustedMacros
-  const displayMacros = isEditingMacros ? editMacros : getAdjustedMacros();
-  const displayProtein = isEditingMacros ? editMacros.protein_g : getAdjustedMacros().protein;
-  const displayCarbs = isEditingMacros ? editMacros.carbs_g : getAdjustedMacros().carbs;
-  const displayFat = isEditingMacros ? editMacros.fat_g : getAdjustedMacros().fat;
+  // CRITICAL: Always use BASE macros from metrics, NOT adjusted ones
+  // User's manual edits override everything
+  const displayProtein = isEditingMacros ? editMacros.protein_g : (metrics?.protein_g || 0);
+  const displayCarbs = isEditingMacros ? editMacros.carbs_g : (metrics?.carbs_g || 0);
+  const displayFat = isEditingMacros ? editMacros.fat_g : (metrics?.fat_g || 0);
 
   const tef = calculateTEF(displayProtein, displayCarbs, displayFat);
 
@@ -620,10 +621,34 @@ export const MacrosTab: React.FC = () => {
       {/* Weight Tracking Section */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-            <Scale size={20} className="text-blue-400" />
-            Weight Tracking
-          </h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Scale size={20} className="text-blue-400" />
+              Weight Tracking
+            </h3>
+            <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1">
+              <button
+                onClick={() => setWeightDisplayUnit('lbs')}
+                className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                  weightDisplayUnit === 'lbs'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                lbs
+              </button>
+              <button
+                onClick={() => setWeightDisplayUnit('kg')}
+                className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                  weightDisplayUnit === 'kg'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                kg
+              </button>
+            </div>
+          </div>
           <button
             onClick={() => setShowWeightModal(true)}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
@@ -634,7 +659,7 @@ export const MacrosTab: React.FC = () => {
         <WeightTrendGraph
           logs={weightLogs}
           goalWeightKg={metrics?.goal_weight_kg}
-          useMetric={unitPrefs.weight_unit === 'kg'}
+          useMetric={weightDisplayUnit === 'kg'}
           days={30}
         />
       </div>

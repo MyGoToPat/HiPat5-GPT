@@ -18,13 +18,22 @@ interface BodyFatLogModalProps {
   currentBodyFat?: number;
 }
 
+// Helper to get user's local date in YYYY-MM-DD format
+const getUserLocalDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const BodyFatLogModal: React.FC<BodyFatLogModalProps> = ({
   isOpen,
   onClose,
   onBodyFatLogged,
   currentBodyFat
 }) => {
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getUserLocalDate());
   const [bodyFat, setBodyFat] = useState('');
   const [note, setNote] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +42,8 @@ export const BodyFatLogModal: React.FC<BodyFatLogModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       loadRecentLogs();
-      if (currentBodyFat && !bodyFat) {
+      // Always default to Supabase value first
+      if (currentBodyFat) {
         setBodyFat(currentBodyFat.toFixed(1));
       }
     }
@@ -95,7 +105,7 @@ export const BodyFatLogModal: React.FC<BodyFatLogModalProps> = ({
       toast.success('Body fat logged successfully!');
       setBodyFat('');
       setNote('');
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(getUserLocalDate());
       loadRecentLogs();
       if (onBodyFatLogged) onBodyFatLogged();
     } catch (error: any) {
@@ -161,7 +171,7 @@ export const BodyFatLogModal: React.FC<BodyFatLogModalProps> = ({
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    max={new Date().toISOString().split('T')[0]}
+                    max={getUserLocalDate()}
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-10 py-2 text-white focus:outline-none focus:border-orange-500"
                   />
                 </div>

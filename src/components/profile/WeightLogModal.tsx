@@ -20,6 +20,15 @@ interface WeightLogModalProps {
   useMetric?: boolean;
 }
 
+// Helper to get user's local date in YYYY-MM-DD format
+const getUserLocalDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const WeightLogModal: React.FC<WeightLogModalProps> = ({
   isOpen,
   onClose,
@@ -27,7 +36,7 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
   currentWeightKg,
   useMetric = false
 }) => {
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getUserLocalDate());
   const [weight, setWeight] = useState('');
   const [note, setNote] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -110,7 +119,7 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
       toast.success('Weight logged successfully!');
       setWeight('');
       setNote('');
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(getUserLocalDate());
       loadRecentLogs();
       if (onWeightLogged) onWeightLogged();
     } catch (error: any) {
@@ -180,7 +189,7 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    max={new Date().toISOString().split('T')[0]}
+                    max={getUserLocalDate()}
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-10 py-2 text-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
