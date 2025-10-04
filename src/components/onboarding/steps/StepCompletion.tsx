@@ -104,6 +104,24 @@ export const StepCompletion: React.FC = () => {
             console.error('Failed to save FREE baseline:', baselineError);
           }
 
+          // Mark TDEE as completed in profiles table
+          try {
+            const { markTDEECompleted } = await import('../../../lib/personality/contextChecker');
+            await markTDEECompleted(user.id, {
+              tdee: calculatedMacros.tdee || 0,
+              bmr: calculatedMacros.chosenBmr || 0,
+              macros: {
+                protein: calculatedMacros.proteinG || 0,
+                carbs: calculatedMacros.carbG || 0,
+                fat: calculatedMacros.fatG || 0,
+                calories: calculatedMacros.tdee || 0
+              },
+              calculated_at: new Date().toISOString()
+            });
+          } catch (tdeeError) {
+            console.error('Failed to mark TDEE completed:', tdeeError);
+          }
+
           toast.success('Your plan has been saved!');
           // Track completion
           trackTDEEWizardCompleted(
