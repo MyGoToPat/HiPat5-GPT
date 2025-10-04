@@ -478,11 +478,11 @@ export const MacrosTab: React.FC = () => {
           {!isEditingMacros ? (
             <button
               onClick={() => {
-                const currentMacros = getAdjustedMacros();
+                // Edit BASE macros, not adjusted ones
                 setEditMacros({
-                  protein_g: currentMacros.protein,
-                  carbs_g: currentMacros.carbs,
-                  fat_g: currentMacros.fat
+                  protein_g: metrics?.protein_g || 0,
+                  carbs_g: metrics?.carbs_g || 0,
+                  fat_g: metrics?.fat_g || 0
                 });
                 setIsEditingMacros(true);
               }}

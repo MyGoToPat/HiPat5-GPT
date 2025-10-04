@@ -32,15 +32,24 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
   const [note, setNote] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [recentLogs, setRecentLogs] = useState<WeightLog[]>([]);
+  const [useKg, setUseKg] = useState(false); // Default to lbs
 
   useEffect(() => {
     if (isOpen) {
       loadRecentLogs();
-      if (currentWeightKg) {
-        setWeight(useMetric ? currentWeightKg.toFixed(1) : (currentWeightKg * 2.20462).toFixed(1));
+      if (currentWeightKg && !weight) {
+        setWeight(useKg ? currentWeightKg.toFixed(1) : (currentWeightKg * 2.20462).toFixed(1));
       }
     }
-  }, [isOpen, currentWeightKg, useMetric]);
+  }, [isOpen, currentWeightKg]);
+
+  // Update weight display when unit changes
+  useEffect(() => {
+    if (weight && currentWeightKg) {
+      const currentKg = useKg ? parseFloat(weight) : parseFloat(weight) / 2.20462;
+      setWeight(useKg ? currentKg.toFixed(1) : (currentKg * 2.20462).toFixed(1));
+    }
+  }, [useKg]);
 
   const loadRecentLogs = async () => {
     try {
@@ -75,7 +84,7 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const weightKg = useMetric ? parseFloat(weight) : parseFloat(weight) / 2.20462;
+      const weightKg = useKg ? parseFloat(weight) : parseFloat(weight) / 2.20462;
 
       const { error } = await supabase
         .from('weight_logs')
@@ -130,7 +139,7 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
   };
 
   const formatWeight = (kg: number) => {
-    return useMetric ? `${kg.toFixed(1)} kg` : `${(kg * 2.20462).toFixed(1)} lbs`;
+    return useKg ? `${kg.toFixed(1)} kg` : `${(kg * 2.20462).toFixed(1)} lbs`;
   };
 
   const formatDate = (dateStr: string) => {
@@ -175,15 +184,41 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-2">
-                  Weight ({useMetric ? 'kg' : 'lbs'})
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm text-gray-400">
+                    Weight
+                  </label>
+                  <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1">
+                    <button
+                      type="button"
+                      onClick={() => setUseKg(false)}
+                      className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                        !useKg
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      lbs
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUseKg(true)}
+                      className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                        useKg
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      kg
+                    </button>
+                  </div>
+                </div>
                 <input
                   type="number"
                   step="0.1"
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
-                  placeholder={useMetric ? 'e.g., 75.5' : 'e.g., 165.0'}
+                  placeholder={useKg ? 'e.g., 75.5' : 'e.g., 165.0'}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
                   required
                 />
