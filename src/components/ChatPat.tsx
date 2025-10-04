@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { PatAvatar } from './PatAvatar';
 import { VoiceWaveform } from './VoiceWaveform';
 import { TDEEPromptBubble } from './TDEEPromptBubble';
+import ThinkingAvatar from './common/ThinkingAvatar';
+import DebugPanel from './common/DebugPanel';
 import { Plus, Mic, Folder, Camera, Image, ArrowUp, Check, X } from 'lucide-react';
 import { FoodVerificationScreen } from './FoodVerificationScreen';
 import { MealSuccessTransition } from './MealSuccessTransition';
@@ -73,6 +75,9 @@ export const ChatPat: React.FC = () => {
   const [showFoodVerificationScreen, setShowFoodVerificationScreen] = useState(false);
   const [currentAnalysisResult, setCurrentAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzingFood, setIsAnalyzingFood] = useState(false);
+
+  // Debug panel state
+  const [debugInfo, setDebugInfo] = useState<{ routeTaken?: string; postAgentsExecuted?: Array<{ id: string; status: 'success' | 'failed' }>; protectedBulletsPreserved?: boolean; timestamp?: string }>({});
 
   // Extract food phrases from meal text
   const extractFoodPhrase = (text: string): string[] => {
@@ -1406,7 +1411,7 @@ export const ChatPat: React.FC = () => {
                   }`}
                   style={{ maxWidth: message.isUser ? '480px' : '700px' }}
                 >
-                  <p className="text-base leading-relaxed" style={{ lineHeight: '1.6' }}>{message.text}</p>
+                  <p className="message-bubble text-base leading-relaxed whitespace-pre-line" style={{ lineHeight: '1.6' }}>{message.text}</p>
                   <p className="text-xs opacity-70 mt-2">
                     {message.timestamp.toLocaleTimeString([], { 
                       hour: '2-digit', 
@@ -1418,13 +1423,10 @@ export const ChatPat: React.FC = () => {
             ))}
             
             {/* Status Indicator */}
-            {(isSending || isAnalyzingFood || statusText) && (
+            {(isSending || isAnalyzingFood || statusText || isThinking) && (
               <div className="flex justify-start">
                 <div className="max-w-sm lg:max-w-2xl px-5 py-4 rounded-2xl bg-gray-800 text-gray-100" style={{ maxWidth: '700px' }}>
-                  <p className="text-base text-gray-400 leading-relaxed flex items-center gap-2">
-                    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-                    {statusText || 'Pat is thinking...'}
-                  </p>
+                  <ThinkingAvatar className="" label={statusText || 'Pat is thinking...'} />
                 </div>
               </div>
             )}
@@ -1611,7 +1613,9 @@ export const ChatPat: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
+      {/* Debug Panel */}
+      <DebugPanel info={debugInfo} />
     </div>
   );
 };

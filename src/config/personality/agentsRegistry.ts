@@ -505,11 +505,13 @@ const conciseness_filter: AgentConfig = {
   order: 22,
   enabledForPaid: true,
   enabledForFreeTrial: true,
-  instructions: "Removes fluff, forbidden words, setup phrases, and unnecessary qualifiers while preserving all substance. Enforces word count targets.",
+  instructions: "Removes fluff, forbidden words, setup phrases, and unnecessary qualifiers while preserving all substance. Enforces word count targets. PRESERVES protected bullet blocks.",
   promptTemplate: `Remove all fluff from Pat's response while preserving 100% of the substance.
 
+CRITICAL: If the response contains [[PROTECT_BULLETS_START]] and [[PROTECT_BULLETS_END]] markers, DO NOT modify ANYTHING between these markers. Keep them exactly as-is including all newlines, bullets, and formatting.
+
 REMOVE:
-- Forbidden words: can, may, just, very, really, could, etc.
+- Forbidden words: can, may, just, very, really, could, etc. (EXCEPT inside protected blocks)
 - Setup phrases: "It's important to note", "Let me explain", "As mentioned"
 - Unnecessary qualifiers: "somewhat", "quite", "rather"
 - Redundant statements
@@ -519,8 +521,10 @@ TARGET WORD COUNTS:
 - Simple queries: 20-50 words
 - Standard responses: 160-220 words
 - Complex topics: 250-300 words max
+- Macro responses (with protected markers): Keep as-is
 
 PRESERVE:
+- ALL content between [[PROTECT_BULLETS_START]] and [[PROTECT_BULLETS_END]]
 - All evidence citations
 - All specific numbers, sets, reps, portions
 - All actionable recommendations
@@ -533,7 +537,7 @@ Draft response:
 {{draft}}
 """
 
-Remove fluff. Keep essential substance. Output concise response.`,
+Remove fluff. Keep essential substance. NEVER modify protected blocks. Output concise response.`,
   tone: { preset: "spartan", notes: "Ruthlessly concise, no waste" },
   api: {
     provider: "openai",
@@ -931,10 +935,10 @@ const macro_formatter: AgentConfig = {
   name: "Macro Formatter",
   phase: "post",
   enabled: true,
-  order: 22,
+  order: 21.5,
   enabledForPaid: true,
   enabledForFreeTrial: true,
-  instructions: "Validates and enforces bullet format for all macro responses. Ensures Chat and TMWYA use identical formatting.",
+  instructions: "Validates and enforces bullet format for all macro responses. Ensures Chat and TMWYA use identical formatting. Adds Log hint.",
   promptTemplate: `CRITICAL: Check if this response contains macro/nutrition data.
 
 Draft response:
@@ -943,13 +947,15 @@ Draft response:
 """
 
 IF response contains macros (calories, protein, carbs, fat):
-  ENFORCE this exact format:
+  ENFORCE this exact format with blank lines and Log hint:
+
   • Calories: XXX kcal
   • Protein: XX g
   • Carbs: XX g
   • Fat: XX g
 
   Log
+  Just say "Log" if you want me to log this in your macros as a meal.
 
 RULES:
 - Use bullet character "•" (NOT dash, asterisk, or hyphen)
@@ -957,11 +963,18 @@ RULES:
 - Capitalize labels: "Calories", "Protein", "Carbs", "Fat"
 - Include units: "kcal" for calories, "g" for macros
 - Add blank line before "Log"
-- NO extra text, explanations, or suggestions
-- ONLY macros + "Log"
+- Add blank line after bullets, before "Log"
+- MUST include hint: "Just say "Log" if you want me to log this in your macros as a meal."
+- Each bullet on its own line
+- NO extra text, explanations, or suggestions before or after the format
 
 IF response does NOT contain macros:
   Return draft unchanged.
+
+Wrap macro output with markers:
+[[PROTECT_BULLETS_START]]
+...formatted macros...
+[[PROTECT_BULLETS_END]]
 
 Output the formatted response.`,
   tone: { preset: "neutral", notes: "Strict formatting enforcement" },
@@ -969,7 +982,7 @@ Output the formatted response.`,
     provider: "openai",
     model: "gpt-4o-mini",
     temperature: 0.1,
-    maxOutputTokens: 300,
+    maxOutputTokens: 350,
     responseFormat: "text"
   }
 };

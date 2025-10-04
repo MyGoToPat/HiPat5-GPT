@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, CreditCard as Edit3, ChevronDown, Camera, Barcode, Type, RotateCcw, AlertTriangle } from 'lucide-react';
+import ThinkingAvatar from './common/ThinkingAvatar';
 import { PortionControls } from './meal/PortionControls';
 import type {
   AnalysisResult,
@@ -262,19 +263,10 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
   // Loading skeleton
   if (isLoading) {
     return (
-      <div className="h-screen bg-white flex flex-col">
-        <div className="flex-1 p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="p-4 border border-gray-200 rounded-lg">
-                  <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              ))}
-            </div>
-          </div>
+      <div className="h-screen bg-white flex flex-col items-center justify-center">
+        <div className="text-center">
+          <ThinkingAvatar size={60} label="Fetching nutrition data..." className="justify-center mb-4" />
+          <p className="text-gray-600 text-sm">Searching for nutrition data...</p>
         </div>
       </div>
     );
@@ -536,6 +528,11 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
             <div className="text-gray-900">
               Net calories: <span className="font-bold text-green-600">{totals.net_kcal} cal</span>
             </div>
+          </div>
+
+          {/* Log Hint */}
+          <div className="text-sm text-gray-600 whitespace-pre-line mt-3 pt-3 border-t border-gray-200">
+            Just say "Log" if you want me to log this in your macros as a meal.
           </div>
 
           {/* How This Affects Today */}
