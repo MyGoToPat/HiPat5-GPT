@@ -61,6 +61,21 @@ export const DashboardPage: React.FC = () => {
   useEffect(() => {
     setTimePeriod('daily');
   }, [location.key]);
+
+  // Check if meal was just logged (must be before early returns)
+  useEffect(() => {
+    if (location.state?.mealJustLogged) {
+      setShowSuccessBanner(true);
+      setSuccessData({
+        kcal: location.state.mealCalories || 0,
+        items: location.state.mealItems || 1
+      });
+
+      const timer = setTimeout(() => setShowSuccessBanner(false), 5000);
+      navigate(location.pathname, { replace: true, state: {} });
+      return () => clearTimeout(timer);
+    }
+  }, [location.state, navigate, location.pathname]);
   
   const [alerts, setAlerts] = useState<MetricAlert[]>([
     // Alerts will be loaded from backend in future
@@ -208,21 +223,6 @@ export const DashboardPage: React.FC = () => {
   if (timePeriod === 'monthly') {
     return <MonthlyDashboard onBackToDashboard={() => setTimePeriod('daily')} />;
   }
-
-  // Check if meal was just logged
-  useEffect(() => {
-    if (location.state?.mealJustLogged) {
-      setShowSuccessBanner(true);
-      setSuccessData({
-        kcal: location.state.mealCalories || 0,
-        items: location.state.mealItems || 1
-      });
-
-      const timer = setTimeout(() => setShowSuccessBanner(false), 5000);
-      navigate(location.pathname, { replace: true, state: {} });
-      return () => clearTimeout(timer);
-    }
-  }, [location.state, navigate, location.pathname]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 relative pt-[44px]">
