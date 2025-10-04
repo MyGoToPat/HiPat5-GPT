@@ -48,9 +48,17 @@ const TDEEOnboardingWizardContent: React.FC<{ onComplete?: () => void }> = ({ on
             });
             console.log('TDEE marked as completed in database');
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Failed to mark TDEE completed:', error);
+
+          // Check if this is a profile not found error
+          if (error?.message?.includes('Profile not found')) {
+            console.error('CRITICAL: User profile does not exist. TDEE completion cannot be saved.');
+            // In production, this should trigger an alert or create the profile
+          }
+
           // Don't block wizard completion if this fails
+          // The user can still proceed, but the bubble will reappear until profile is fixed
         }
       })();
 
