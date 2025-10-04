@@ -101,15 +101,31 @@ async function runAgent(
 
   try {
     const res = await callChat(messages, chatOptions);
-    
+
     if (res.ok) {
       // Handle response based on expected format
       if (agent.api.responseFormat === "json") {
         try {
+          // Guard against empty responses
+          if (!res.content || (typeof res.content === 'string' && res.content.trim() === '')) {
+            console.warn(`[runAgent] Agent ${agentId} returned empty JSON response`);
+            return { text: "", error: `Agent ${agentId} returned empty response` };
+          }
+
           const parsed = typeof res.content === 'string' ? JSON.parse(res.content) : res.content;
+
+          // Additional validation for known brittle agents
+          if (agentId === 'intent-router' || agentId === 'tmwya-compliance-monitor') {
+            if (!parsed || typeof parsed !== 'object') {
+              console.warn(`[runAgent] Agent ${agentId} returned non-object JSON`);
+              return { text: "", error: `Agent ${agentId} returned invalid JSON structure` };
+            }
+          }
+
           return { text: "", json: parsed };
-        } catch {
-          return { text: "", error: `Agent ${agentId} returned invalid JSON` };
+        } catch (e: any) {
+          console.warn(`[runAgent] Agent ${agentId} JSON parse error: ${e.message}`);
+          return { text: "", error: `Agent ${agentId} returned invalid JSON: ${e.message}` };
         }
       } else {
         const text = res.content || "";
@@ -119,6 +135,7 @@ async function runAgent(
       return { text: "", error: res.error || `Agent ${agentId} call failed` };
     }
   } catch (e: any) {
+    console.error(`[runAgent] Agent ${agentId} threw exception: ${e.message}`);
     return { text: "", error: e.message || `Agent ${agentId} threw exception` };
   }
 }

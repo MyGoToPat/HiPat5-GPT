@@ -4,7 +4,6 @@ import { PatAvatar } from './PatAvatar';
 import { VoiceWaveform } from './VoiceWaveform';
 import { TDEEPromptBubble } from './TDEEPromptBubble';
 import ThinkingAvatar from './common/ThinkingAvatar';
-import DebugPanel from './common/DebugPanel';
 import { Plus, Mic, Folder, Camera, Image, ArrowUp, Check, X } from 'lucide-react';
 import { FoodVerificationScreen } from './FoodVerificationScreen';
 import { MealSuccessTransition } from './MealSuccessTransition';
@@ -75,9 +74,6 @@ export const ChatPat: React.FC = () => {
   const [showFoodVerificationScreen, setShowFoodVerificationScreen] = useState(false);
   const [currentAnalysisResult, setCurrentAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzingFood, setIsAnalyzingFood] = useState(false);
-
-  // Debug panel state
-  const [debugInfo, setDebugInfo] = useState<{ routeTaken?: string; postAgentsExecuted?: Array<{ id: string; status: 'success' | 'failed' }>; protectedBulletsPreserved?: boolean; timestamp?: string }>({});
 
   // Extract food phrases from meal text
   const extractFoodPhrase = (text: string): string[] => {
@@ -1613,9 +1609,6 @@ export const ChatPat: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Debug Panel */}
-      <DebugPanel info={debugInfo} />
     </div>
   );
 };
