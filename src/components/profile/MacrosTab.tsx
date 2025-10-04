@@ -4,6 +4,8 @@ import { getSupabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { WeightLogModal } from './WeightLogModal';
 import { WeightTrendGraph } from './WeightTrendGraph';
+import { BodyFatLogModal } from './BodyFatLogModal';
+import { BodyFatTrendGraph } from './BodyFatTrendGraph';
 
 interface TDEEMetrics {
   tdee?: number;
@@ -49,6 +51,8 @@ export const MacrosTab: React.FC = () => {
   const [customDeficit, setCustomDeficit] = useState(500);
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [weightLogs, setWeightLogs] = useState<any[]>([]);
+  const [showBodyFatModal, setShowBodyFatModal] = useState(false);
+  const [bodyFatLogs, setBodyFatLogs] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingMacros, setIsEditingMacros] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -78,10 +82,11 @@ export const MacrosTab: React.FC = () => {
         return;
       }
 
-      const [metricsResult, prefsResult, weightLogsResult] = await Promise.all([
+      const [metricsResult, prefsResult, weightLogsResult, bodyFatLogsResult] = await Promise.all([
         supabase.from('user_metrics').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('user_preferences').select('weight_unit, height_unit').eq('user_id', user.id).maybeSingle(),
-        supabase.from('weight_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(30)
+        supabase.from('weight_logs').select('weight_kg, weight_lbs, log_date, logged_unit, note, id, created_at').eq('user_id', user.id).order('log_date', { ascending: false }).limit(30),
+        supabase.from('body_fat_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(30)
       ]);
 
       if (metricsResult.data) {
@@ -111,6 +116,10 @@ export const MacrosTab: React.FC = () => {
 
       if (weightLogsResult.data) {
         setWeightLogs(weightLogsResult.data);
+      }
+
+      if (bodyFatLogsResult.data) {
+        setBodyFatLogs(bodyFatLogsResult.data);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -155,16 +164,31 @@ export const MacrosTab: React.FC = () => {
 
       const totalCals = (editMacros.protein_g * 4) + (editMacros.carbs_g * 4) + (editMacros.fat_g * 9);
 
-      const { error } = await supabase
+      // Update user_metrics (source of truth)
+      const { error: metricsError } = await supabase
         .from('user_metrics')
         .update({
           protein_g: editMacros.protein_g,
           carbs_g: editMacros.carbs_g,
-          fat_g: editMacros.fat_g
+          fat_g: editMacros.fat_g,
+          updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (metricsError) throw metricsError;
+
+      // Also sync to profiles table for compatibility
+      const { error: profilesError } = await supabase
+        .from('profiles')
+        .update({
+          protein_g_override: editMacros.protein_g,
+          carb_g_override: editMacros.carbs_g,
+          fat_g_override: editMacros.fat_g,
+          last_macro_update: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      if (profilesError) console.warn('Profile sync warning:', profilesError);
 
       toast.success('Macros updated successfully!');
       setIsEditingMacros(false);
@@ -615,6 +639,27 @@ export const MacrosTab: React.FC = () => {
         />
       </div>
 
+      {/* Body Fat Tracking Section */}
+      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Activity size={20} className="text-orange-400" />
+            Body Fat Tracking
+          </h3>
+          <button
+            onClick={() => setShowBodyFatModal(true)}
+            className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg transition-colors"
+          >
+            Log Body Fat
+          </button>
+        </div>
+        <BodyFatTrendGraph
+          logs={bodyFatLogs}
+          goalBodyFat={metrics?.goal_body_fat_percent}
+          days={30}
+        />
+      </div>
+
       {/* Personal Information */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
         <div className="flex items-center justify-between mb-4">
@@ -745,6 +790,15 @@ export const MacrosTab: React.FC = () => {
         }}
         currentWeightKg={metrics?.weight_kg}
         useMetric={unitPrefs.weight_unit === 'kg'}
+      />
+      <BodyFatLogModal
+        isOpen={showBodyFatModal}
+        onClose={() => setShowBodyFatModal(false)}
+        onBodyFatLogged={() => {
+          loadData();
+          setShowBodyFatModal(false);
+        }}
+        currentBodyFat={metrics?.body_fat_percent}
       />
     </div>
   );

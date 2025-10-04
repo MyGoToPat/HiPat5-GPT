@@ -1,55 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { X, Scale, Trash2, Calendar } from 'lucide-react';
+import { X, Activity, Trash2, Calendar } from 'lucide-react';
 import { getSupabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
-interface WeightLog {
+interface BodyFatLog {
   id: string;
-  weight_kg: number;
-  weight_lbs: number;
+  body_fat_percent: number;
   log_date: string;
   note?: string;
   created_at: string;
 }
 
-interface WeightLogModalProps {
+interface BodyFatLogModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onWeightLogged?: () => void;
-  currentWeightKg?: number;
-  useMetric?: boolean;
+  onBodyFatLogged?: () => void;
+  currentBodyFat?: number;
 }
 
-export const WeightLogModal: React.FC<WeightLogModalProps> = ({
+export const BodyFatLogModal: React.FC<BodyFatLogModalProps> = ({
   isOpen,
   onClose,
-  onWeightLogged,
-  currentWeightKg,
-  useMetric = false
+  onBodyFatLogged,
+  currentBodyFat
 }) => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [weight, setWeight] = useState('');
+  const [bodyFat, setBodyFat] = useState('');
   const [note, setNote] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [recentLogs, setRecentLogs] = useState<WeightLog[]>([]);
-  const [useKg, setUseKg] = useState(false); // Default to lbs
+  const [recentLogs, setRecentLogs] = useState<BodyFatLog[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       loadRecentLogs();
-      if (currentWeightKg && !weight) {
-        setWeight(useKg ? currentWeightKg.toFixed(1) : (currentWeightKg * 2.20462).toFixed(1));
+      if (currentBodyFat && !bodyFat) {
+        setBodyFat(currentBodyFat.toFixed(1));
       }
     }
-  }, [isOpen, currentWeightKg]);
-
-  // Update weight display when unit changes
-  useEffect(() => {
-    if (weight && currentWeightKg) {
-      const currentKg = useKg ? parseFloat(weight) : parseFloat(weight) / 2.20462;
-      setWeight(useKg ? currentKg.toFixed(1) : (currentKg * 2.20462).toFixed(1));
-    }
-  }, [useKg]);
+  }, [isOpen, currentBodyFat]);
 
   const loadRecentLogs = async () => {
     try {
@@ -58,7 +46,7 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
       if (!user) return;
 
       const { data, error } = await supabase
-        .from('weight_logs')
+        .from('body_fat_logs')
         .select('*')
         .eq('user_id', user.id)
         .order('log_date', { ascending: false })
@@ -73,8 +61,10 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!weight || parseFloat(weight) <= 0) {
-      toast.error('Please enter a valid weight');
+    const bodyFatValue = parseFloat(bodyFat);
+
+    if (!bodyFat || bodyFatValue <= 0 || bodyFatValue > 100) {
+      toast.error('Please enter a valid body fat percentage (1-100)');
       return;
     }
 
@@ -84,16 +74,11 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const weightKg = useKg ? parseFloat(weight) : parseFloat(weight) / 2.20462;
-      const weightLbs = useKg ? parseFloat(weight) * 2.20462 : parseFloat(weight);
-
       const { error } = await supabase
-        .from('weight_logs')
+        .from('body_fat_logs')
         .upsert({
           user_id: user.id,
-          weight_kg: weightKg,
-          weight_lbs: weightLbs,
-          logged_unit: useKg ? 'kg' : 'lbs',
+          body_fat_percent: bodyFatValue,
           log_date: date,
           note: note || null
         }, {
@@ -104,45 +89,41 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
 
       await supabase
         .from('user_metrics')
-        .update({ weight_kg: weightKg })
+        .update({ body_fat_percent: bodyFatValue })
         .eq('user_id', user.id);
 
-      toast.success('Weight logged successfully!');
-      setWeight('');
+      toast.success('Body fat logged successfully!');
+      setBodyFat('');
       setNote('');
       setDate(new Date().toISOString().split('T')[0]);
       loadRecentLogs();
-      if (onWeightLogged) onWeightLogged();
+      if (onBodyFatLogged) onBodyFatLogged();
     } catch (error: any) {
-      console.error('Error logging weight:', error);
-      toast.error(error.message || 'Failed to log weight');
+      console.error('Error logging body fat:', error);
+      toast.error(error.message || 'Failed to log body fat');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDelete = async (logId: string) => {
-    if (!confirm('Delete this weight entry?')) return;
+    if (!confirm('Delete this body fat entry?')) return;
 
     try {
       const supabase = getSupabase();
       const { error } = await supabase
-        .from('weight_logs')
+        .from('body_fat_logs')
         .delete()
         .eq('id', logId);
 
       if (error) throw error;
       toast.success('Entry deleted');
       loadRecentLogs();
-      if (onWeightLogged) onWeightLogged();
+      if (onBodyFatLogged) onBodyFatLogged();
     } catch (error: any) {
       console.error('Error deleting log:', error);
       toast.error('Failed to delete entry');
     }
-  };
-
-  const formatWeight = (kg: number) => {
-    return useKg ? `${kg.toFixed(1)} kg` : `${(kg * 2.20462).toFixed(1)} lbs`;
   };
 
   const formatDate = (dateStr: string) => {
@@ -159,8 +140,8 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
         <div className="bg-gray-900 rounded-2xl border border-gray-800 max-w-md w-full max-h-[90vh] overflow-y-auto">
           <div className="sticky top-0 bg-gray-900 border-b border-gray-800 p-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Scale size={20} className="text-blue-400" />
-              <h2 className="text-lg font-semibold text-white">Log Weight</h2>
+              <Activity size={20} className="text-orange-400" />
+              <h2 className="text-lg font-semibold text-white">Log Body Fat %</h2>
             </div>
             <button
               onClick={onClose}
@@ -181,48 +162,24 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     max={new Date().toISOString().split('T')[0]}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-10 py-2 text-white focus:outline-none focus:border-blue-500"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-10 py-2 text-white focus:outline-none focus:border-orange-500"
                   />
                 </div>
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm text-gray-400">
-                    Weight
-                  </label>
-                  <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1">
-                    <button
-                      type="button"
-                      onClick={() => setUseKg(false)}
-                      className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                        !useKg
-                          ? 'bg-blue-600 text-white'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      lbs
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setUseKg(true)}
-                      className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                        useKg
-                          ? 'bg-blue-600 text-white'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      kg
-                    </button>
-                  </div>
-                </div>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Body Fat Percentage
+                </label>
                 <input
                   type="number"
                   step="0.1"
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  placeholder={useKg ? 'e.g., 75.5' : 'e.g., 165.0'}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  min="1"
+                  max="100"
+                  value={bodyFat}
+                  onChange={(e) => setBodyFat(e.target.value)}
+                  placeholder="e.g., 15.5"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-orange-500"
                   required
                 />
               </div>
@@ -234,18 +191,18 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Add a note about this weight..."
+                  placeholder="Add a note about this measurement..."
                   rows={2}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 resize-none"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-orange-500 resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors"
               >
-                {isLoading ? 'Logging...' : 'Log Weight'}
+                {isLoading ? 'Logging...' : 'Log Body Fat'}
               </button>
             </div>
           </form>
@@ -260,7 +217,7 @@ export const WeightLogModal: React.FC<WeightLogModalProps> = ({
                     className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg"
                   >
                     <div>
-                      <div className="text-white font-medium">{formatWeight(log.weight_kg)}</div>
+                      <div className="text-white font-medium">{log.body_fat_percent}%</div>
                       <div className="text-xs text-gray-400">{formatDate(log.log_date)}</div>
                       {log.note && (
                         <div className="text-xs text-gray-500 mt-1">{log.note}</div>
