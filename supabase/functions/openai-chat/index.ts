@@ -10,8 +10,6 @@ interface ChatRequest {
   stream?: boolean;
 }
 
-// NOTE: Pat's Master Prompt is now managed in the Admin UI via agentsRegistry.ts
-// This fallback is used only if agent system fails to load
 const PAT_SYSTEM_PROMPT_FALLBACK = `You are Pat, Hyper Intelligent Personal Assistant Team.
 
 CORE IDENTITY:
@@ -40,6 +38,15 @@ COMMUNICATION STYLE (Spartan & Precise):
 - Target: 160-220 words for standard responses
 - Simple queries: 20-50 words maximum
 - Complex topics: Up to 300 words when depth is required
+
+FORMATTING REQUIREMENTS:
+- When providing nutritional macros, ALWAYS use bullet points with this format:
+  • Calories: XXX kcal
+  • Protein: XX g
+  • Carbs: XX g
+  • Fat: XX g
+- Use bullet points (•) not hyphens for macro lists
+- Keep macro responses concise and scannable
 
 STRICTLY FORBIDDEN WORDS/PHRASES:
 can, may, just, that, very, really, literally, actually, certainly, probably, basically, could, maybe, delve, embark, enlightening, esteemed, shed light, craft, crafting, imagine, realm, game changer, unlock, discover, skyrocket, abyss, not alone, revolutionize, disruptive, utilize, dive deep, tapestry, illuminate, unveil, pivotal, intricate, elucidate, hence, furthermore, however, harness, exciting, groundbreaking, cutting edge, remarkable, it remains to be seen, glimpse into, navigating, landscape, stark, testament, moreover, boost, skyrocketing, opened up, powerful, inquiries, ever evolving, as an AI, I cannot, I'm just, convenient
@@ -133,7 +140,6 @@ TONE CALIBRATION BY CONTEXT:
 Remember: I am Pat. I have deep expertise. I communicate with precision. I respect your time. I adapt to you. I deliver immediate value.`;
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 200,
@@ -154,7 +160,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get OpenAI API key from environment
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openaiApiKey) {
       return new Response(
@@ -166,14 +171,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Prepare messages with system prompt (using fallback for now)
-    // TODO: Pull master prompt from agent registry in future iteration
     const messagesWithSystem: ChatMessage[] = [
       { role: 'system', content: PAT_SYSTEM_PROMPT_FALLBACK },
       ...messages
     ];
 
-    // If streaming is requested, use SSE
     if (stream) {
       const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -203,7 +205,6 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      // Create readable stream for SSE
       const reader = openaiResponse.body?.getReader();
       const decoder = new TextDecoder();
 
@@ -219,7 +220,6 @@ Deno.serve(async (req: Request) => {
               const { done, value } = await reader.read();
 
               if (done) {
-                // Send done event
                 controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
                 controller.close();
                 break;
@@ -242,7 +242,6 @@ Deno.serve(async (req: Request) => {
                     const content = parsed.choices?.[0]?.delta?.content;
 
                     if (content) {
-                      // Forward the token in SSE format
                       controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ token: content })}\n\n`));
                     }
                   } catch (e) {
@@ -268,7 +267,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Non-streaming mode (original behavior)
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -319,7 +317,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Log usage for monitoring
     console.log('OpenAI Chat - Usage:', {
       input_tokens: openaiData.usage?.prompt_tokens,
       output_tokens: openaiData.usage?.completion_tokens,
