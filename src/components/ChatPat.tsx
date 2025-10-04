@@ -1368,7 +1368,7 @@ export const ChatPat: React.FC = () => {
               <div className="mb-6">
                 <TDEEPromptBubble
                   onClick={() => {
-                    navigate('/onboarding/tdee');
+                    navigate('/tdee');
                   }}
                 />
               </div>
