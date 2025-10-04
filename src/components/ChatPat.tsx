@@ -349,8 +349,26 @@ export const ChatPat: React.FC = () => {
           // Extract food description from previous user message
           const lastUserMessage = [...messages].reverse().find(m => m.isUser);
           if (lastUserMessage) {
-            // Trigger meal logging with the previous food discussion
-            handleMealTextInput(`I ate ${lastUserMessage.text}`);
+            // Extract food name from questions like "give me the macros of a Big Mac"
+            const text = lastUserMessage.text;
+            let foodText = text;
+
+            // Extract food from "give me the macros of X", "what are the macros of X", "macros of X"
+            const macroPatterns = [
+              /(?:give me |show me |what are |tell me )?(?:the )?macros? (?:of|for) (.+)/i,
+              /(?:calories|nutrition) (?:in|for|of) (.+)/i,
+            ];
+
+            for (const pattern of macroPatterns) {
+              const match = text.match(pattern);
+              if (match && match[1]) {
+                foodText = match[1].trim();
+                break;
+              }
+            }
+
+            // Trigger meal logging with extracted food
+            handleMealTextInput(`I ate ${foodText}`);
             return;
           }
         }
