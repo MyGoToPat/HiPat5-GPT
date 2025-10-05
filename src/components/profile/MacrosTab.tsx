@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Flame, Target, TrendingUp, Zap, Minus, Plus, CreditCard as Edit2, Scale } from 'lucide-react';
+import { Activity, Flame, Target, TrendingUp, Zap, Minus, Plus, CreditCard as Edit2, Scale, CheckCircle, X, AlertCircle } from 'lucide-react';
 import { getSupabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { WeightLogModal } from './WeightLogModal';
@@ -760,34 +760,157 @@ export const MacrosTab: React.FC = () => {
           )}
         </div>
         {!isEditing ? (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div className="text-sm text-gray-400 mb-1">Gender</div>
-              <div className="text-white font-medium">{metrics.gender ? metrics.gender.charAt(0).toUpperCase() + metrics.gender.slice(1) : 'Not set'}</div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-400 mb-1">Age</div>
-              <div className="text-white font-medium">{metrics.age || 'Not set'} years</div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-400 mb-1">Height</div>
-              <div className="text-white font-medium">{formatHeight(metrics.height_cm)}</div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-400 mb-1">Weight</div>
-              <div className="text-white font-medium">{formatWeight(metrics.weight_kg)}</div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-400 mb-1">Body Fat %</div>
-              <div className="text-white font-medium">{metrics.body_fat_percent || 'Not set'}%</div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-400 mb-1">Activity Level</div>
-              <div className="text-white font-medium text-sm">
-                {metrics.activity_level ? activityLevelLabels[metrics.activity_level] : 'Not set'}
+          <>
+            {/* Profile Completeness Gauge */}
+            <div className="mb-6 bg-gray-800/50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-300">Profile Completeness</span>
+                <span className="text-sm font-semibold text-white">
+                  {Math.round(
+                    ([metrics.gender, metrics.age, metrics.height_cm, metrics.weight_kg, metrics.body_fat_percent, metrics.activity_level, metrics.tdee_calories]
+                      .filter(Boolean).length / 7) * 100
+                  )}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${
+                      ([metrics.gender, metrics.age, metrics.height_cm, metrics.weight_kg, metrics.body_fat_percent, metrics.activity_level, metrics.tdee_calories]
+                        .filter(Boolean).length / 7) * 100
+                    }%`
+                  }}
+                />
               </div>
             </div>
-          </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-sm text-gray-400 mb-1">Gender</div>
+                <div className="flex items-center gap-2">
+                  {metrics.gender ? (
+                    <>
+                      <CheckCircle size={14} className="text-green-400 flex-shrink-0" />
+                      <span className="text-white font-medium">{metrics.gender.charAt(0).toUpperCase() + metrics.gender.slice(1)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={14} className="text-yellow-400 flex-shrink-0" />
+                      <span className="text-gray-400">Not set</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-400 mb-1">Age</div>
+                <div className="flex items-center gap-2">
+                  {metrics.age ? (
+                    <>
+                      <CheckCircle size={14} className="text-green-400 flex-shrink-0" />
+                      <span className="text-white font-medium">{metrics.age} years</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={14} className="text-yellow-400 flex-shrink-0" />
+                      <span className="text-gray-400">Not set</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-400 mb-1">Height</div>
+                <div className="flex items-center gap-2">
+                  {metrics.height_cm ? (
+                    <>
+                      <CheckCircle size={14} className="text-green-400 flex-shrink-0" />
+                      <span className="text-white font-medium">{formatHeight(metrics.height_cm)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={14} className="text-yellow-400 flex-shrink-0" />
+                      <span className="text-gray-400">Not set</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-400 mb-1">Weight</div>
+                <div className="flex items-center gap-2">
+                  {metrics.weight_kg ? (
+                    <>
+                      <CheckCircle size={14} className="text-green-400 flex-shrink-0" />
+                      <span className="text-white font-medium">{formatWeight(metrics.weight_kg)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={14} className="text-yellow-400 flex-shrink-0" />
+                      <span className="text-gray-400">Not set</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-400 mb-1">Body Fat %</div>
+                <div className="flex items-center gap-2">
+                  {metrics.body_fat_percent ? (
+                    <>
+                      <CheckCircle size={14} className="text-green-400 flex-shrink-0" />
+                      <span className="text-white font-medium">{metrics.body_fat_percent}%</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={14} className="text-yellow-400 flex-shrink-0" />
+                      <span className="text-gray-400">Not set</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-400 mb-1">Activity Level</div>
+                <div className="flex items-center gap-2">
+                  {metrics.activity_level ? (
+                    <>
+                      <CheckCircle size={14} className="text-green-400 flex-shrink-0" />
+                      <span className="text-white font-medium text-sm">
+                        {activityLevelLabels[metrics.activity_level]}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={14} className="text-yellow-400 flex-shrink-0" />
+                      <span className="text-gray-400">Not set</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="col-span-2">
+                <div className="text-sm text-gray-400 mb-1">TDEE Status</div>
+                <div className="flex items-center gap-2">
+                  {metrics.tdee_calories ? (
+                    <>
+                      <CheckCircle size={16} className="text-green-400" />
+                      <span className="text-white font-medium">{Math.round(metrics.tdee_calories)} kcal/day</span>
+                      <span className="text-gray-400 text-xs">
+                        (Calculated {metrics.last_tdee_update ? new Date(metrics.last_tdee_update).toLocaleDateString() : 'recently'})
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={16} className="text-yellow-400" />
+                      <span className="text-yellow-400 font-medium">Not completed</span>
+                      <button
+                        onClick={() => window.location.href = '/tdee'}
+                        className="ml-2 text-xs text-blue-400 hover:text-blue-300 underline"
+                      >
+                        Complete TDEE Calculator
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
         ) : (
           <div className="grid grid-cols-2 gap-4">
             <div>

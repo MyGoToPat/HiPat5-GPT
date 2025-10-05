@@ -70,13 +70,13 @@ export function formatMacros(draft: { text: string; meta?: any }): string {
 
     let out = '[[PROTECT_BULLETS_START]]\n';
 
-    // Render each item
+    // Render each item with "For X:" prefix
     for (const it of items) {
-      out += `${it.name}\n`;
+      out += `For ${it.name}:\n`;
       out += `• Calories: ${Math.round(it.kcal)} kcal\n`;
-      out += `• Protein: ${round1(it.protein_g)} g\n`;
-      out += `• Carbs: ${round1(it.carbs_g)} g\n`;
-      out += `• Fat: ${round1(it.fat_g)} g\n\n`;
+      out += `• Protein: ${Math.round(it.protein_g)} g\n`;
+      out += `• Carbs: ${Math.round(it.carbs_g)} g\n`;
+      out += `• Fat: ${Math.round(it.fat_g)} g\n\n`;
     }
 
     // Recompute totals to guard against drift
@@ -94,16 +94,15 @@ export function formatMacros(draft: { text: string; meta?: any }): string {
     const useTotals = within3pct(recomputed, totals) ? totals : recomputed;
 
     // Render totals
-    out += `Totals\n`;
+    out += `Totals:\n`;
     out += `• Calories: ${Math.round(useTotals.kcal)} kcal\n`;
-    out += `• Protein: ${round1(useTotals.protein_g)} g\n`;
-    out += `• Carbs: ${round1(useTotals.carbs_g)} g\n`;
-    out += `• Fat: ${round1(useTotals.fat_g)} g\n\n`;
+    out += `• Protein: ${Math.round(useTotals.protein_g)} g\n`;
+    out += `• Carbs: ${Math.round(useTotals.carbs_g)} g\n`;
+    out += `• Fat: ${Math.round(useTotals.fat_g)} g\n\n`;
 
     // Add "Log" hint ONLY for macro-question route (informational queries)
     if (draft?.meta?.route === 'macro-question') {
-      out += `Log\n`;
-      out += `Just say "Log" if you want me to log this in your macros as a meal.\n`;
+      out += `Say "log" if you want me to log all this, or tell me to log which specific food.\n`;
     }
 
     out += '[[PROTECT_BULLETS_END]]';

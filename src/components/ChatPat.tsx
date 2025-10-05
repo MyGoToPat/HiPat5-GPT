@@ -370,44 +370,56 @@ export const ChatPat: React.FC = () => {
     if (inputText.trim()) {
       // Check for "log" command to log previous macro discussion
       const lowerInput = inputText.toLowerCase().trim();
-      if (lowerInput === 'log' || lowerInput === 'log it') {
-        // Find the last Pat response with macro data (check for structured payload first)
-        const lastPatMessage = [...messages].reverse().find(m => !m.isUser && (
-          m.meta?.macros || m.text.includes('kcal') || m.text.includes('calories')
-        ));
+
+      // Detect "log" commands including subset logging like "log the prime rib and eggs"
+      const logPattern = /^log(?:\s+(?:the\s+)?(.+))?$/i;
+      const logMatch = lowerInput.match(logPattern);
+
+      if (logMatch) {
+        // Find the last UNCONSUMED Pat response with macro data
+        const lastPatMessage = [...messages].reverse().find(m =>
+          !m.isUser &&
+          m.meta?.macros?.items &&
+          !m.meta?.consumed // Only use unconsumed payloads
+        );
 
         if (lastPatMessage) {
-          // Check if structured macro payload exists
-          if (lastPatMessage.meta?.macros?.items) {
-            // Use structured payload items
-            const foodItems = lastPatMessage.meta.macros.items.map((item: any) => item.name);
-            const foodText = foodItems.join(', ');
-            handleMealTextInput(`I ate ${foodText}`);
-            return;
-          }
+          const macroPayload = lastPatMessage.meta.macros;
 
-          // Fallback: Extract food description from previous user message
-          const lastUserMessage = [...messages].reverse().find(m => m.isUser);
-          if (lastUserMessage) {
-            // Extract food name from questions like "give me the macros of a Big Mac"
-            const text = lastUserMessage.text;
-            let foodText = text;
+          // Mark payload as consumed to prevent double-logging
+          lastPatMessage.meta.consumed = true;
 
-            // Extract food from "give me the macros of X", "what are the macros of X", "macros of X"
-            const macroPatterns = [
-              /(?:give me |show me |what are |tell me )?(?:the )?macros? (?:of|for) (.+)/i,
-              /(?:calories|nutrition) (?:in|for|of) (.+)/i,
-            ];
+          // Check if subset logging (e.g., "log the prime rib and eggs")
+          const subset = logMatch[1];
 
-            for (const pattern of macroPatterns) {
-              const match = text.match(pattern);
-              if (match && match[1]) {
-                foodText = match[1].trim();
-                break;
-              }
+          if (subset) {
+            // Parse subset request - handle "X and Y", "X, Y", etc.
+            const requestedItems = subset
+              .toLowerCase()
+              .split(/\s+(?:and|,)\s+|\s*,\s*/)
+              .map(s => s.replace(/^the\s+/, '').trim())
+              .filter(Boolean);
+
+            // Match requested items to canonical names (fuzzy match)
+            const matchedItems = macroPayload.items.filter((item: any) => {
+              const itemNameLower = item.name.toLowerCase();
+              return requestedItems.some(requested =>
+                itemNameLower.includes(requested) || requested.includes(itemNameLower)
+              );
+            });
+
+            if (matchedItems.length > 0) {
+              const foodText = matchedItems.map((item: any) => item.name).join(', ');
+              handleMealTextInput(`I ate ${foodText}`);
+              return;
+            } else {
+              toast.error(`Could not find "${subset}" in the recent macro discussion.`);
+              return;
             }
-
-            // Trigger meal logging with extracted food
+          } else {
+            // Log all items
+            const foodItems = macroPayload.items.map((item: any) => item.name);
+            const foodText = foodItems.join(', ');
             handleMealTextInput(`I ate ${foodText}`);
             return;
           }
