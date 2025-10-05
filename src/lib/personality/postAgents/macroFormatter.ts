@@ -52,9 +52,9 @@ function extractResolverPayload(input: string): ResolverPayload | null {
     }
   }
 
-  // Try to detect itemized structure in text
-  const itemPattern = /Item:\s*(.+?)\n.*?Calories?:\s*([\d\.]+)\s*kcal.*?Protein:\s*([\d\.]+)\s*g.*?Carbs?:\s*([\d\.]+)\s*g.*?Fat:\s*([\d\.]+)\s*g/gis;
-  const totalsPattern = /Totals?:\s*\n.*?Calories?:\s*([\d\.]+)\s*kcal.*?Protein:\s*([\d\.]+)\s*g.*?Carbs?:\s*([\d\.]+)\s*g.*?Fat:\s*([\d\.]+)\s*g/is;
+  // Try to detect itemized structure in text (format: [name]\n• Calories: ...)
+  const itemPattern = /^([^\n•]+)\n[•\-\*]\s*Calories?:\s*([\d\.]+)\s*kcal.*?[•\-\*]\s*Protein:\s*([\d\.]+)\s*g.*?[•\-\*]\s*Carbs?:\s*([\d\.]+)\s*g.*?[•\-\*]\s*Fat:\s*([\d\.]+)\s*g/gims;
+  const totalsPattern = /Totals?\s*\n[•\-\*]\s*Calories?:\s*([\d\.]+)\s*kcal.*?[•\-\*]\s*Protein:\s*([\d\.]+)\s*g.*?[•\-\*]\s*Carbs?:\s*([\d\.]+)\s*g.*?[•\-\*]\s*Fat:\s*([\d\.]+)\s*g/is;
 
   const items: MacroItem[] = [];
   let match;
@@ -96,10 +96,8 @@ function formatItemizedMacros(payload: ResolverPayload): string {
   // Format each item
   for (const item of payload.items) {
     const itemName = item.name || 'Unknown item';
-    const qty = item.qty && item.unit ? `${item.qty} ${item.unit}` : '';
-    const displayName = qty ? `${qty} ${itemName}` : itemName;
 
-    output += `Item: ${displayName}\n`;
+    output += `${itemName}\n`;
     output += `• Calories: ${item.macros.kcal} kcal\n`;
     output += `• Protein: ${item.macros.protein_g} g\n`;
     output += `• Carbs: ${item.macros.carbs_g} g\n`;
@@ -107,7 +105,7 @@ function formatItemizedMacros(payload: ResolverPayload): string {
   }
 
   // Format totals
-  output += `Totals:\n`;
+  output += `Totals\n`;
   output += `• Calories: ${payload.totals.kcal} kcal\n`;
   output += `• Protein: ${payload.totals.protein_g} g\n`;
   output += `• Carbs: ${payload.totals.carbs_g} g\n`;
