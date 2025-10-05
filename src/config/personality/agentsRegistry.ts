@@ -889,7 +889,7 @@ const tmwya_compliance_monitor: AgentConfig = {
   id: "tmwya-compliance-monitor",
   name: "Plan Compliance Monitor",
   phase: "post",
-  enabled: true,
+  enabled: false,
   order: 50,
   enabledForPaid: true,
   enabledForFreeTrial: false,
@@ -938,7 +938,7 @@ const macro_formatter: AgentConfig = {
   order: 21.5,
   enabledForPaid: true,
   enabledForFreeTrial: true,
-  instructions: "Validates and enforces bullet format for all macro responses. Ensures Chat and TMWYA use identical formatting. Adds Log hint.",
+  instructions: "Validates and enforces bullet format for all macro responses. Ensures Chat and TMWYA use identical formatting. Adds Log hint. Outputs per-item format.",
   promptTemplate: `CRITICAL: Check if this response contains macro/nutrition data.
 
 Draft response:
@@ -947,26 +947,38 @@ Draft response:
 """
 
 IF response contains macros (calories, protein, carbs, fat):
-  ENFORCE this exact format with blank lines and Log hint:
+  ENFORCE this exact per-item format:
 
+For EACH food item mentioned, output:
+  [Item name]
   • Calories: XXX kcal
   • Protein: XX g
   • Carbs: XX g
   • Fat: XX g
 
+  [blank line between items]
+
+After all items, output:
+  Totals
+  • Calories: YYY kcal
+  • Protein: YY g
+  • Carbs: YY g
+  • Fat: YY g
+
   Log
   Just say "Log" if you want me to log this in your macros as a meal.
 
 RULES:
+- Extract EACH food item from the draft (e.g., "3 eggs", "2 slices sourdough", "10 oz ribeye")
 - Use bullet character "•" (NOT dash, asterisk, or hyphen)
 - Space after bullet: "• " (bullet + space)
 - Capitalize labels: "Calories", "Protein", "Carbs", "Fat"
 - Include units: "kcal" for calories, "g" for macros
-- Add blank line before "Log"
-- Add blank line after bullets, before "Log"
+- Add blank line between items
+- "Totals" has no colon
 - MUST include hint: "Just say "Log" if you want me to log this in your macros as a meal."
 - Each bullet on its own line
-- NO extra text, explanations, or suggestions before or after the format
+- NO extra text, explanations, or suggestions
 
 IF response does NOT contain macros:
   Return draft unchanged.
