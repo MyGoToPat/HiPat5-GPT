@@ -939,17 +939,22 @@ const macro_formatter: AgentConfig = {
   enabledForPaid: true,
   enabledForFreeTrial: true,
   instructions: "Validates and enforces bullet format for all macro responses. Ensures Chat and TMWYA use identical formatting. Adds Log hint. Outputs per-item format with NO totals section.",
-  promptTemplate: `CRITICAL: Check if this response contains macro/nutrition data.
+  promptTemplate: `CRITICAL: Format macro/nutrition data into the exact specified format.
 
 Draft response:
 """
 {{draft}}
 """
 
-IF response contains macros (calories, protein, carbs, fat):
-  ENFORCE this EXACT per-item format:
+Structured macro data (if available):
+{{context.macroPayload}}
 
-EXAMPLE (follow this format exactly):
+Route: {{context.route}}
+
+IF structured macro data is available (context.macroPayload), use it to format the response.
+IF no structured data, try to extract from draft text.
+
+ENFORCE this EXACT per-item format:
 For 3 whole eggs:
 • Calories: 210 kcal
 • Protein: 18 g

@@ -283,26 +283,21 @@ async function finishWithPostAgents(
 
   for (const agent of orderedPostAgents) {
     try {
-      // Special handling for macro-formatter: use deterministic TypeScript function
-      if (agent.id === 'macro-formatter') {
-        const { formatMacros } = await import('./postAgents/macroFormatter');
-        const formatted = formatMacros({ text: currentDraft, meta: draftObj.meta });
-        if (formatted !== currentDraft) {
-          currentDraft = formatted;
-          if (process.env.NODE_ENV !== 'production') {
-            console.debug('[orchestrator] Macro formatter applied (deterministic)');
-          }
-        }
-        continue;
-      }
+      // For macro-formatter, pass structured meta payload as context
+      const agentContext = agent.id === 'macro-formatter' && draftObj.meta?.macros
+        ? { ...context, macroPayload: draftObj.meta.macros, route: draftObj.meta.route }
+        : context;
 
-      const result = await runAgent(agent.id, '', context, agent, currentDraft);
+      const result = await runAgent(agent.id, '', agentContext, agent, currentDraft);
 
       if (result.error) {
         console.warn(`Post-agent ${agent.id} failed: ${result.error}`);
         // Continue with current draft if post-agent fails
       } else if (result.text) {
         currentDraft = result.text;
+        if (process.env.NODE_ENV !== 'production' && agent.id === 'macro-formatter') {
+          console.debug('[orchestrator] Macro formatter agent applied');
+        }
       }
     } catch (e: any) {
       console.warn(`Post-agent ${agent.id} threw exception: ${e.message}`);
