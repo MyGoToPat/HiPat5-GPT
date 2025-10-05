@@ -1003,11 +1003,88 @@ Output the formatted response.`,
 // EXPORT DEFAULT REGISTRY
 // ============================================================================
 
+// Privacy Redaction Agent (Pre-processing)
+const privacy_redaction: AgentConfig = {
+  id: "privacy-redaction",
+  name: "Privacy Redaction",
+  phase: "pre",
+  enabled: true,
+  order: 0.5,
+  enabledForPaid: true,
+  enabledForFreeTrial: true,
+  instructions: "Redacts PII (emails, phone numbers, SSNs) from user messages before processing.",
+  promptTemplate: `Sanitize this message by redacting any personally identifiable information.
+
+USER MESSAGE:
+"{{user_message}}"
+
+Replace:
+- Email addresses with [EMAIL_REDACTED]
+- Phone numbers with [PHONE_REDACTED]
+- Social Security Numbers with [SSN_REDACTED]
+- Credit card numbers with [CC_REDACTED]
+
+Output JSON:
+{"sanitized": "cleaned message text", "redacted": ["email", "phone"]}`,
+  tone: { preset: "neutral", notes: "Privacy-focused" },
+  api: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    temperature: 0.0,
+    maxOutputTokens: 200,
+    responseFormat: "json",
+    jsonSchema: '{"type":"object","properties":{"sanitized":{"type":"string"},"redacted":{"type":"array","items":{"type":"string"}}},"required":["sanitized"]}'
+  }
+};
+
+// Intent Router Agent (Route classification)
+const intent_router: AgentConfig = {
+  id: "intent-router",
+  name: "Intent Router",
+  phase: "pre",
+  enabled: true,
+  order: 1.5,
+  enabledForPaid: true,
+  enabledForFreeTrial: true,
+  instructions: "Classifies user intent to route requests to appropriate handlers (Pat, role-specific logic, or tools).",
+  promptTemplate: `Classify the user's intent to determine routing.
+
+USER MESSAGE:
+"{{user_message}}"
+
+ROUTES:
+- "macro-question": Questions about food macros/calories (informational only)
+- "tmwya": User stating they ate something (logging intent)
+- "workout": Workout/exercise related
+- "mmb": Feedback/improvement suggestions
+- "pat": General conversation (default)
+- "none": Unknown/unclear intent
+
+Output JSON:
+{
+  "route": "macro-question|tmwya|workout|mmb|pat|none",
+  "target": "role name if route=role, tool name if route=tool, else null",
+  "confidence": 0.0-1.0,
+  "reason": "brief explanation"
+}`,
+  tone: { preset: "neutral", notes: "Objective classification" },
+  api: {
+    provider: "openai",
+    model: "gpt-4o-mini",
+    temperature: 0.1,
+    maxOutputTokens: 150,
+    responseFormat: "json",
+    jsonSchema: '{"type":"object","properties":{"route":{"type":"string"},"target":{"type":"string"},"confidence":{"type":"number"},"reason":{"type":"string"}},"required":["route","confidence"]}'
+  }
+};
+
 export const defaultPersonalityAgents: Record<string, AgentConfig> = {
   // Core System
   "master-prompt": master_prompt,
   "context-checker": context_checker,
   "role-detector": role_detector,
+  "privacy-redaction": privacy_redaction,
+  "intent-router": intent_router,
 
   // Specialized Roles
   "tmwya-expert": tmwya_expert,

@@ -36,6 +36,25 @@ function round1(n?: number): string {
 }
 
 /**
+ * Check if two macro objects are within 3% of each other
+ */
+function within3pct(a: any, b: any): boolean {
+  const fields = ['kcal', 'protein_g', 'carbs_g', 'fat_g'] as const;
+  const eps = 0.03;
+
+  for (const f of fields) {
+    const A = Number(a?.[f] ?? 0);
+    const B = Number(b?.[f] ?? 0);
+
+    if (A === 0 && B === 0) continue;
+    if (B === 0 && A !== 0) return false;
+    if (Math.abs(A - B) / Math.max(1, Math.abs(B)) > eps) return false;
+  }
+
+  return true;
+}
+
+/**
  * Main formatting function - uses structured JSON when available
  */
 export function formatMacros(draft: { text: string; meta?: any }): string {
@@ -46,6 +65,7 @@ export function formatMacros(draft: { text: string; meta?: any }): string {
   if (Array.isArray(items) && items.length && totals) {
     let out = '[[PROTECT_BULLETS_START]]\n';
 
+    // Render each item
     for (const it of items) {
       out += `${it.name}\n`;
       out += `• Calories: ${Math.round(it.kcal)} kcal\n`;
@@ -54,14 +74,33 @@ export function formatMacros(draft: { text: string; meta?: any }): string {
       out += `• Fat: ${round1(it.fat_g)} g\n\n`;
     }
 
-    out += `Totals\n`;
-    out += `• Calories: ${Math.round(totals.kcal)} kcal\n`;
-    out += `• Protein: ${round1(totals.protein_g)} g\n`;
-    out += `• Carbs: ${round1(totals.carbs_g)} g\n`;
-    out += `• Fat: ${round1(totals.fat_g)} g\n\n`;
+    // Recompute totals to guard against drift
+    const recomputed = items.reduce(
+      (acc, i) => ({
+        kcal: acc.kcal + (i.kcal || 0),
+        protein_g: acc.protein_g + (i.protein_g || 0),
+        carbs_g: acc.carbs_g + (i.carbs_g || 0),
+        fat_g: acc.fat_g + (i.fat_g || 0),
+      }),
+      { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+    );
 
-    out += `Log\n`;
-    out += `Just say "Log" if you want me to log this in your macros as a meal.\n`;
+    // Use recomputed if difference > 3%, else use provided totals
+    const useTotals = within3pct(recomputed, totals) ? totals : recomputed;
+
+    // Render totals
+    out += `Totals\n`;
+    out += `• Calories: ${Math.round(useTotals.kcal)} kcal\n`;
+    out += `• Protein: ${round1(useTotals.protein_g)} g\n`;
+    out += `• Carbs: ${round1(useTotals.carbs_g)} g\n`;
+    out += `• Fat: ${round1(useTotals.fat_g)} g\n\n`;
+
+    // Add "Log" hint ONLY for macro-question route (informational queries)
+    if (draft?.meta?.route === 'macro-question') {
+      out += `Log\n`;
+      out += `Just say "Log" if you want me to log this in your macros as a meal.\n`;
+    }
+
     out += '[[PROTECT_BULLETS_END]]';
 
     return out;

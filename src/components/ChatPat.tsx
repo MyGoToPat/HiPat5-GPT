@@ -371,10 +371,22 @@ export const ChatPat: React.FC = () => {
       // Check for "log" command to log previous macro discussion
       const lowerInput = inputText.toLowerCase().trim();
       if (lowerInput === 'log' || lowerInput === 'log it') {
-        // Find the last Pat response with macro data
-        const lastPatMessage = [...messages].reverse().find(m => !m.isUser && (m.text.includes('kcal') || m.text.includes('calories')));
+        // Find the last Pat response with macro data (check for structured payload first)
+        const lastPatMessage = [...messages].reverse().find(m => !m.isUser && (
+          m.meta?.macros || m.text.includes('kcal') || m.text.includes('calories')
+        ));
+
         if (lastPatMessage) {
-          // Extract food description from previous user message
+          // Check if structured macro payload exists
+          if (lastPatMessage.meta?.macros?.items) {
+            // Use structured payload items
+            const foodItems = lastPatMessage.meta.macros.items.map((item: any) => item.name);
+            const foodText = foodItems.join(', ');
+            handleMealTextInput(`I ate ${foodText}`);
+            return;
+          }
+
+          // Fallback: Extract food description from previous user message
           const lastUserMessage = [...messages].reverse().find(m => m.isUser);
           if (lastUserMessage) {
             // Extract food name from questions like "give me the macros of a Big Mac"

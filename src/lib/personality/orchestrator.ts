@@ -146,14 +146,70 @@ async function runRoleSpecificLogic(
   userMessage: string,
   context: Record<string, any>,
   routerParams: Record<string, any>
-): Promise<{ finalAnswer: string; error?: string }> {
+): Promise<{ finalAnswer: string | { text: string; meta?: any }; error?: string }> {
+  if (roleTarget === "macro-question") {
+    // Macro question (informational, not logging)
+    // Parse food items from user message
+    const foodMatch = userMessage.match(/(?:of|for|in)\s+(.+?)(?:\?|$)/i);
+    const foodText = foodMatch ? foodMatch[1].trim() : userMessage;
+
+    // Split multiple items (e.g., "3 eggs and 2 slices sourdough")
+    const items = foodText.split(/\s+(?:and|\+|,)\s+/);
+
+    const macroItems = [];
+    let totalKcal = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
+
+    for (const item of items) {
+      const macroResult = await callFoodMacros({ foodName: item.trim() });
+      if (macroResult.ok && macroResult.json) {
+        const m = macroResult.json;
+        macroItems.push({
+          name: item.trim(),
+          kcal: m.kcal || 0,
+          protein_g: m.protein_g || 0,
+          carbs_g: m.carbs_g || 0,
+          fat_g: m.fat_g || 0,
+        });
+        totalKcal += m.kcal || 0;
+        totalProtein += m.protein_g || 0;
+        totalCarbs += m.carbs_g || 0;
+        totalFat += m.fat_g || 0;
+      }
+    }
+
+    if (macroItems.length > 0) {
+      return {
+        finalAnswer: {
+          text: `Here are the macros for ${items.length === 1 ? 'that' : 'those'} item${items.length > 1 ? 's' : ''}:`,
+          meta: {
+            route: 'macro-question',
+            macros: {
+              items: macroItems,
+              totals: {
+                kcal: totalKcal,
+                protein_g: totalProtein,
+                carbs_g: totalCarbs,
+                fat_g: totalFat,
+              },
+            },
+          },
+        },
+      };
+    } else {
+      return {
+        finalAnswer: "I was unable to retrieve macro data for those items. Could you provide more specific food names?",
+        error: "Macro lookup failed",
+      };
+    }
+  }
+
   if (roleTarget === "tmwya") {
-    // Tell Me What You Ate logic
+    // Tell Me What You Ate logic (actual logging)
     const foodName = routerParams.foodName || routerParams.food;
     if (!foodName || typeof foodName !== 'string') {
-      return { 
-        finalAnswer: "I'd be delighted to assist you in logging your nutritional intake. Could you specify what you consumed?", 
-        error: "Missing foodName parameter" 
+      return {
+        finalAnswer: "I'd be delighted to assist you in logging your nutritional intake. Could you specify what you consumed?",
+        error: "Missing foodName parameter"
       };
     }
 
@@ -170,7 +226,7 @@ async function runRoleSpecificLogic(
       };
     }
   }
-  
+
   if (roleTarget === "workout") {
     // Future: workout tracking logic
     return {
@@ -178,7 +234,7 @@ async function runRoleSpecificLogic(
       error: "Workout tracking module not yet implemented"
     };
   }
-  
+
   if (roleTarget === "mmb") {
     // Future: Make Me Better logic
     return {
@@ -187,19 +243,22 @@ async function runRoleSpecificLogic(
     };
   }
 
-  return { 
-    finalAnswer: `I am currently unable to process requests for ${roleTarget}. This capability is under development.`, 
-    error: "Unknown role target" 
+  return {
+    finalAnswer: `I am currently unable to process requests for ${roleTarget}. This capability is under development.`,
+    error: "Unknown role target"
   };
 }
 
-// Helper to run post-agents on a draft
+// Helper to run post-agents on a draft (with optional structured payload)
 async function finishWithPostAgents(
-  draft: string,
+  draft: string | { text: string; meta?: any },
   context: Record<string, any>,
   initialError?: string
 ): Promise<{ ok: boolean; answer: string; error?: string }> {
-  let currentDraft = draft;
+  // Normalize draft to object format
+  let draftObj = typeof draft === 'string' ? { text: draft, meta: {} } : draft;
+  let currentDraft = draftObj.text;
+
   const agentsRec = getPersonalityAgents();
   const orderedPostAgents = Object.values(agentsRec)
     .filter((a) => a.phase === "post" && a.enabled)
@@ -207,8 +266,21 @@ async function finishWithPostAgents(
 
   for (const agent of orderedPostAgents) {
     try {
+      // Special handling for macro-formatter: use deterministic TypeScript function
+      if (agent.id === 'macro-formatter') {
+        const { formatMacros } = await import('./postAgents/macroFormatter');
+        const formatted = formatMacros({ text: currentDraft, meta: draftObj.meta });
+        if (formatted !== currentDraft) {
+          currentDraft = formatted;
+          if (process.env.NODE_ENV !== 'production') {
+            console.debug('[orchestrator] Macro formatter applied (deterministic)');
+          }
+        }
+        continue;
+      }
+
       const result = await runAgent(agent.id, '', context, agent, currentDraft);
-      
+
       if (result.error) {
         console.warn(`Post-agent ${agent.id} failed: ${result.error}`);
         // Continue with current draft if post-agent fails
@@ -220,7 +292,7 @@ async function finishWithPostAgents(
       // Continue with current draft
     }
   }
-  
+
   return { ok: !initialError, answer: currentDraft, error: initialError };
 }
 

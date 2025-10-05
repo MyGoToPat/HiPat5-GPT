@@ -9,6 +9,14 @@ type RegistryEntry =
   | { type: "tool"; patterns: RegExp[] };
 
 export const ROUTE_REGISTRY: Record<string, RegistryEntry> = {
+  'macro-question': {
+    type: "role",
+    patterns: [
+      // Questions about macros/calories (informational, not logging)
+      /\b(tell\s+me|what\s+are|what\s+is|how\s+many|give\s+me|show\s+me)\s+(the\s+)?(macros?|calories?|nutrition)\s+(of|for|in)\b/i,
+      /\b(macros?|calories?|nutrition)\s+(of|for|in)\s+/i,
+    ],
+  },
   tmwya: {
     type: "role",
     patterns: [
@@ -17,7 +25,7 @@ export const ROUTE_REGISTRY: Record<string, RegistryEntry> = {
     ],
   },
   workout: {
-    type: "role", 
+    type: "role",
     patterns: [
       /\b(workout|exercise|gym|training|lifted|reps|sets|weights?|squat|bench|deadlift|cardio|running|cycling)\b/i,
     ],
