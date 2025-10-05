@@ -63,6 +63,11 @@ export function formatMacros(draft: { text: string; meta?: any }): string {
 
   // DETERMINISTIC PATH: Use structured JSON if present
   if (Array.isArray(items) && items.length && totals) {
+    // Debug log for development
+    if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+      console.debug('[macroFormatter] Rendering itemized block:', items.length, 'items');
+    }
+
     let out = '[[PROTECT_BULLETS_START]]\n';
 
     // Render each item

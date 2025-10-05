@@ -149,49 +149,66 @@ async function runRoleSpecificLogic(
 ): Promise<{ finalAnswer: string | { text: string; meta?: any }; error?: string }> {
   if (roleTarget === "macro-question") {
     // Macro question (informational, not logging)
-    // Parse food items from user message
+    // Parse food items from user message - preserve quantities like "4 whole eggs", "2 slices sourdough"
     const foodMatch = userMessage.match(/(?:of|for|in)\s+(.+?)(?:\?|$)/i);
-    const foodText = foodMatch ? foodMatch[1].trim() : userMessage;
+    let foodText = foodMatch ? foodMatch[1].trim() : userMessage;
 
-    // Split multiple items (e.g., "3 eggs and 2 slices sourdough")
-    const items = foodText.split(/\s+(?:and|\+|,)\s+/);
+    // Normalize '+' to 'and' for consistent splitting
+    foodText = foodText.replace(/\s*\+\s*/g, ' and ');
 
-    const macroItems = [];
-    let totalKcal = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
+    // Split on 'and' or comma, preserving quantities
+    const split = foodText
+      .split(/\s+(?:and|,)\s+/i)
+      .map(s => s.trim())
+      .filter(Boolean);
 
-    for (const item of items) {
-      const macroResult = await callFoodMacros({ foodName: item.trim() });
-      if (macroResult.ok && macroResult.json) {
+    const itemStrings = split.length ? split : [foodText.trim()];
+
+    const macroItems: Array<{
+      name: string;
+      kcal: number;
+      protein_g: number;
+      carbs_g: number;
+      fat_g: number;
+    }> = [];
+
+    for (const item of itemStrings) {
+      const macroResult = await callFoodMacros({ foodName: item });
+      if (macroResult?.ok && macroResult?.json) {
         const m = macroResult.json;
         macroItems.push({
-          name: item.trim(),
-          kcal: m.kcal || 0,
-          protein_g: m.protein_g || 0,
-          carbs_g: m.carbs_g || 0,
-          fat_g: m.fat_g || 0,
+          name: item,
+          kcal: Number(m.kcal ?? 0),
+          protein_g: Number(m.protein_g ?? 0),
+          carbs_g: Number(m.carbs_g ?? 0),
+          fat_g: Number(m.fat_g ?? 0),
         });
-        totalKcal += m.kcal || 0;
-        totalProtein += m.protein_g || 0;
-        totalCarbs += m.carbs_g || 0;
-        totalFat += m.fat_g || 0;
       }
     }
 
     if (macroItems.length > 0) {
+      // Calculate totals from items
+      const totals = macroItems.reduce(
+        (acc, it) => ({
+          kcal: acc.kcal + it.kcal,
+          protein_g: acc.protein_g + it.protein_g,
+          carbs_g: acc.carbs_g + it.carbs_g,
+          fat_g: acc.fat_g + it.fat_g,
+        }),
+        { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+      );
+
+      // Debug log for development
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug('[orchestrator] macro-question items:', macroItems.length, macroItems);
+      }
+
       return {
         finalAnswer: {
-          text: `Here are the macros for ${items.length === 1 ? 'that' : 'those'} item${items.length > 1 ? 's' : ''}:`,
+          text: 'Here are the macros:',
           meta: {
             route: 'macro-question',
-            macros: {
-              items: macroItems,
-              totals: {
-                kcal: totalKcal,
-                protein_g: totalProtein,
-                carbs_g: totalCarbs,
-                fat_g: totalFat,
-              },
-            },
+            macros: { items: macroItems, totals },
           },
         },
       };
