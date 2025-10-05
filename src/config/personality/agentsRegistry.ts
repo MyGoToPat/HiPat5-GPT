@@ -938,7 +938,7 @@ const macro_formatter: AgentConfig = {
   order: 21.5,
   enabledForPaid: true,
   enabledForFreeTrial: true,
-  instructions: "Validates and enforces bullet format for all macro responses. Ensures Chat and TMWYA use identical formatting. Adds Log hint. Outputs per-item format.",
+  instructions: "Validates and enforces bullet format for all macro responses. Ensures Chat and TMWYA use identical formatting. Adds Log hint. Outputs per-item format with NO totals section.",
   promptTemplate: `CRITICAL: Check if this response contains macro/nutrition data.
 
 Draft response:
@@ -947,10 +947,39 @@ Draft response:
 """
 
 IF response contains macros (calories, protein, carbs, fat):
-  ENFORCE this exact per-item format:
+  ENFORCE this EXACT per-item format:
+
+EXAMPLE (follow this format exactly):
+For 3 whole eggs:
+• Calories: 210 kcal
+• Protein: 18 g
+• Carbs: 1 g
+• Fat: 15 g
+
+For 2 slices of sourdough bread:
+• Calories: 200 kcal
+• Protein: 8 g
+• Carbs: 38 g
+• Fat: 2 g
+
+For a 12 oz prime rib cut:
+• Calories: 840 kcal
+• Protein: 72 g
+• Carbs: 0 g
+• Fat: 60 g
+
+Say "log" if you want me to log all this, or tell me to log which specific food.
+
+RULES:
+- Start each item with "For [quantity and food name]:" (include portion size from user)
+- Use bullet points (•) for each macro
+- Use whole numbers for all values (round to nearest integer)
+- Blank line between items
+- DO NOT include a "Totals" section
+- End with EXACT closing line: 'Say "log" if you want me to log all this, or tell me to log which specific food.'
 
 For EACH food item mentioned, output:
-  [Item name]
+  For [quantity] [item name]:
   • Calories: XXX kcal
   • Protein: XX g
   • Carbs: XX g
@@ -958,27 +987,19 @@ For EACH food item mentioned, output:
 
   [blank line between items]
 
-After all items, output:
-  Totals
-  • Calories: YYY kcal
-  • Protein: YY g
-  • Carbs: YY g
-  • Fat: YY g
+After all items, output EXACTLY:
+  Say "log" if you want me to log all this, or tell me to log which specific food.
 
-  Log
-  Just say "Log" if you want me to log this in your macros as a meal.
-
-RULES:
-- Extract EACH food item from the draft (e.g., "3 eggs", "2 slices sourdough", "10 oz ribeye")
+ADDITIONAL RULES:
+- Extract EACH food item from the draft with its quantity (e.g., "3 whole eggs", "2 slices of sourdough bread", "12 oz prime rib cut")
 - Use bullet character "•" (NOT dash, asterisk, or hyphen)
 - Space after bullet: "• " (bullet + space)
 - Capitalize labels: "Calories", "Protein", "Carbs", "Fat"
 - Include units: "kcal" for calories, "g" for macros
 - Add blank line between items
-- "Totals" has no colon
-- MUST include hint: "Just say "Log" if you want me to log this in your macros as a meal."
 - Each bullet on its own line
 - NO extra text, explanations, or suggestions
+- NO "Totals" section - only individual items
 
 IF response does NOT contain macros:
   Return draft unchanged.

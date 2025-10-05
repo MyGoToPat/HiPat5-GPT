@@ -79,28 +79,8 @@ export function formatMacros(draft: { text: string; meta?: any }): string {
       out += `• Fat: ${Math.round(it.fat_g)} g\n\n`;
     }
 
-    // Recompute totals to guard against drift
-    const recomputed = items.reduce(
-      (acc, i) => ({
-        kcal: acc.kcal + (i.kcal || 0),
-        protein_g: acc.protein_g + (i.protein_g || 0),
-        carbs_g: acc.carbs_g + (i.carbs_g || 0),
-        fat_g: acc.fat_g + (i.fat_g || 0),
-      }),
-      { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
-    );
-
-    // Use recomputed if difference > 3%, else use provided totals
-    const useTotals = within3pct(recomputed, totals) ? totals : recomputed;
-
-    // Render totals
-    out += `Totals:\n`;
-    out += `• Calories: ${Math.round(useTotals.kcal)} kcal\n`;
-    out += `• Protein: ${Math.round(useTotals.protein_g)} g\n`;
-    out += `• Carbs: ${Math.round(useTotals.carbs_g)} g\n`;
-    out += `• Fat: ${Math.round(useTotals.fat_g)} g\n\n`;
-
     // Add "Log" hint ONLY for macro-question route (informational queries)
+    // NO Totals section per user requirements
     if (draft?.meta?.route === 'macro-question') {
       out += `Say "log" if you want me to log all this, or tell me to log which specific food.\n`;
     }
@@ -133,8 +113,7 @@ function formatFromTextFallback(input: string): string {
   }
 
   // Try to detect itemized structure already in text
-  const itemPattern = /^([^\n•]+)\n[•\-\*]\s*Calories?:\s*([\d\.]+)\s*kcal.*?[•\-\*]\s*Protein:\s*([\d\.]+)\s*g.*?[•\-\*]\s*Carbs?:\s*([\d\.]+)\s*g.*?[•\-\*]\s*Fat:\s*([\d\.]+)\s*g/gims;
-  const totalsPattern = /Totals?\s*\n[•\-\*]\s*Calories?:\s*([\d\.]+)\s*kcal.*?[•\-\*]\s*Protein:\s*([\d\.]+)\s*g.*?[•\-\*]\s*Carbs?:\s*([\d\.]+)\s*g.*?[•\-\*]\s*Fat:\s*([\d\.]+)\s*g/is;
+  const itemPattern = /^For\s+([^\n:]+):\s*\n[•\-\*]\s*Calories?:\s*([\d\.]+)\s*kcal.*?[•\-\*]\s*Protein:\s*([\d\.]+)\s*g.*?[•\-\*]\s*Carbs?:\s*([\d\.]+)\s*g.*?[•\-\*]\s*Fat:\s*([\d\.]+)\s*g/gims;
 
   const items: MacroItem[] = [];
   let match;
@@ -149,18 +128,23 @@ function formatFromTextFallback(input: string): string {
     });
   }
 
-  const totalsMatch = input.match(totalsPattern);
-  if (items.length > 0 && totalsMatch) {
+  if (items.length > 0) {
+    // Compute totals from items
+    const totals = items.reduce(
+      (acc, it) => ({
+        kcal: acc.kcal + it.kcal,
+        protein_g: acc.protein_g + it.protein_g,
+        carbs_g: acc.carbs_g + it.carbs_g,
+        fat_g: acc.fat_g + it.fat_g,
+      }),
+      { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+    );
+
     const payload: MacroPayload = {
       items,
-      totals: {
-        kcal: parseFloat(totalsMatch[1]),
-        protein_g: parseFloat(totalsMatch[2]),
-        carbs_g: parseFloat(totalsMatch[3]),
-        fat_g: parseFloat(totalsMatch[4])
-      }
+      totals
     };
-    return formatMacros({ text: input, meta: { macros: payload } });
+    return formatMacros({ text: input, meta: { macros: payload, route: 'macro-question' } });
   }
 
   // Try simple single-item format (totals only)
@@ -175,6 +159,7 @@ function formatFromTextFallback(input: string): string {
 
 /**
  * Simple single-item formatter (when only totals are present)
+ * Used for single food items without "For X:" prefix
  */
 function formatSimpleMacroBlock(input: string): string {
   const patterns = [
@@ -195,13 +180,17 @@ function formatSimpleMacroBlock(input: string): string {
   const fat = get(patterns[3]);
 
   if (cals && prot && carbs && fat) {
+    // Try to extract food name from context
+    const foodNameMatch = input.match(/(?:for|of|in)\s+(?:a\s+|an\s+)?([^.?!\n]+)/i);
+    const foodName = foodNameMatch ? foodNameMatch[1].trim() : 'this food';
+
     return (
-      `• Calories: ${cals} kcal\n` +
-      `• Protein: ${prot} g\n` +
-      `• Carbs: ${carbs} g\n` +
-      `• Fat: ${fat} g\n\n` +
-      `Log\n` +
-      `Just say "Log" if you want me to log this in your macros as a meal.`
+      `For ${foodName}:\n` +
+      `• Calories: ${Math.round(parseFloat(cals))} kcal\n` +
+      `• Protein: ${Math.round(parseFloat(prot))} g\n` +
+      `• Carbs: ${Math.round(parseFloat(carbs))} g\n` +
+      `• Fat: ${Math.round(parseFloat(fat))} g\n\n` +
+      `Say "log" if you want me to log all this, or tell me to log which specific food.`
     );
   }
 
