@@ -151,12 +151,10 @@ async function runRoleSpecificLogic(
 ): Promise<{ finalAnswer: string | { text: string; meta?: any }; error?: string }> {
   if (roleTarget === "macro-question") {
     // Macro question (informational, not logging)
-    // Log telemetry for route
-    console.info('[macro-telemetry:route]', {
+    console.info('[macro-route]', {
       route: 'macro-question',
       target: 'macro-question',
-      confidence: 1.0,
-      timestamp: Date.now(),
+      confidence: 1.0
     });
 
     // Parse food items from user message - preserve quantities like "4 whole eggs", "2 slices sourdough"
@@ -204,14 +202,12 @@ async function runRoleSpecificLogic(
       const resolved = await resolveNutrition(parsedItems);
 
       // Log nutrition resolution telemetry
-      console.info('[macro-telemetry:nutrition]', {
-        itemCount: resolved.length,
-        items: resolved.map(r => ({
-          name: r.name,
-          basis_used: r.basis_used,
-          grams_used: r.grams_used,
-        })),
-      });
+      console.info('[macro-resolver]', resolved.map(r => ({
+        name: r.name,
+        grams: r.grams_used,
+        basis: r.basis_used,
+        fiber: r.macros.fiber_g || 0
+      })));
 
       if (resolved.length > 0) {
         // Build items array for meta payload
@@ -440,11 +436,9 @@ async function finishWithPostAgents(
         currentDraft = formatterResult.text;
         draftObj.meta = { ...draftObj.meta, ...formatterResult.meta };
         formatterRan = true;
-        console.info('[macro-telemetry:formatter]', {
-          formatter_ran: true,
-          route: draftObj.meta?.route || 'unknown',
-          has_fiber: (formatterResult.meta?.macros?.totals?.fiber_g || 0) > 0,
-          timestamp: Date.now(),
+        console.info('[macro-formatter]', {
+          ran: true,
+          hasFiber: (draftObj.meta?.macros?.totals?.fiber_g || 0) > 0
         });
       } else {
         // Standard LLM-based post-agents

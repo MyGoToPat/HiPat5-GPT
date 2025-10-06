@@ -176,7 +176,7 @@ function formatFromTextFallback(input: string): string {
       items,
       totals
     };
-    return formatMacros({ text: input, meta: { macros: payload, route: 'macro-question' } });
+    return formatMacros({ text: input, meta: { macros: payload, route: 'macro-question' } }).text;
   }
 
   // Try simple single-item format (totals only)
@@ -233,7 +233,7 @@ function formatSimpleMacroBlock(input: string): string {
  * Legacy export for backward compatibility
  */
 export function formatMacroBlock(input: string): string {
-  return formatMacros({ text: input });
+  return formatMacros({ text: input }).text;
 }
 
 /**

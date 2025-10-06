@@ -130,13 +130,17 @@ export const ChatSessions = {
       .single();
 
     if (error) {
-      console.error('[chat-save-failed]', {
-        payload: message,
+      console.error('[chat-save]', {
         error: error.message,
         code: error.code
       });
       throw error;
     }
+
+    console.info('[chat-save]', {
+      session_id: message.sessionId,
+      message_id: data.id
+    });
 
     // If this is a Pat message with macro metadata, save to chat_message_macros
     if (message.sender === 'pat' && message.metadata?.macros) {
