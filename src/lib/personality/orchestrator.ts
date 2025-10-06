@@ -261,6 +261,28 @@ async function runRoleSpecificLogic(
     }
   }
 
+  if (roleTarget === "macro-logging") {
+    // Macro logging handler - retrieves last unconsumed macro payload and logs it
+    console.info('[macro-telemetry:route]', {
+      route: 'macro-logging',
+      target: 'macro-logging',
+      timestamp: Date.now(),
+    });
+
+    // TODO Phase 7: Implement macro logging logic
+    // 1. Retrieve last unconsumed macro payload from session
+    // 2. Parse command ("log all", "log ribeye", "log ribeye with 4 eggs")
+    // 3. Handle quantity adjustments using adjustItemQuantity()
+    // 4. Check calorie budget and warn if over
+    // 5. Save to meal_logs with proper meal_time
+    // 6. Mark payload as consumed
+
+    return {
+      finalAnswer: "Macro logging will be implemented in Phase 7. For now, use the Chat interface to ask for macros first, then I'll log them.",
+      error: "Phase 7 pending",
+    };
+  }
+
   if (roleTarget === "tmwya") {
     // Tell Me What You Ate logic (actual logging)
     const foodName = routerParams.foodName || routerParams.food;
@@ -324,7 +346,17 @@ async function finishWithPostAgents(
 
   let formatterRan = false;
 
+  // For macro responses, skip destructive post-agents (only run formatter and actionizer)
+  const isMacroResponse = draftObj.meta?.route === 'macro-question' || draftObj.meta?.route === 'macro-logging';
+  const destructiveAgents = ['conciseness-filter', 'clarity-enforcer', 'evidence-validator'];
+
   for (const agent of orderedPostAgents) {
+    // Skip destructive agents for macro responses
+    if (isMacroResponse && destructiveAgents.includes(agent.id)) {
+      console.info(`[orchestrator] Skipping ${agent.id} for macro response`);
+      continue;
+    }
+
     try {
       // For macro-formatter, pass structured meta payload as context
       const agentContext = agent.id === 'macro-formatter' && draftObj.meta?.macros
@@ -362,7 +394,12 @@ async function finishWithPostAgents(
     });
   }
 
-  return { ok: !initialError, answer: currentDraft, error: initialError };
+  return {
+    ok: !initialError,
+    answer: currentDraft,
+    meta: draftObj.meta,
+    error: initialError
+  };
 }
 
 export async function runPersonalityPipeline(input: RunInput) {

@@ -111,6 +111,7 @@ export const ChatSessions = {
     userId: string;
     sender: 'user' | 'pat' | 'system';
     text: string;
+    metadata?: Record<string, any>;
   }): Promise<ChatMessage> {
     const supabase = getSupabase();
 
@@ -122,6 +123,7 @@ export const ChatSessions = {
         sender: message.sender,
         text: message.text,
         is_user: message.sender === 'user',
+        metadata: message.metadata || {},
         timestamp: new Date().toISOString()
       })
       .select()
@@ -134,6 +136,27 @@ export const ChatSessions = {
         code: error.code
       });
       throw error;
+    }
+
+    // If this is a Pat message with macro metadata, save to chat_message_macros
+    if (message.sender === 'pat' && message.metadata?.macros) {
+      try {
+        const macros = message.metadata.macros;
+        await supabase
+          .from('chat_message_macros')
+          .insert({
+            message_id: data.id,
+            session_id: message.sessionId,
+            items: JSON.stringify(macros.items || []),
+            totals: JSON.stringify(macros.totals || {}),
+            basis: macros.basis || 'cooked',
+            consumed: false,
+            created_at: new Date().toISOString()
+          });
+      } catch (macroError) {
+        console.warn('[chat-macro-save-failed]', macroError);
+        // Don't fail the message save if macro storage fails
+      }
     }
 
     return data;

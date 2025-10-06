@@ -70,19 +70,26 @@ export function formatMacros(draft: { text: string; meta?: any }): string {
 
     let out = '[[PROTECT_BULLETS_START]]\n';
 
-    // Render each item with "For X:" prefix
+    // Render each item with quantity (Phase 5 format)
     for (const it of items) {
-      out += `For ${it.name}:\n`;
+      // Include quantity: "10 Oz Ribeye", "3 Whole Eggs"
+      const qtyDisplay = (it as any).qty || 1;
+      const unitDisplay = (it as any).unit || '';
+      const nameWithQty = unitDisplay ? `${qtyDisplay} ${unitDisplay} ${it.name}` : it.name;
+
+      out += `${nameWithQty}\n`;
       out += `• Calories: ${Math.round(it.kcal)} kcal\n`;
-      out += `• Protein: ${Math.round(it.protein_g)} g\n`;
-      out += `• Carbs: ${Math.round(it.carbs_g)} g\n`;
-      out += `• Fat: ${Math.round(it.fat_g)} g\n\n`;
+      out += `• Protein: ${Math.round(it.protein_g * 10) / 10} g\n`;
+      out += `• Carbs: ${Math.round(it.carbs_g * 10) / 10} g\n`;
+      out += `• Fat: ${Math.round(it.fat_g * 10) / 10} g\n\n`;
     }
 
-    // Add "Log" hint ONLY for macro-question route (informational queries)
-    // NO Totals section per user requirements
+    // Add TOTALS line (Phase 5 requirement)
+    out += `Total calories ${Math.round(totals.kcal)}\n\n`;
+
+    // Add "Log" hint for macro-question route
     if (draft?.meta?.route === 'macro-question') {
-      out += `Say "log" if you want me to log all this, or tell me to log which specific food.\n`;
+      out += `Say "Log All" or "Log (Food item)"\n`;
     }
 
     out += '[[PROTECT_BULLETS_END]]';

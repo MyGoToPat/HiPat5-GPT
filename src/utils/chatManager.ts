@@ -22,14 +22,16 @@ export const ChatManager = {
     userId: string,
     sessionId: string,
     text: string,
-    sender: 'user' | 'pat' | 'system'
+    sender: 'user' | 'pat' | 'system',
+    metadata?: Record<string, any>
   ): Promise<ChatMessage | null> {
     try {
       return await ChatSessions.saveMessage({
         sessionId,
         userId,
         sender,
-        text
+        text,
+        metadata
       });
     } catch (error) {
       console.warn('Chat message save failed:', error);

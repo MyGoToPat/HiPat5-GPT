@@ -609,7 +609,8 @@ export const ChatPat: React.FC = () => {
                         userId,
                         threadId,
                         patResponse.text,
-                        'pat'
+                        'pat',
+                        pipelineResult.meta
                       );
                     } catch (error) {
                       console.error('Error saving AI response:', error);
