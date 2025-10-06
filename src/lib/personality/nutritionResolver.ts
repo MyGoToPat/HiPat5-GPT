@@ -32,6 +32,14 @@ export interface ResolvedNutrition {
     carbs_g: number;
     fat_g: number;
   };
+  per_unit_macros?: {
+    kcal: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+  };
+  per_unit_grams?: number;
+  brand?: string;
 }
 
 /**
@@ -145,17 +153,27 @@ async function resolveViaSupabase(
 
   const resolved = Array.isArray(data) ? data : [];
 
+  // Calculate per-unit values for each resolved item
+  const enriched = resolved.map((r: ResolvedNutrition) => ({
+    ...r,
+    per_unit_macros: {
+      kcal: r.macros.kcal / r.qty,
+      protein_g: r.macros.protein_g / r.qty,
+      carbs_g: r.macros.carbs_g / r.qty,
+      fat_g: r.macros.fat_g / r.qty,
+    },
+    per_unit_grams: r.grams_used / r.qty,
+  }));
+
   console.info('[nutrition-resolver:supabase-success]', {
-    itemCount: resolved.length,
+    itemCount: enriched.length,
     duration: Date.now() - startTime,
-    items: resolved.map((r: ResolvedNutrition) => ({
-      name: r.name,
-      grams_used: r.grams_used,
-      basis_used: r.basis_used,
-    })),
+    basis_used: enriched.map((r: ResolvedNutrition) => r.basis_used),
+    grams_used: enriched.map((r: ResolvedNutrition) => r.grams_used),
+    resolver_calls_count: 1,
   });
 
-  return resolved;
+  return enriched;
 }
 
 /**
@@ -211,6 +229,14 @@ function createFallbackEstimate(item: NutritionItem): ResolvedNutrition {
     grams_used: Math.round(grams * 10) / 10,
     basis_used: item.brand ? 'as-served' : (item.basis || 'cooked'),
     macros: { kcal, protein_g, carbs_g, fat_g },
+    per_unit_macros: {
+      kcal: kcal / item.qty,
+      protein_g: protein_g / item.qty,
+      carbs_g: carbs_g / item.qty,
+      fat_g: fat_g / item.qty,
+    },
+    per_unit_grams: Math.round((grams / item.qty) * 10) / 10,
+    brand: item.brand,
   };
 }
 
@@ -241,11 +267,15 @@ export function parseNaturalQuantity(text: string): NutritionItem[] {
         name = match[3];
       }
 
+      // Detect brand/restaurant names (simple heuristic)
+      const brand = detectBrand(name);
+
       items.push({
         name: name.trim(),
         qty,
         unit,
-        basis: 'cooked',
+        brand,
+        basis: brand ? 'as-served' : 'cooked',
       });
     }
 
@@ -253,4 +283,86 @@ export function parseNaturalQuantity(text: string): NutritionItem[] {
   }
 
   return items;
+}
+
+/**
+ * Detects if food name contains a brand or restaurant
+ */
+function detectBrand(name: string): string | undefined {
+  const knownBrands = [
+    'mcdonalds', 'mcdonald\'s', 'burger king', 'wendy\'s', 'wendys',
+    'chipotle', 'subway', 'starbucks', 'dunkin', 'taco bell',
+    'kfc', 'popeyes', 'chick-fil-a', 'chickfila', 'panera',
+    'dominos', 'domino\'s', 'pizza hut', 'papa john', 'little caesars',
+  ];
+
+  const lowerName = name.toLowerCase();
+  for (const brand of knownBrands) {
+    if (lowerName.includes(brand)) {
+      return brand;
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Adjusts quantity of a resolved item (for "log ribeye with 4 eggs" scenarios)
+ * Uses per-unit calculation to avoid calling resolver again
+ */
+export function adjustItemQuantity(
+  resolved: ResolvedNutrition,
+  newQty: number
+): ResolvedNutrition {
+  // Calculate per-unit values if not already present
+  const perUnitMacros = resolved.per_unit_macros || {
+    kcal: resolved.macros.kcal / resolved.qty,
+    protein_g: resolved.macros.protein_g / resolved.qty,
+    carbs_g: resolved.macros.carbs_g / resolved.qty,
+    fat_g: resolved.macros.fat_g / resolved.qty,
+  };
+
+  const perUnitGrams = resolved.per_unit_grams || resolved.grams_used / resolved.qty;
+
+  // Scale to new quantity
+  return {
+    name: resolved.name,
+    qty: newQty,
+    unit: resolved.unit,
+    grams_used: Math.round(perUnitGrams * newQty * 10) / 10,
+    basis_used: resolved.basis_used,
+    macros: {
+      kcal: Math.round(perUnitMacros.kcal * newQty),
+      protein_g: Math.round(perUnitMacros.protein_g * newQty * 10) / 10,
+      carbs_g: Math.round(perUnitMacros.carbs_g * newQty * 10) / 10,
+      fat_g: Math.round(perUnitMacros.fat_g * newQty * 10) / 10,
+    },
+    per_unit_macros: perUnitMacros,
+    per_unit_grams: perUnitGrams,
+    brand: resolved.brand,
+  };
+}
+
+/**
+ * Finds a resolved item by fuzzy name matching
+ */
+export function findItemByName(
+  items: ResolvedNutrition[],
+  searchName: string
+): ResolvedNutrition | undefined {
+  const lowerSearch = searchName.toLowerCase().trim();
+
+  // Exact match first
+  let match = items.find(item => item.name.toLowerCase() === lowerSearch);
+  if (match) return match;
+
+  // Partial match (search term is in item name)
+  match = items.find(item => item.name.toLowerCase().includes(lowerSearch));
+  if (match) return match;
+
+  // Reverse partial match (item name is in search term)
+  match = items.find(item => lowerSearch.includes(item.name.toLowerCase()));
+  if (match) return match;
+
+  return undefined;
 }

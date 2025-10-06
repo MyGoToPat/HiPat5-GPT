@@ -1,4 +1,5 @@
 import type { AgentConfig } from '../../types/mcp';
+import { macro_question_agent, macro_logging_agent, macro_formatter_enhanced } from './macroAgents';
 
 /**
  * Pat's Personality System - Agent Registry
@@ -1086,15 +1087,21 @@ USER MESSAGE:
 
 ROUTES:
 - "macro-question": Questions about food macros/calories (informational only)
-- "tmwya": User stating they ate something (logging intent)
+- "macro-logging": Commands to log previously discussed macros ("log it", "log all", "log the ribeye")
+- "tmwya": User stating they ate something (direct logging intent with meal context)
 - "workout": Workout/exercise related
 - "mmb": Feedback/improvement suggestions
 - "pat": General conversation (default)
 - "none": Unknown/unclear intent
 
+PRIORITY RULES:
+1. "macro-logging" takes priority if user says "log" without meal context (requires prior macro discussion)
+2. "tmwya" takes priority if user says "log" WITH meal context ("log this meal", "I ate X")
+3. "macro-question" for pure informational queries
+
 Output JSON:
 {
-  "route": "macro-question|tmwya|workout|mmb|pat|none",
+  "route": "macro-question|macro-logging|tmwya|workout|mmb|pat|none",
   "target": "role name if route=role, tool name if route=tool, else null",
   "confidence": 0.0-1.0,
   "reason": "brief explanation"
@@ -1123,6 +1130,8 @@ export const defaultPersonalityAgents: Record<string, AgentConfig> = {
   "mmb-expert": mmb_expert,
   "fitness-coach": fitness_coach,
   "nutrition-planner": nutrition_planner,
+  "macro-question": macro_question_agent,
+  "macro-logging": macro_logging_agent,
 
   // TMWYA Pipeline (Tell Me What You Ate)
   "tmwya-intent-router": tmwya_intent_router,
@@ -1139,6 +1148,6 @@ export const defaultPersonalityAgents: Record<string, AgentConfig> = {
   "evidence-validator": evidence_validator,
   "clarity-enforcer": clarity_enforcer,
   "conciseness-filter": conciseness_filter,
-  "macro-formatter": macro_formatter,
+  "macro-formatter": macro_formatter_enhanced,
   "actionizer": actionizer
 };
