@@ -37,25 +37,28 @@ export const ChatSessions = {
   ): Promise<ChatSession> {
     const supabase = getSupabase();
 
+    // Call RPC to get or create session (returns full session row)
     const { data, error } = await supabase.rpc('get_or_create_active_session', {
-      p_user_id: userId,
-      p_session_type: sessionType
+      p_user_id: userId
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('[session-create-failed]', {
+        userId,
+        error: error.message,
+        code: error.code
+      });
+      throw error;
+    }
 
-    const sessionId = data;
+    // RPC returns array with single session object
+    const session = Array.isArray(data) ? data[0] : data;
 
-    const { data: session, error: sessionError } = await supabase
-      .from('chat_sessions')
-      .select('*')
-      .eq('id', sessionId)
-      .maybeSingle();
+    if (!session) {
+      throw new Error('Session not found after creation');
+    }
 
-    if (sessionError) throw sessionError;
-    if (!session) throw new Error('Session not found after creation');
-
-    return session;
+    return session as ChatSession;
   },
 
   async getActiveSession(userId: string): Promise<ChatSession | null> {
@@ -114,18 +117,25 @@ export const ChatSessions = {
     const { data, error} = await supabase
       .from('chat_messages')
       .insert({
-        chat_history_id: message.sessionId, // Use chat_history_id (NOT NULL column)
         session_id: message.sessionId,
         user_id: message.userId,
         sender: message.sender,
         text: message.text,
-        is_user: message.sender === 'user', // Add required is_user field
+        is_user: message.sender === 'user',
         timestamp: new Date().toISOString()
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[chat-save-failed]', {
+        payload: message,
+        error: error.message,
+        code: error.code
+      });
+      throw error;
+    }
+
     return data;
   },
 

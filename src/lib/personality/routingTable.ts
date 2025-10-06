@@ -12,7 +12,12 @@ export const ROUTE_REGISTRY: Record<string, RegistryEntry> = {
   'macro-question': {
     type: "role",
     patterns: [
-      // Questions about macros/calories (informational, not logging)
+      // HIGH PRIORITY: Questions about macros/calories (informational, not logging)
+      // Pattern 1: "tell me / give me / what are + macros"
+      /^\s*(tell|give|what\s+are)\s+(me\s+)?(the\s+)?macros?\b/i,
+      // Pattern 2: "calories/protein/carbs/fat/macros + of/for"
+      /^\s*(calories?|protein|carbs?|fat|macros?)\b.*\b(of|for)\b/i,
+      // Pattern 3: General informational patterns
       /\b(tell\s+me|what\s+are|what\s+is|how\s+many|give\s+me|show\s+me)\s+(the\s+)?(macros?|calories?|nutrition)\s+(of|for|in)\b/i,
       /\b(macros?|calories?|nutrition)\s+(of|for|in)\s+/i,
     ],
@@ -20,8 +25,9 @@ export const ROUTE_REGISTRY: Record<string, RegistryEntry> = {
   tmwya: {
     type: "role",
     patterns: [
-      // ONLY trigger for actual LOGGING intent, not questions about macros
-      /\b(i\s+ate|i\s+had|i\s+just\s+ate|i\s+just\s+had|i\s+consumed|log\s+(my\s+)?(meal|food|breakfast|lunch|dinner|snack))\b/i,
+      // ONLY trigger for actual LOGGING intent with explicit keywords
+      /\b(log|save|add|record)\b.*\b(meal|food|breakfast|lunch|dinner|snack)\b/i,
+      /\b(i\s+ate|i\s+had|i\s+just\s+ate|i\s+just\s+had|i\s+consumed)\b/i,
     ],
   },
   workout: {
@@ -40,14 +46,41 @@ export const ROUTE_REGISTRY: Record<string, RegistryEntry> = {
 
 export function fastRoute(userText: string): RouteHit {
   const text = userText ?? "";
+
+  // Track which routes match
+  const matches: string[] = [];
+
   for (const [slug, entry] of Object.entries(ROUTE_REGISTRY)) {
     for (const rx of entry.patterns) {
       if (rx.test(text)) {
-        if (entry.type === "role") return { route: "role", target: slug };
-        if (entry.type === "tool") return { route: "tool", target: slug };
+        matches.push(slug);
+        break; // Found a match for this route, move to next
       }
     }
   }
+
+  // GUARDRAIL: If both macro-question and tmwya match, decide which takes priority
+  if (matches.includes('macro-question') && matches.includes('tmwya')) {
+    // Check for explicit logging keywords
+    const hasLoggingIntent = /\b(log|save|add|record)\b/i.test(text);
+
+    if (hasLoggingIntent) {
+      // User explicitly wants to log → tmwya wins
+      return { route: "role", target: "tmwya" };
+    } else {
+      // No explicit logging → macro-question wins (informational query)
+      return { route: "role", target: "macro-question" };
+    }
+  }
+
+  // Return first match (priority order maintained by ROUTE_REGISTRY object order)
+  if (matches.length > 0) {
+    const slug = matches[0];
+    const entry = ROUTE_REGISTRY[slug];
+    if (entry.type === "role") return { route: "role", target: slug };
+    if (entry.type === "tool") return { route: "tool", target: slug };
+  }
+
   return { route: "none" };
 }
 

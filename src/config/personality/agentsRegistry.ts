@@ -426,8 +426,10 @@ const evidence_validator: AgentConfig = {
   order: 20,
   enabledForPaid: true,
   enabledForFreeTrial: true,
-  instructions: "Reviews draft responses and adds evidence citations to scientific claims ([RCT], [meta-analysis], [guideline], [textbook]).",
+  instructions: "Reviews draft responses and adds evidence citations to scientific claims ([RCT], [meta-analysis], [guideline], [textbook]). PRESERVES protected bullet blocks.",
   promptTemplate: `Review Pat's draft response and verify all scientific claims have appropriate evidence citations.
+
+CRITICAL: If the response contains [[PROTECT_BULLETS_START]] and [[PROTECT_BULLETS_END]] markers, DO NOT modify ANYTHING between these markers. Keep them exactly as-is including all newlines, bullets, and formatting.
 
 REQUIRED CITATIONS:
 - [RCT] for randomized controlled trials
@@ -438,6 +440,7 @@ REQUIRED CITATIONS:
 TASK:
 If Pat makes a scientific claim without citation, add appropriate evidence tag.
 If claim is uncertain or controversial, flag it for qualification.
+For macro/nutrition responses with protected markers, skip evidence validation entirely.
 
 ---
 
@@ -465,8 +468,10 @@ const clarity_enforcer: AgentConfig = {
   order: 21,
   enabledForPaid: true,
   enabledForFreeTrial: true,
-  instructions: "Reviews draft responses for clarity. Simplifies complex sentences, explains jargon, uses active voice, removes ambiguity.",
+  instructions: "Reviews draft responses for clarity. Simplifies complex sentences, explains jargon, uses active voice, removes ambiguity. PRESERVES protected bullet blocks.",
   promptTemplate: `Review Pat's draft response for clarity and accessibility.
+
+CRITICAL: If the response contains [[PROTECT_BULLETS_START]] and [[PROTECT_BULLETS_END]] markers, DO NOT modify ANYTHING between these markers. Keep them exactly as-is including all newlines, bullets, and formatting.
 
 CHECK FOR:
 - Jargon without explanation
@@ -478,6 +483,7 @@ CHECK FOR:
 TASK:
 Simplify while maintaining precision. Break complex ideas into clear steps.
 Explain technical terms. Use active voice. Remove ambiguity.
+For macro/nutrition responses with protected markers, skip clarity changes inside protected blocks.
 
 ---
 

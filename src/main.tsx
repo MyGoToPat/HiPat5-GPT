@@ -5,6 +5,10 @@ import { Toaster } from 'react-hot-toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import App from './App.tsx';
 import './index.css';
+import { validateResolverConfig } from './lib/personality/nutritionResolver';
+
+// Validate nutrition resolver configuration on startup
+validateResolverConfig();
 
 // Add error boundary and better error handling
 const rootElement = document.getElementById('root');

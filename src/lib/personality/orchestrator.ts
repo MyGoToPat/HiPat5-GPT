@@ -10,6 +10,7 @@ import { callChat } from "@/lib/chat";
 import { getSupabase } from "@/lib/supabase";
 import type { UserProfile } from "@/types/user";
 import { callFoodMacros } from './tools';
+import { resolveNutrition, parseNaturalQuantity, validateResolverConfig, type NutritionItem } from './nutritionResolver';
 
 // Guardrail constants
 const MAX_TURN_MS = 5000; // Overall per-turn budget
@@ -149,6 +150,14 @@ async function runRoleSpecificLogic(
 ): Promise<{ finalAnswer: string | { text: string; meta?: any }; error?: string }> {
   if (roleTarget === "macro-question") {
     // Macro question (informational, not logging)
+    // Log telemetry for route
+    console.info('[macro-telemetry:route]', {
+      route: 'macro-question',
+      target: 'macro-question',
+      confidence: 1.0,
+      timestamp: Date.now(),
+    });
+
     // Parse food items from user message - preserve quantities like "4 whole eggs", "2 slices sourdough"
     const foodMatch = userMessage.match(/(?:of|for|in)\s+(.+?)(?:\?|$)/i);
     let foodText = foodMatch ? foodMatch[1].trim() : userMessage;
@@ -164,58 +173,90 @@ async function runRoleSpecificLogic(
 
     const itemStrings = split.length ? split : [foodText.trim()];
 
-    const macroItems: Array<{
-      name: string;
-      kcal: number;
-      protein_g: number;
-      carbs_g: number;
-      fat_g: number;
-    }> = [];
+    // Parse each item to extract quantity, unit, and name
+    const parsedItems: NutritionItem[] = [];
+    for (const itemStr of itemStrings) {
+      // Try natural language parsing first
+      const naturalParsed = parseNaturalQuantity(itemStr);
 
-    for (const item of itemStrings) {
-      const macroResult = await callFoodMacros({ foodName: item });
-      if (macroResult?.ok && macroResult?.json) {
-        const m = macroResult.json;
-        macroItems.push({
-          name: item,
-          kcal: Number(m.kcal ?? 0),
-          protein_g: Number(m.protein_g ?? 0),
-          carbs_g: Number(m.carbs_g ?? 0),
-          fat_g: Number(m.fat_g ?? 0),
+      if (naturalParsed.length > 0) {
+        parsedItems.push(...naturalParsed);
+      } else {
+        // Fallback: treat as single item with count=1
+        parsedItems.push({
+          name: itemStr,
+          qty: 1,
+          unit: 'serving',
+          basis: 'cooked',
         });
       }
     }
 
-    if (macroItems.length > 0) {
-      // Calculate totals from items
-      const totals = macroItems.reduce(
-        (acc, it) => ({
-          kcal: acc.kcal + it.kcal,
-          protein_g: acc.protein_g + it.protein_g,
-          carbs_g: acc.carbs_g + it.carbs_g,
-          fat_g: acc.fat_g + it.fat_g,
-        }),
-        { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
-      );
+    // Log parsed items for telemetry
+    console.info('[macro-telemetry:parsed-items]', {
+      itemCount: parsedItems.length,
+      items: parsedItems.map(i => ({ name: i.name, qty: i.qty, unit: i.unit })),
+    });
 
-      // Debug log for development
-      if (process.env.NODE_ENV !== 'production') {
-        console.debug('[orchestrator] macro-question items:', macroItems.length, macroItems);
-      }
+    try {
+      // Call the unified Nutrition Resolver
+      const resolved = await resolveNutrition(parsedItems);
 
-      return {
-        finalAnswer: {
-          text: 'Here are the macros:',
-          meta: {
-            route: 'macro-question',
-            macros: { items: macroItems, totals },
+      // Log nutrition resolution telemetry
+      console.info('[macro-telemetry:nutrition]', {
+        itemCount: resolved.length,
+        items: resolved.map(r => ({
+          name: r.name,
+          basis_used: r.basis_used,
+          grams_used: r.grams_used,
+        })),
+      });
+
+      if (resolved.length > 0) {
+        // Build items array for meta payload
+        const macroItems = resolved.map(r => ({
+          name: r.name,
+          qty: r.qty,
+          unit: r.unit,
+          grams_used: r.grams_used,
+          basis_used: r.basis_used,
+          kcal: r.macros.kcal,
+          protein_g: r.macros.protein_g,
+          carbs_g: r.macros.carbs_g,
+          fat_g: r.macros.fat_g,
+        }));
+
+        // Calculate totals from items
+        const totals = macroItems.reduce(
+          (acc, it) => ({
+            kcal: acc.kcal + it.kcal,
+            protein_g: acc.protein_g + it.protein_g,
+            carbs_g: acc.carbs_g + it.carbs_g,
+            fat_g: acc.fat_g + it.fat_g,
+          }),
+          { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+        );
+
+        return {
+          finalAnswer: {
+            text: 'Here are the macros:',
+            meta: {
+              route: 'macro-question',
+              macros: { items: macroItems, totals },
+            },
           },
-        },
-      };
-    } else {
+        };
+      } else {
+        return {
+          finalAnswer: "I was unable to retrieve macro data for those items. Could you provide more specific food names?",
+          error: "Nutrition resolution returned no items",
+        };
+      }
+    } catch (error: any) {
+      console.error('[macro-telemetry:error]', { error: error.message, items: parsedItems });
       return {
-        finalAnswer: "I was unable to retrieve macro data for those items. Could you provide more specific food names?",
-        error: "Macro lookup failed",
+        finalAnswer: "I encountered an error while retrieving nutritional data. Please try again with more specific food names.",
+        error: error.message,
       };
     }
   }
@@ -281,6 +322,8 @@ async function finishWithPostAgents(
     .filter((a) => a.phase === "post" && a.enabled)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
+  let formatterRan = false;
+
   for (const agent of orderedPostAgents) {
     try {
       // For macro-formatter, pass structured meta payload as context
@@ -295,14 +338,28 @@ async function finishWithPostAgents(
         // Continue with current draft if post-agent fails
       } else if (result.text) {
         currentDraft = result.text;
-        if (process.env.NODE_ENV !== 'production' && agent.id === 'macro-formatter') {
-          console.debug('[orchestrator] Macro formatter agent applied');
+        if (agent.id === 'macro-formatter') {
+          formatterRan = true;
+          console.info('[macro-telemetry:formatter]', {
+            formatter_ran: true,
+            route: draftObj.meta?.route || 'unknown',
+            timestamp: Date.now(),
+          });
         }
       }
     } catch (e: any) {
       console.warn(`Post-agent ${agent.id} threw exception: ${e.message}`);
       // Continue with current draft
     }
+  }
+
+  // Log if macro formatter was expected but didn't run
+  if (draftObj.meta?.route === 'macro-question' && !formatterRan) {
+    console.warn('[macro-telemetry:formatter]', {
+      formatter_ran: false,
+      route: 'macro-question',
+      reason: 'Formatter agent not found or disabled',
+    });
   }
 
   return { ok: !initialError, answer: currentDraft, error: initialError };
@@ -459,11 +516,16 @@ export async function runPersonalityPipeline(input: RunInput) {
     console.error("Persona Orchestrator critical error:", e);
     debug.timings.total = Date.now() - startTime;
     debug.error = e.message;
-    return { 
-      ok: false, 
-      answer: "I have encountered an unexpected system error. Please retry your request.", 
-      error: e.message, 
-      debug 
+
+    // CRITICAL: Even on fallback/error, run post-agents (especially Macro Formatter)
+    const fallbackMessage = "I have encountered an unexpected system error. Please retry your request.";
+    const fallbackResult = await finishWithPostAgents(fallbackMessage, input.context, e.message);
+
+    return {
+      ...fallbackResult,
+      ok: false,
+      error: e.message,
+      debug
     };
   }
 }
