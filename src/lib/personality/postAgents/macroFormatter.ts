@@ -15,6 +15,9 @@ interface MacroItem {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  fiber_g?: number;  // NEW: Dietary fiber in grams (optional for backward compat)
+  qty?: number;      // Quantity (e.g., 3 for "3 eggs")
+  unit?: string;     // Unit (e.g., "large" for "3 large eggs")
 }
 
 interface MacroPayload {
@@ -24,6 +27,7 @@ interface MacroPayload {
     protein_g: number;
     carbs_g: number;
     fat_g: number;
+    fiber_g?: number;  // NEW (optional for backward compat)
   };
 }
 
@@ -81,11 +85,19 @@ export function formatMacros(draft: { text: string; meta?: any }): string {
       out += `• Calories: ${Math.round(it.kcal)} kcal\n`;
       out += `• Protein: ${Math.round(it.protein_g * 10) / 10} g\n`;
       out += `• Carbs: ${Math.round(it.carbs_g * 10) / 10} g\n`;
-      out += `• Fat: ${Math.round(it.fat_g * 10) / 10} g\n\n`;
+      out += `• Fat: ${Math.round(it.fat_g * 10) / 10} g\n`;
+
+      // Only show fiber line if > 0
+      if (it.fiber_g && it.fiber_g > 0) {
+        out += `• Fiber: ${Math.round(it.fiber_g * 10) / 10} g\n`;
+      }
+      out += '\n';
     }
 
-    // Add TOTALS line (Phase 5 requirement)
-    out += `Total calories ${Math.round(totals.kcal)}\n\n`;
+    // Add TOTALS lines (Phase 5 requirement)
+    out += `Total calories ${Math.round(totals.kcal)}\n`;
+    // Always show total fiber (even if 0)
+    out += `Total fiber ${Math.round((totals.fiber_g || 0) * 10) / 10} g\n\n`;
 
     // Add "Log" hint for macro-question route
     if (draft?.meta?.route === 'macro-question') {
@@ -131,7 +143,8 @@ function formatFromTextFallback(input: string): string {
       kcal: parseFloat(match[2]),
       protein_g: parseFloat(match[3]),
       carbs_g: parseFloat(match[4]),
-      fat_g: parseFloat(match[5])
+      fat_g: parseFloat(match[5]),
+      fiber_g: 0  // Default to 0 for legacy text parsing
     });
   }
 
@@ -143,8 +156,9 @@ function formatFromTextFallback(input: string): string {
         protein_g: acc.protein_g + it.protein_g,
         carbs_g: acc.carbs_g + it.carbs_g,
         fat_g: acc.fat_g + it.fat_g,
+        fiber_g: acc.fiber_g + (it.fiber_g || 0),
       }),
-      { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+      { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0 }
     );
 
     const payload: MacroPayload = {

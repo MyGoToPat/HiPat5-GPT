@@ -6,7 +6,7 @@ export interface ChatSession {
   started_at: string;
   ended_at: string | null;
   active: boolean;
-  session_type: 'user_chat' | 'admin_test' | 'onboarding';
+  session_type: 'general' | 'tmwya' | 'workout' | 'mmb';  // Updated to match DB constraint
   metadata: Record<string, any>;
   created_at: string;
 }
@@ -33,7 +33,7 @@ export interface ChatSummary {
 export const ChatSessions = {
   async getOrCreateActiveSession(
     userId: string,
-    sessionType: 'user_chat' | 'admin_test' | 'onboarding' = 'user_chat'
+    sessionType: 'general' | 'tmwya' | 'workout' | 'mmb' = 'general'  // Updated default
   ): Promise<ChatSession> {
     const supabase = getSupabase();
 
