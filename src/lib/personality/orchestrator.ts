@@ -11,6 +11,7 @@ import { getSupabase } from "@/lib/supabase";
 import type { UserProfile } from "@/types/user";
 import { callFoodMacros } from './tools';
 import { resolveNutrition, parseNaturalQuantity, validateResolverConfig, type NutritionItem } from './nutritionResolver';
+import { formatMacros } from './postAgents/macroFormatter';
 
 // Guardrail constants
 const MAX_TURN_MS = 5000; // Overall per-turn budget
@@ -224,6 +225,7 @@ async function runRoleSpecificLogic(
           protein_g: r.macros.protein_g,
           carbs_g: r.macros.carbs_g,
           fat_g: r.macros.fat_g,
+          fiber_g: r.macros.fiber_g || 0,
         }));
 
         // Calculate totals from items
@@ -233,8 +235,9 @@ async function runRoleSpecificLogic(
             protein_g: acc.protein_g + it.protein_g,
             carbs_g: acc.carbs_g + it.carbs_g,
             fat_g: acc.fat_g + it.fat_g,
+            fiber_g: acc.fiber_g + (it.fiber_g || 0),
           }),
-          { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+          { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0 }
         );
 
         return {
@@ -413,37 +416,45 @@ async function finishWithPostAgents(
 
   let formatterRan = false;
 
-  // For macro responses, skip destructive post-agents (only run formatter and actionizer)
+  // For macro responses, skip destructive post-agents AND actionizer (only run formatter)
   const isMacroResponse = draftObj.meta?.route === 'macro-question' || draftObj.meta?.route === 'macro-logging';
-  const destructiveAgents = ['conciseness-filter', 'clarity-enforcer', 'evidence-validator'];
+  const skipAgents = ['conciseness-filter', 'clarity-enforcer', 'evidence-validator', 'actionizer'];
 
   for (const agent of orderedPostAgents) {
-    // Skip destructive agents for macro responses
-    if (isMacroResponse && destructiveAgents.includes(agent.id)) {
+    // Skip non-formatter agents for macro responses
+    if (isMacroResponse && skipAgents.includes(agent.id)) {
       console.info(`[orchestrator] Skipping ${agent.id} for macro response`);
       continue;
     }
 
+    // If already protected by formatter, skip all other agents
+    if (draftObj.meta?.protected && agent.id !== 'macro-formatter') {
+      console.info(`[orchestrator] Skipping ${agent.id} - draft is protected`);
+      continue;
+    }
+
     try {
-      // For macro-formatter, pass structured meta payload as context
-      const agentContext = agent.id === 'macro-formatter' && draftObj.meta?.macros
-        ? { ...context, macroPayload: draftObj.meta.macros, route: draftObj.meta.route }
-        : context;
+      // DETERMINISTIC PATH: Call macro-formatter directly (no LLM)
+      if (agent.id === 'macro-formatter') {
+        const formatterResult = formatMacros({ text: currentDraft, meta: draftObj.meta });
+        currentDraft = formatterResult.text;
+        draftObj.meta = { ...draftObj.meta, ...formatterResult.meta };
+        formatterRan = true;
+        console.info('[macro-telemetry:formatter]', {
+          formatter_ran: true,
+          route: draftObj.meta?.route || 'unknown',
+          has_fiber: (formatterResult.meta?.macros?.totals?.fiber_g || 0) > 0,
+          timestamp: Date.now(),
+        });
+      } else {
+        // Standard LLM-based post-agents
+        const result = await runAgent(agent.id, '', context, agent, currentDraft);
 
-      const result = await runAgent(agent.id, '', agentContext, agent, currentDraft);
-
-      if (result.error) {
-        console.warn(`Post-agent ${agent.id} failed: ${result.error}`);
-        // Continue with current draft if post-agent fails
-      } else if (result.text) {
-        currentDraft = result.text;
-        if (agent.id === 'macro-formatter') {
-          formatterRan = true;
-          console.info('[macro-telemetry:formatter]', {
-            formatter_ran: true,
-            route: draftObj.meta?.route || 'unknown',
-            timestamp: Date.now(),
-          });
+        if (result.error) {
+          console.warn(`Post-agent ${agent.id} failed: ${result.error}`);
+          // Continue with current draft if post-agent fails
+        } else if (result.text) {
+          currentDraft = result.text;
         }
       }
     } catch (e: any) {

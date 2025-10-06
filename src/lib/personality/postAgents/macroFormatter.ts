@@ -60,19 +60,22 @@ function within3pct(a: any, b: any): boolean {
 
 /**
  * Main formatting function - uses structured JSON when available
+ * Returns clean user-facing text (NO markers)
  */
-export function formatMacros(draft: { text: string; meta?: any }): string {
+export function formatMacros(draft: { text: string; meta?: any }): { text: string; meta: any } {
   const items = draft?.meta?.macros?.items;
   const totals = draft?.meta?.macros?.totals;
 
   // DETERMINISTIC PATH: Use structured JSON if present
   if (Array.isArray(items) && items.length && totals) {
-    // Debug log for development
-    if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
-      console.debug('[macroFormatter] Rendering itemized block:', items.length, 'items');
-    }
+    // Telemetry
+    console.info('[macro-formatter]', {
+      ran: true,
+      itemCount: items.length,
+      hasFiber: (totals.fiber_g || 0) > 0
+    });
 
-    let out = '[[PROTECT_BULLETS_START]]\n';
+    let out = '';
 
     // Render each item with quantity (Phase 5 format)
     for (const it of items) {
@@ -101,16 +104,24 @@ export function formatMacros(draft: { text: string; meta?: any }): string {
 
     // Add "Log" hint for macro-question route
     if (draft?.meta?.route === 'macro-question') {
-      out += `Say "Log All" or "Log (Food item)"\n`;
+      out += `Say "Log All" or "Log (Food item)"`;
     }
 
-    out += '[[PROTECT_BULLETS_END]]';
-
-    return out;
+    // Return with metadata flag (NO visible markers)
+    return {
+      text: out.trim(),
+      meta: {
+        ...draft.meta,
+        formatterRan: true,
+        protected: true,  // Flag for orchestrator to skip other post-agents
+        route: 'macro-question'
+      }
+    };
   }
 
   // FALLBACK PATH: Try to extract from text
-  return formatFromTextFallback(draft.text);
+  const fallback = formatFromTextFallback(draft.text);
+  return { text: fallback, meta: draft.meta };
 }
 
 /**
@@ -171,7 +182,7 @@ function formatFromTextFallback(input: string): string {
   // Try simple single-item format (totals only)
   const simple = formatSimpleMacroBlock(input);
   if (simple !== input) {
-    return `[[PROTECT_BULLETS_START]]\n${simple}\n[[PROTECT_BULLETS_END]]`;
+    return simple;  // Return clean text, no markers
   }
 
   // Not a macro response, return unchanged

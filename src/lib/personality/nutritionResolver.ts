@@ -31,12 +31,14 @@ export interface ResolvedNutrition {
     protein_g: number;
     carbs_g: number;
     fat_g: number;
+    fiber_g?: number;
   };
   per_unit_macros?: {
     kcal: number;
     protein_g: number;
     carbs_g: number;
     fat_g: number;
+    fiber_g?: number;
   };
   per_unit_grams?: number;
   brand?: string;
@@ -161,6 +163,7 @@ async function resolveViaSupabase(
       protein_g: r.macros.protein_g / r.qty,
       carbs_g: r.macros.carbs_g / r.qty,
       fat_g: r.macros.fat_g / r.qty,
+      fiber_g: (r.macros.fiber_g || 0) / r.qty,
     },
     per_unit_grams: r.grams_used / r.qty,
   }));
@@ -320,6 +323,7 @@ export function adjustItemQuantity(
     protein_g: resolved.macros.protein_g / resolved.qty,
     carbs_g: resolved.macros.carbs_g / resolved.qty,
     fat_g: resolved.macros.fat_g / resolved.qty,
+    fiber_g: (resolved.macros.fiber_g || 0) / resolved.qty,
   };
 
   const perUnitGrams = resolved.per_unit_grams || resolved.grams_used / resolved.qty;
@@ -336,6 +340,7 @@ export function adjustItemQuantity(
       protein_g: Math.round(perUnitMacros.protein_g * newQty * 10) / 10,
       carbs_g: Math.round(perUnitMacros.carbs_g * newQty * 10) / 10,
       fat_g: Math.round(perUnitMacros.fat_g * newQty * 10) / 10,
+      fiber_g: Math.round((perUnitMacros.fiber_g || 0) * newQty * 10) / 10,
     },
     per_unit_macros: perUnitMacros,
     per_unit_grams: perUnitGrams,
