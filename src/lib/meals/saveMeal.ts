@@ -24,6 +24,7 @@ export async function saveMeal(normalizedMeal: NormalizedMealData): Promise<{
         meal_slot: normalizedMeal.mealLog.meal_slot,
         source: normalizedMeal.mealLog.source,
         totals: normalizedMeal.mealLog.totals,
+        micros_totals: normalizedMeal.mealLog.micros_totals || null,  // Include fiber totals
         note: normalizedMeal.mealLog.note,
         client_confidence: normalizedMeal.mealLog.client_confidence,
       })

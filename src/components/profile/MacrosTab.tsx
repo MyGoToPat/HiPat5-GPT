@@ -65,7 +65,8 @@ export const MacrosTab: React.FC = () => {
   const [editMacros, setEditMacros] = useState({
     protein_g: 0,
     carbs_g: 0,
-    fat_g: 0
+    fat_g: 0,
+    fiber_g_target: 0  // NEW: Optional fiber target
   });
 
   useEffect(() => {
@@ -101,7 +102,8 @@ export const MacrosTab: React.FC = () => {
         setEditMacros({
           protein_g: metricsResult.data.protein_g || 0,
           carbs_g: metricsResult.data.carbs_g || 0,
-          fat_g: metricsResult.data.fat_g || 0
+          fat_g: metricsResult.data.fat_g || 0,
+          fiber_g_target: metricsResult.data.fiber_g_target || 0
         });
         if (metricsResult.data.caloric_goal) {
           setCaloricGoal(metricsResult.data.caloric_goal as CaloricGoal);
@@ -176,6 +178,7 @@ export const MacrosTab: React.FC = () => {
           protein_g: editMacros.protein_g,
           carbs_g: editMacros.carbs_g,
           fat_g: editMacros.fat_g,
+          fiber_g_target: editMacros.fiber_g_target || null,  // NEW: Update fiber target
           updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id);
@@ -633,6 +636,22 @@ export const MacrosTab: React.FC = () => {
                 />
                 <div className="text-xs text-yellow-200 mt-1">{Math.round(editMacros.fat_g * 9)} cal</div>
               </div>
+            </div>
+
+            {/* NEW: Fiber Target Input */}
+            <div className="bg-green-600/10 rounded-lg p-4 border border-green-500/30">
+              <label className="block text-sm text-green-300 mb-2">Daily Fiber Target (g) - Optional</label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max="100"
+                placeholder="25-35g recommended"
+                value={editMacros.fiber_g_target || ''}
+                onChange={(e) => setEditMacros({ ...editMacros, fiber_g_target: parseFloat(e.target.value) || 0 })}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white"
+              />
+              <div className="text-xs text-green-200 mt-1">USDA recommends 25-35g per day. Leave empty for no target.</div>
             </div>
 
             <div className="bg-gray-800/50 rounded-lg p-3 space-y-2">

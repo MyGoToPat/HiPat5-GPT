@@ -85,7 +85,10 @@ export interface NormalizedMealItem {
     carbs_g: number;
     fat_g: number;
   };
-  micros?: any;
+  micros?: {
+    fiber_g?: number;
+    [key: string]: any;
+  };
   confidence?: number;
   source_hints?: any;
 }
@@ -100,6 +103,10 @@ export interface NormalizedMealLog {
     carbs_g: number;
     fat_g: number;
     tef_kcal?: number;
+  };
+  micros_totals?: {
+    fiber_g?: number;
+    [key: string]: any;
   };
   note?: string;
   client_confidence?: number;

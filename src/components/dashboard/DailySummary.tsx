@@ -6,13 +6,17 @@ interface DailySummaryProps {
   targetCalories: number;
   proteinTarget: number;
   currentProtein: number;
+  currentFiber?: number;  // NEW: Current fiber intake in grams
+  fiberTarget?: number;   // NEW: Optional fiber goal
 }
 
 export const DailySummary: React.FC<DailySummaryProps> = ({
   totalCalories,
   targetCalories,
   proteinTarget,
-  currentProtein
+  currentProtein,
+  currentFiber = 0,
+  fiberTarget
 }) => {
   const today = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
@@ -60,6 +64,22 @@ export const DailySummary: React.FC<DailySummaryProps> = ({
               <div className="text-white font-semibold">{Math.round(currentProtein)}g / {proteinTarget}g</div>
               <div className="text-xs text-green-300">{proteinTarget - currentProtein > 0 ? `${Math.round(proteinTarget - currentProtein)}g left` : 'Goal met!'}</div>
             </div>
+          </div>
+        )}
+
+        {/* NEW: Fiber display */}
+        {totalCalories > 0 && currentFiber > 0 && (
+          <div className="bg-white/10 rounded-lg p-2 mb-3">
+            <div className="text-xs text-white/70">Fiber</div>
+            <div className="text-white font-semibold">
+              {Math.round(currentFiber * 10) / 10}g
+              {fiberTarget && ` / ${fiberTarget}g`}
+            </div>
+            {fiberTarget && (
+              <div className="text-xs text-green-300">
+                {fiberTarget - currentFiber > 0 ? `${Math.round((fiberTarget - currentFiber) * 10) / 10}g left` : 'Goal met!'}
+              </div>
+            )}
           </div>
         )}
 

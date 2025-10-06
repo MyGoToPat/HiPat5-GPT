@@ -53,7 +53,7 @@ export const DashboardPage: React.FC = () => {
     userMetrics: UserMetricsData | null;
     todaysFoodLogs: FoodEntry[];
     totalCalories: number;
-    totalMacros: { protein: number; carbs: number; fat: number };
+    totalMacros: { protein: number; carbs: number; fat: number; fiber: number };
     workoutLogs: WorkoutLogData[];
     sleepLogs: SleepLogData[];
   } | null>(null);
@@ -156,9 +156,10 @@ export const DashboardPage: React.FC = () => {
           (totals, log) => ({
             protein: totals.protein + (log.totals?.protein_g || 0),
             carbs: totals.carbs + (log.totals?.carbs_g || 0),
-            fat: totals.fat + (log.totals?.fat_g || 0)
+            fat: totals.fat + (log.totals?.fat_g || 0),
+            fiber: totals.fiber + (log.micros_totals?.fiber_g || 0)  // NEW: Include fiber from micros_totals
           }),
-          { protein: 0, carbs: 0, fat: 0 }
+          { protein: 0, carbs: 0, fat: 0, fiber: 0 }
         );
 
         setDashboardData({
@@ -277,11 +278,13 @@ export const DashboardPage: React.FC = () => {
         <div className="py-4 pb-20">
           <div className="px-4 sm:px-6">
             {/* Daily Summary */}
-            <DailySummary 
+            <DailySummary
               totalCalories={dashboardData?.totalCalories || 0}
               targetCalories={dashboardData?.userMetrics?.tdee || 2200}
               proteinTarget={dashboardData?.userMetrics?.protein_g || 150}
               currentProtein={dashboardData?.totalMacros?.protein || 0}
+              currentFiber={dashboardData?.totalMacros?.fiber || 0}
+              fiberTarget={dashboardData?.userMetrics?.fiber_g_target}
             />
           </div>
           
