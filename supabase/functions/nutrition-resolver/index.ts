@@ -22,7 +22,8 @@ interface MacroResponse {
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS" || req.method === 'OPTIONS') {
     return new Response(null, {
       status: 200,
       headers: corsHeaders,

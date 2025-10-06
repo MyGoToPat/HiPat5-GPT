@@ -269,17 +269,84 @@ async function runRoleSpecificLogic(
       timestamp: Date.now(),
     });
 
-    // TODO Phase 7: Implement macro logging logic
-    // 1. Retrieve last unconsumed macro payload from session
-    // 2. Parse command ("log all", "log ribeye", "log ribeye with 4 eggs")
-    // 3. Handle quantity adjustments using adjustItemQuantity()
-    // 4. Check calorie budget and warn if over
-    // 5. Save to meal_logs with proper meal_time
-    // 6. Mark payload as consumed
+    const { getLastUnconsumedMacroPayload, parseLoggingCommand, checkCalorieBudget, saveMealFromMacros, markMacroPayloadConsumed } = await import('../meals/logMacroPayload');
+
+    // Get session ID from context
+    const sessionId = context.sessionId || context.activeChatId;
+    if (!sessionId) {
+      return {
+        finalAnswer: "I need an active chat session to log meals. Please start a conversation first.",
+        error: "No active session"
+      };
+    }
+
+    // Retrieve last unconsumed macro payload
+    const macroPayload = await getLastUnconsumedMacroPayload(sessionId, context.userId);
+
+    if (!macroPayload) {
+      return {
+        finalAnswer: "I don't have a recent macro discussion to log. What did you eat?",
+        error: "No unconsumed macro payload found"
+      };
+    }
+
+    // Check if payload is too old (>48h)
+    const payloadAge = Date.now() - new Date(macroPayload.created_at).getTime();
+    if (payloadAge > 48 * 60 * 60 * 1000) {
+      return {
+        finalAnswer: "That macro discussion is outdated. Let me recalculate. What did you eat?",
+        error: "Payload expired"
+      };
+    }
+
+    // Parse the logging command
+    const { action, items, adjustments } = parseLoggingCommand(userMessage, macroPayload);
+
+    // Calculate total calories for this log
+    const totalCalories = items.reduce((sum, item) => sum + (item.kcal || 0), 0);
+
+    // Check calorie budget if CALORIE_WARNING_ENABLED
+    const warningEnabled = import.meta.env.VITE_CALORIE_WARNING_ENABLED === 'true';
+    if (warningEnabled) {
+      const budget = await checkCalorieBudget(context.userId, totalCalories);
+      if (budget.warn) {
+        return {
+          finalAnswer: `Logging this will put you approximately ${Math.round(budget.overage)} kcal over your daily target. Would you like to adjust portions or proceed? Say "proceed" to log anyway.`,
+          error: "Calorie budget exceeded - awaiting confirmation"
+        };
+      }
+    }
+
+    // Parse time from user message (Phase 8)
+    const { parseMealTime, formatMealTime } = await import('../meals/timeParser');
+    const parsedTime = parseMealTime(userMessage, context.timezone);
+    const mealTime = parsedTime.date;
+
+    // Save the meal
+    const saveResult = await saveMealFromMacros(context.userId, items, mealTime);
+
+    if (!saveResult.success) {
+      return {
+        finalAnswer: "I encountered an error while logging your meal. Please try again.",
+        error: saveResult.error
+      };
+    }
+
+    // Mark payload as consumed
+    await markMacroPayloadConsumed(macroPayload.message_id, context.userId);
+
+    // Build confirmation message
+    const itemNames = items.map(i => `${i.qty} ${i.unit} ${i.name}`).join(' and ');
+    const timeStr = formatMealTime(parsedTime);
+
+    let confirmation = adjustments
+      ? `Adjusted: ${Object.entries(adjustments).map(([name, qty]) => `${name} → ${qty}`).join(', ')}. `
+      : '';
+
+    confirmation += `Logged. ${itemNames} ${timeStr}.`;
 
     return {
-      finalAnswer: "Macro logging will be implemented in Phase 7. For now, use the Chat interface to ask for macros first, then I'll log them.",
-      error: "Phase 7 pending",
+      finalAnswer: confirmation
     };
   }
 
