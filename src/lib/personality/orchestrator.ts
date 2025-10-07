@@ -12,6 +12,16 @@ import type { UserProfile } from "@/types/user";
 import { callFoodMacros } from './tools';
 import { resolveNutrition, parseNaturalQuantity, validateResolverConfig, type NutritionItem } from './nutritionResolver';
 import { formatMacros } from './postAgents/macroFormatter';
+import {
+  macroRouter,
+  macroNLU,
+  macroResolverAdapter,
+  macroAggregator,
+  macroFormatterDet,
+  macroLogger,
+  personaGovernor,
+  type MacroPayload
+} from './swarms/macroSwarmV2';
 
 // Guardrail constants
 const MAX_TURN_MS = 5000; // Overall per-turn budget
@@ -150,112 +160,41 @@ async function runRoleSpecificLogic(
   routerParams: Record<string, any>
 ): Promise<{ finalAnswer: string | { text: string; meta?: any }; error?: string }> {
   if (roleTarget === "macro-question") {
-    // Macro question (informational, not logging)
-    console.info('[macro-route]', {
-      route: 'macro-question',
-      target: 'macro-question',
-      confidence: 1.0
-    });
-
-    // Parse food items from user message - preserve quantities like "4 whole eggs", "2 slices sourdough"
-    const foodMatch = userMessage.match(/(?:of|for|in)\s+(.+?)(?:\?|$)/i);
-    let foodText = foodMatch ? foodMatch[1].trim() : userMessage;
-
-    // Normalize '+' to 'and' for consistent splitting
-    foodText = foodText.replace(/\s*\+\s*/g, ' and ');
-
-    // Split on 'and' or comma, preserving quantities
-    const split = foodText
-      .split(/\s+(?:and|,)\s+/i)
-      .map(s => s.trim())
-      .filter(Boolean);
-
-    const itemStrings = split.length ? split : [foodText.trim()];
-
-    // Parse each item to extract quantity, unit, and name
-    const parsedItems: NutritionItem[] = [];
-    for (const itemStr of itemStrings) {
-      // Try natural language parsing first
-      const naturalParsed = parseNaturalQuantity(itemStr);
-
-      if (naturalParsed.length > 0) {
-        parsedItems.push(...naturalParsed);
-      } else {
-        // Fallback: treat as single item with count=1
-        parsedItems.push({
-          name: itemStr,
-          qty: 1,
-          unit: 'serving',
-          basis: 'cooked',
-        });
-      }
-    }
-
-    // Log parsed items for telemetry
-    console.info('[macro-telemetry:parsed-items]', {
-      itemCount: parsedItems.length,
-      items: parsedItems.map(i => ({ name: i.name, qty: i.qty, unit: i.unit })),
-    });
-
+    // MACRO SWARM V2: Clean 7-agent system
     try {
-      // Call the unified Nutrition Resolver
-      const resolved = await resolveNutrition(parsedItems);
+      // AGENT 1: Router (already routed by this point, just log)
+      macroRouter(userMessage);
 
-      // Log nutrition resolution telemetry
-      console.info('[macro-resolver]', resolved.map(r => ({
-        name: r.name,
-        grams: r.grams_used,
-        basis: r.basis_used,
-        fiber: r.macros.fiber_g || 0
-      })));
+      // AGENT 2: NLU - Parse items
+      const parsed = macroNLU(userMessage);
 
-      if (resolved.length > 0) {
-        // Build items array for meta payload
-        const macroItems = resolved.map(r => ({
-          name: r.name,
-          qty: r.qty,
-          unit: r.unit,
-          grams_used: r.grams_used,
-          basis_used: r.basis_used,
-          kcal: r.macros.kcal,
-          protein_g: r.macros.protein_g,
-          carbs_g: r.macros.carbs_g,
-          fat_g: r.macros.fat_g,
-          fiber_g: r.macros.fiber_g || 0,
-        }));
+      // AGENT 3: Resolver - Get nutrition data
+      const resolved = await macroResolverAdapter(parsed);
 
-        // Calculate totals from items
-        const totals = macroItems.reduce(
-          (acc, it) => ({
-            kcal: acc.kcal + it.kcal,
-            protein_g: acc.protein_g + it.protein_g,
-            carbs_g: acc.carbs_g + it.carbs_g,
-            fat_g: acc.fat_g + it.fat_g,
-            fiber_g: acc.fiber_g + (it.fiber_g || 0),
-          }),
-          { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0 }
-        );
+      // AGENT 4: Aggregator - Compute totals
+      const payload = macroAggregator(resolved);
 
-        return {
-          finalAnswer: {
-            text: 'Here are the macros:',
-            meta: {
-              route: 'macro-question',
-              macros: { items: macroItems, totals },
-            },
-          },
-        };
-      } else {
-        return {
-          finalAnswer: "I was unable to retrieve macro data for those items. Could you provide more specific food names?",
-          error: "Nutrition resolution returned no items",
-        };
-      }
-    } catch (error: any) {
-      console.error('[macro-telemetry:error]', { error: error.message, items: parsedItems });
+      // AGENT 5: Formatter - Build text (deterministic)
+      const formattedText = macroFormatterDet(payload);
+
+      // AGENT 7: Persona Governor (skipped for macro responses)
+      const finalText = personaGovernor(formattedText);
+
       return {
-        finalAnswer: "I encountered an error while retrieving nutritional data. Please try again with more specific food names.",
-        error: error.message,
+        finalAnswer: {
+          text: finalText,
+          meta: {
+            route: 'macro-question',
+            macros: payload,
+            swarm: 'MacroSwarmV2'
+          }
+        }
+      };
+    } catch (error: any) {
+      console.error('[macro-swarm-v2:error]', error);
+      return {
+        finalAnswer: "I couldn't parse those items. Try like 'macros of 1 cup oatmeal, 1 cup skim milk'",
+        error: error.message
       };
     }
   }

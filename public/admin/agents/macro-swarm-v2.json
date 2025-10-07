@@ -1,0 +1,94 @@
+{
+  "swarm": "Macro Swarm V2",
+  "description": "Clean 7-agent system for macro queries and logging with deterministic formatting",
+  "version": "2.0.0",
+  "agents": [
+    {
+      "key": "macro.router",
+      "label": "Macro Router",
+      "description": "Deterministic routing to Macro Swarm V2 (info vs log)",
+      "enabled": true,
+      "phase": "pre",
+      "triggers": [
+        "/(^|\\b)(macros? of|what.*macros|macro breakdown|calories of)/i",
+        "/(^|\\b)(log( all| it)?|save( all| it)?|add .* to (breakfast|lunch|dinner|snack))/i"
+      ]
+    },
+    {
+      "key": "macro.nlu",
+      "label": "Meal NLU",
+      "description": "Extract separate items with quantities (supports fractions like 1/2)",
+      "enabled": true,
+      "phase": "pre"
+    },
+    {
+      "key": "macro.resolverAdapter",
+      "label": "Resolver Adapter",
+      "description": "Call nutrition resolver edge function for all items",
+      "enabled": true,
+      "phase": "pre"
+    },
+    {
+      "key": "macro.aggregator",
+      "label": "Macro Aggregator",
+      "description": "Pure TypeScript totals computation (no LLM)",
+      "enabled": true,
+      "phase": "pre"
+    },
+    {
+      "key": "macro.formatter.det",
+      "label": "Deterministic Formatter",
+      "description": "Build clean text with bullets, NO markers, NO coaching",
+      "enabled": true,
+      "phase": "post"
+    },
+    {
+      "key": "macro.logger",
+      "label": "Macro Logger",
+      "description": "Write meal_logs with fiber, mark payload consumed",
+      "enabled": true,
+      "phase": "action"
+    },
+    {
+      "key": "persona.governor",
+      "label": "Persona Governor",
+      "description": "Apply Pat tone outside bullet blocks only",
+      "enabled": true,
+      "phase": "post"
+    }
+  ],
+  "flow": {
+    "macro-question": [
+      "macro.router",
+      "macro.nlu",
+      "macro.resolverAdapter",
+      "macro.aggregator",
+      "macro.formatter.det",
+      "persona.governor"
+    ],
+    "macro-logging": [
+      "macro.router",
+      "macro.logger"
+    ]
+  },
+  "contracts": {
+    "Item": {
+      "name": "string",
+      "qty": "number (positive)",
+      "unit": "string (optional)",
+      "brand": "string (optional)"
+    },
+    "Macros": {
+      "kcal": "number",
+      "protein_g": "number",
+      "carbs_g": "number",
+      "fat_g": "number",
+      "fiber_g": "number (required)"
+    },
+    "MacroPayload": {
+      "items": "ResolvedItem[]",
+      "totals": "Macros",
+      "consumed": "boolean"
+    }
+  }
+}
