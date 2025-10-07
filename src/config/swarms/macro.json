@@ -1,0 +1,9 @@
+[
+  {"id":"macro.router","name":"Macro Router","enabled":true,"phase":"pre","order":0,"model":"rule","rulesRef":"MACRO_ROUTER","io":{"in":"Text","out":"Route"}},
+  {"id":"macro.nlu","name":"Meal NLU (Shared)","enabled":true,"phase":"core","order":10,"model":"gpt-4o-mini","promptRef":"SHARED_MACRO_NLU","io":{"in":"Text","out":"MealParse"}},
+  {"id":"macro.resolverAdapter","name":"Resolver Adapter","enabled":true,"phase":"core","order":20,"model":"code","rulesRef":"RESOLVER_ADAPTER","io":{"in":"MealParse","out":"ResolveResult"}},
+  {"id":"macro.aggregator","name":"Macro Aggregator","enabled":true,"phase":"core","order":30,"model":"code","rulesRef":"MACRO_AGGREGATE","io":{"in":"ResolveResult","out":"MacroPayload"}},
+  {"id":"macro.formatter.det","name":"Deterministic Macro Formatter","enabled":true,"phase":"post","order":40,"model":"template","rulesRef":"MACRO_FORMATTER_TEMPLATE","io":{"in":"MacroPayload","out":"Text"}},
+  {"id":"macro.logger","name":"Macro Logger","enabled":true,"phase":"core","order":50,"model":"code","rulesRef":"MACRO_LOGGER_RULES","io":{"in":"Text+MacroPayload","out":"Ack"}},
+  {"id":"macro.personaGovernor","name":"Persona Governor","enabled":true,"phase":"post","order":90,"model":"rule","rulesRef":"PERSONA_GOVERNOR","io":{"in":"Text","out":"Text"}}
+]

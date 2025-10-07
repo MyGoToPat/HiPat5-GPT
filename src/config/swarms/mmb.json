@@ -1,0 +1,5 @@
+[
+  {"id":"mmb.router","name":"MMB Router","enabled":true,"phase":"pre","order":0,"model":"rule","rulesRef":"MMB_ROUTER","io":{"in":"Text","out":"Route"}},
+  {"id":"mmb.triage","name":"MMB Triage","enabled":true,"phase":"core","order":10,"model":"gpt-4o-mini","promptRef":"MMB_TRIAGE","io":{"in":"Text","out":"MMBPayload"}},
+  {"id":"mmb.format","name":"MMB Formatter","enabled":true,"phase":"post","order":20,"model":"template","rulesRef":"MMB_TEMPLATE","io":{"in":"MMBPayload","out":"Text"}}
+]

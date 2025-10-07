@@ -1,0 +1,11 @@
+[
+  {"id":"tmwya.intent","name":"Input Intent","enabled":true,"phase":"pre","order":0,"model":"rule","rulesRef":"TMWYA_INTENT","io":{"in":"RawInput","out":"InputMeta"}},
+  {"id":"tmwya.normalizer","name":"Utterance Normalizer","enabled":true,"phase":"pre","order":5,"model":"gpt-4o-mini","promptRef":"TMWYA_NORMALIZER","io":{"in":"RawInput","out":"CleanText"}},
+  {"id":"shared.mealNLU","name":"Meal NLU (Shared)","enabled":true,"phase":"core","order":10,"model":"gpt-4o-mini","promptRef":"SHARED_MACRO_NLU","io":{"in":"CleanText","out":"MealParse"}},
+  {"id":"shared.portionResolver","name":"Portion Resolver (Shared)","enabled":true,"phase":"core","order":15,"model":"code","rulesRef":"PORTION_RESOLVER_RULES","io":{"in":"MealParse","out":"MealParsePortioned"}},
+  {"id":"shared.nutritionResolver","name":"Nutrition Resolver (Shared)","enabled":true,"phase":"core","order":20,"model":"code","rulesRef":"NUTRITION_RESOLVER_RULES","io":{"in":"MealParsePortioned","out":"ResolveResult"}},
+  {"id":"tmwya.tef","name":"TEF Engine","enabled":true,"phase":"core","order":30,"model":"calc","rulesRef":"TEF_RULES","io":{"in":"ResolveResult","out":"ResolveResultWithTEF"}},
+  {"id":"tmwya.tdee","name":"TDEE Engine","enabled":true,"phase":"core","order":35,"model":"calc","rulesRef":"TDEE_RULES","io":{"in":"ResolveResultWithTEF","out":"ResolveResultWithTDEE"}},
+  {"id":"tmwya.verifyView","name":"Verification View Builder","enabled":true,"phase":"post","order":40,"model":"template","rulesRef":"VERIFY_VIEW_TEMPLATE","io":{"in":"ResolveResultWithTDEE","out":"VerificationText"}},
+  {"id":"tmwya.logger","name":"TMWYA Logger","enabled":true,"phase":"core","order":50,"model":"code","rulesRef":"TMWYA_LOGGER_RULES","io":{"in":"VerificationAction","out":"Ack"}}
+]
