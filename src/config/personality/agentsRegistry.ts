@@ -1,5 +1,6 @@
 import type { AgentConfig } from '../../types/mcp';
 import { macro_question_agent, macro_logging_agent, macro_formatter_enhanced } from './macroAgents';
+import { macroSwarmV2Agents } from './macroSwarmV2Agents';
 
 /**
  * Pat's Personality System - Agent Registry
@@ -1132,6 +1133,15 @@ export const defaultPersonalityAgents: Record<string, AgentConfig> = {
   "nutrition-planner": nutrition_planner,
   "macro-question": macro_question_agent,
   "macro-logging": macro_logging_agent,
+
+  // Macro Swarm V2 (Clean 7-agent system)
+  "macro.router": macroSwarmV2Agents[0],
+  "macro.nlu": macroSwarmV2Agents[1],
+  "macro.resolverAdapter": macroSwarmV2Agents[2],
+  "macro.aggregator": macroSwarmV2Agents[3],
+  "macro.formatter.det": macroSwarmV2Agents[4],
+  "macro.logger": macroSwarmV2Agents[5],
+  "persona.governor": macroSwarmV2Agents[6],
 
   // TMWYA Pipeline (Tell Me What You Ate)
   "tmwya-intent-router": tmwya_intent_router,
