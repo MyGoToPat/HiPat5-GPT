@@ -104,7 +104,7 @@ Total calories {{round(total.kcal)}}
 
 Then: Say "Log All" or "Log (food item)"`,
 
-  MACRO_LOGGER_RULES: `Atomically consume the session's MacroPayload and write meal_logs/items, including fiber_g, grams_used, basis. Mark payload consumed.`,
+  MACRO_LOGGER_RULES: `Atomically consume the session's MacroPayload and write meals/items, including fiber_g, grams_used, basis. Mark payload consumed.`,
 
   PERSONA_GOVERNOR: `If protected macro bullets exist, do not alter their content. Persona polish allowed only outside.`,
 
@@ -135,7 +135,7 @@ bacon.slice=10g; bread.slice=40g (sourdough 50g); egg.large=50g; cheese.slice=23
 
   VERIFY_VIEW_TEMPLATE: `Deterministic confirmation view: item rows with bullets (including Fiber lines when >0), Total calories, Total fiber, TEF, Net, Remaining, and 'Confirm & Log' hint.`,
 
-  TMWYA_LOGGER_RULES: `Write meal_logs and meal_items with all fields including fiber_g, grams_used, basis. Trigger day_rollups update automatically.`,
+  TMWYA_LOGGER_RULES: `Write meals and meal_items with all fields including fiber_g, grams_used, basis. Trigger day_rollups update automatically.`,
 
   // ========================================================================
   // MMB RULES

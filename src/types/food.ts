@@ -93,10 +93,12 @@ export interface NormalizedMealItem {
   source_hints?: any;
 }
 
-export interface NormalizedMealLog {
-  ts: string;
+export interface NormalizedMeal {
+  eaten_at: string;
+  name: string;
   meal_slot: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'unknown';
-  source: 'photo' | 'barcode' | 'text';
+  source: 'photo' | 'barcode' | 'text' | 'voice';
+  session_id?: string; // FK to chat_sessions
   totals: {
     kcal: number;
     protein_g: number;
@@ -113,7 +115,7 @@ export interface NormalizedMealLog {
 }
 
 export interface NormalizedMealData {
-  mealLog: NormalizedMealLog;
+  meal: NormalizedMeal;
   mealItems: NormalizedMealItem[];
 }
 
@@ -220,7 +222,7 @@ export interface ComplianceEvent {
   id: string;
   user_id: string;
   mentor_plan_id: string;
-  meal_log_id?: string;
+  meal_id?: string;
   event_type: 'over_calories' | 'under_protein' | 'missed_meal' | 'excellent_day' | 'custom';
   severity: 'info' | 'warning' | 'success';
   message: string;

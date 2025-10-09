@@ -90,8 +90,8 @@ export const PermissionsSettingsPage: React.FC<PermissionsSettingsPageProps> = (
       changedBy: 'client',
       subPermissions: [
         {
-          id: 'meal_logs',
-          label: 'Meal Logs',
+          id: 'meals',
+          label: 'Meals',
           description: 'View daily food intake and meal timing',
           enabled: true
         },

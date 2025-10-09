@@ -3,9 +3,9 @@ import { Trash2, Clock } from 'lucide-react';
 import { getSupabase, getUserDayBoundaries } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
-interface MealLog {
+interface Meal {
   id: string;
-  ts: string;
+  eaten_at: string;
   meal_slot: string;
   totals: {
     kcal: number;
@@ -26,7 +26,7 @@ interface MealHistoryListProps {
 }
 
 export const MealHistoryList: React.FC<MealHistoryListProps> = ({ userId, onMealDeleted }) => {
-  const [meals, setMeals] = useState<MealLog[]>([]);
+  const [meals, setMeals] = useState<Meal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedMealId, setExpandedMealId] = useState<string | null>(null);
 
@@ -51,21 +51,21 @@ export const MealHistoryList: React.FC<MealHistoryListProps> = ({ userId, onMeal
       console.log('Day boundaries:', dayBoundaries);
 
       // Query for all meals within today's boundaries (timezone-aware)
-      const { data: mealLogs, error } = await supabase
-        .from('meal_logs')
-        .select('id, ts, meal_slot, totals')
+      const { data: mealsData, error } = await supabase
+        .from('meals')
+        .select('id, eaten_at, meal_slot, totals')
         .eq('user_id', userId)
-        .gte('ts', dayBoundaries.day_start)
-        .lte('ts', dayBoundaries.day_end)
-        .order('ts', { ascending: false });
+        .gte('eaten_at', dayBoundaries.day_start)
+        .lte('eaten_at', dayBoundaries.day_end)
+        .order('eaten_at', { ascending: false });
 
       if (error) {
         console.error('Supabase error loading meals:', error);
         throw error;
       }
 
-      console.log('Loaded meals for today:', mealLogs?.length || 0, 'meals');
-      setMeals(mealLogs || []);
+      console.log('Loaded meals for today:', mealsData?.length || 0, 'meals');
+      setMeals(mealsData || []);
     } catch (error) {
       console.error('Error loading meals:', error);
       toast.error('Failed to load meal history');
@@ -80,7 +80,7 @@ export const MealHistoryList: React.FC<MealHistoryListProps> = ({ userId, onMeal
     try {
       const supabase = getSupabase();
       const { error } = await supabase
-        .from('meal_logs')
+        .from('meals')
         .delete()
         .eq('id', mealId);
 
@@ -142,7 +142,7 @@ export const MealHistoryList: React.FC<MealHistoryListProps> = ({ userId, onMeal
                 <div className="flex items-center gap-3 mb-2">
                   <Clock className="w-4 h-4 text-blue-400" />
                   <span className="text-sm font-medium text-slate-300">
-                    {formatTime(meal.ts)}
+                    {formatTime(meal.eaten_at)}
                   </span>
                   <span className="text-sm px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded">
                     {formatMealSlot(meal.meal_slot)}

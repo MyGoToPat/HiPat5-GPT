@@ -8,40 +8,54 @@ export async function saveMeal(normalizedMeal: NormalizedMealData): Promise<{
 }> {
   try {
     const supabase = getSupabase();
-    
+
     // Check for authenticated user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       return { ok: false, error: 'No authenticated user' };
     }
 
-    // 1. Insert into meal_logs
-    const { data: mealLogData, error: mealLogError } = await supabase
-      .from('meal_logs')
+    // Get or create active session for user
+    const { data: session, error: sessionError } = await supabase
+      .rpc('get_or_create_active_session', {
+        p_user_id: user.id,
+        p_session_type: 'general'
+      });
+
+    if (sessionError || !session) {
+      console.error('Error getting session:', sessionError);
+      return { ok: false, error: 'Failed to get chat session' };
+    }
+
+    // 1. Insert into meals (renamed from meal_logs)
+    const { data: mealData, error: mealError } = await supabase
+      .from('meals')
       .insert({
         user_id: user.id,
-        ts: normalizedMeal.mealLog.ts,
-        meal_slot: normalizedMeal.mealLog.meal_slot,
-        source: normalizedMeal.mealLog.source,
-        totals: normalizedMeal.mealLog.totals,
-        micros_totals: normalizedMeal.mealLog.micros_totals || null,  // Include fiber totals
-        note: normalizedMeal.mealLog.note,
-        client_confidence: normalizedMeal.mealLog.client_confidence,
+        session_id: normalizedMeal.meal.session_id || session,
+        eaten_at: normalizedMeal.meal.eaten_at,
+        name: normalizedMeal.meal.name,
+        meal_slot: normalizedMeal.meal.meal_slot,
+        source: normalizedMeal.meal.source,
+        totals: normalizedMeal.meal.totals,
+        micros_totals: normalizedMeal.meal.micros_totals || null,  // Include fiber totals
+        note: normalizedMeal.meal.note,
+        client_confidence: normalizedMeal.meal.client_confidence,
       })
       .select('id')
       .single();
 
-    if (mealLogError) {
-      console.error('Error inserting meal log:', mealLogError);
-      return { ok: false, error: `Failed to save meal: ${mealLogError.message}` };
+    if (mealError) {
+      console.error('Error inserting meal:', mealError);
+      return { ok: false, error: `Failed to save meal: ${mealError.message}` };
     }
 
-    const mealLogId = mealLogData.id;
+    const mealId = mealData.id;
 
     // 2. Batch insert meal_items
     if (normalizedMeal.mealItems.length > 0) {
       const mealItemsToInsert = normalizedMeal.mealItems.map(item => ({
-        meal_log_id: mealLogId,
+        meal_id: mealId, // Changed from meal_log_id
         position: item.position,
         cache_id: item.cache_id,
         name: item.name,
@@ -61,13 +75,13 @@ export async function saveMeal(normalizedMeal: NormalizedMealData): Promise<{
 
       if (itemsError) {
         console.error('Error inserting meal items:', itemsError);
-        // Try to clean up the meal log if items failed
-        await supabase.from('meal_logs').delete().eq('id', mealLogId);
+        // Try to clean up the meal if items failed
+        await supabase.from('meals').delete().eq('id', mealId);
         return { ok: false, error: `Failed to save meal items: ${itemsError.message}` };
       }
     }
 
-    return { ok: true, id: mealLogId };
+    return { ok: true, id: mealId };
   } catch (error: any) {
     console.error('Unexpected error in saveMeal:', error);
     return { ok: false, error: error.message || 'Unexpected error occurred' };

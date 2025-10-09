@@ -135,13 +135,13 @@ export async function checkCalorieBudget(
   // Get today's logged calories
   const today = new Date().toISOString().split('T')[0];
   const { data: meals } = await supabase
-    .from('meal_logs')
-    .select('total_kcal')
+    .from('meals')
+    .select('energy_kcal')
     .eq('user_id', userId)
-    .gte('meal_time', `${today}T00:00:00`)
-    .lt('meal_time', `${today}T23:59:59`);
+    .gte('eaten_at', `${today}T00:00:00`)
+    .lt('eaten_at', `${today}T23:59:59`);
 
-  const consumedToday = meals?.reduce((sum, m) => sum + (m.total_kcal || 0), 0) || 0;
+  const consumedToday = meals?.reduce((sum, m) => sum + (m.energy_kcal || 0), 0) || 0;
   const remaining = dailyGoal - consumedToday;
   const overage = totalCalories - remaining;
 
@@ -153,13 +153,14 @@ export async function checkCalorieBudget(
 }
 
 /**
- * Saves meal to meal_logs from macro payload
+ * Saves meal to meals from macro payload
  */
 export async function saveMealFromMacros(
   userId: string,
+  sessionId: string,
   items: any[],
   mealTime?: Date
-): Promise<{ success: boolean; logId?: string; error?: string }> {
+): Promise<{ success: boolean; mealId?: string; error?: string }> {
   const supabase = getSupabase();
 
   const timestamp = mealTime || new Date();
@@ -171,44 +172,63 @@ export async function saveMealFromMacros(
       protein_g: acc.protein_g + (item.protein_g || 0),
       carbs_g: acc.carbs_g + (item.carbs_g || 0),
       fat_g: acc.fat_g + (item.fat_g || 0),
+      fiber_g: acc.fiber_g + (item.fiber_g || 0),
     }),
-    { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+    { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0 }
   );
 
   try {
-    // Insert meal log
-    const { data: mealLog, error: logError } = await supabase
-      .from('meal_logs')
+    // Insert meal
+    const { data: meal, error: mealError } = await supabase
+      .from('meals')
       .insert({
         user_id: userId,
-        meal_time: timestamp.toISOString(),
-        total_kcal: Math.round(totals.kcal),
-        total_protein_g: Math.round(totals.protein_g * 10) / 10,
-        total_carbs_g: Math.round(totals.carbs_g * 10) / 10,
-        total_fat_g: Math.round(totals.fat_g * 10) / 10,
-        source: 'macro-logging',
+        session_id: sessionId,
+        eaten_at: timestamp.toISOString(),
+        name: 'macro-logged',
+        meal_slot: 'unknown',
+        source: 'text',
+        totals: {
+          kcal: Math.round(totals.kcal),
+          protein_g: Math.round(totals.protein_g * 10) / 10,
+          carbs_g: Math.round(totals.carbs_g * 10) / 10,
+          fat_g: Math.round(totals.fat_g * 10) / 10,
+        },
+        micros_totals: {
+          fiber_g: Math.round(totals.fiber_g * 10) / 10,
+        },
+        energy_kcal: Math.round(totals.kcal),
+        protein_g: Math.round(totals.protein_g * 10) / 10,
+        carbs_g: Math.round(totals.carbs_g * 10) / 10,
+        fat_g: Math.round(totals.fat_g * 10) / 10,
+        fiber_g: Math.round(totals.fiber_g * 10) / 10,
         created_at: new Date().toISOString()
       })
       .select('id')
       .single();
 
-    if (logError) {
-      console.error('[saveMealFromMacros] Meal log error:', logError);
-      return { success: false, error: logError.message };
+    if (mealError) {
+      console.error('[saveMealFromMacros] Meal error:', mealError);
+      return { success: false, error: mealError.message };
     }
 
     // Insert meal items
-    const itemsToInsert = items.map(item => ({
-      log_id: mealLog.id,
-      user_id: userId,
+    const itemsToInsert = items.map((item, idx) => ({
+      meal_id: meal.id,
+      position: idx + 1,
       name: item.name,
-      quantity: item.qty || 1,
+      qty: item.qty || 1,
       unit: item.unit || 'serving',
-      kcal: Math.round(item.kcal || 0),
-      protein_g: Math.round((item.protein_g || 0) * 10) / 10,
-      carbs_g: Math.round((item.carbs_g || 0) * 10) / 10,
-      fat_g: Math.round((item.fat_g || 0) * 10) / 10,
       grams: item.grams_used || null,
+      macros: {
+        kcal: Math.round(item.kcal || 0),
+        protein_g: Math.round((item.protein_g || 0) * 10) / 10,
+        carbs_g: Math.round((item.carbs_g || 0) * 10) / 10,
+        fat_g: Math.round((item.fat_g || 0) * 10) / 10,
+      },
+      micros: {
+        fiber_g: Math.round((item.fiber_g || 0) * 10) / 10,
+      },
       basis: item.basis_used || 'cooked',
     }));
 
@@ -221,7 +241,7 @@ export async function saveMealFromMacros(
       return { success: false, error: itemsError.message };
     }
 
-    return { success: true, logId: mealLog.id };
+    return { success: true, mealId: meal.id };
   } catch (error: any) {
     console.error('[saveMealFromMacros] Exception:', error);
     return { success: false, error: error.message };

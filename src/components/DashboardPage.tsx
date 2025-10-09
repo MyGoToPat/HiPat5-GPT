@@ -122,15 +122,15 @@ export const DashboardPage: React.FC = () => {
             .eq('user_id', user.data.user.id)
             .maybeSingle(),
 
-          // Today's meal logs using timezone-aware boundaries
+          // Today's meals using timezone-aware boundaries
           // This ensures meals from 12:01 AM to 12:00 PM (midnight) in user's local timezone
           dayBoundaries ? supabase
-            .from('meal_logs')
+            .from('meals')
             .select('*')
             .eq('user_id', user.data.user.id)
-            .gte('ts', dayBoundaries.day_start)
-            .lte('ts', dayBoundaries.day_end)
-            .order('ts', { ascending: false }) : Promise.resolve({ data: [], error: null }),
+            .gte('eaten_at', dayBoundaries.day_start)
+            .lte('eaten_at', dayBoundaries.day_end)
+            .order('eaten_at', { ascending: false }) : Promise.resolve({ data: [], error: null }),
 
           // Workout logs for dashboard
           supabase
@@ -149,10 +149,10 @@ export const DashboardPage: React.FC = () => {
             .order('sleep_date', { ascending: true })
         ]);
 
-        // Calculate totals from meal_logs (totals field contains the macros)
-        const mealLogs = mealLogsResult.data || [];
-        const totalCalories = mealLogs.reduce((sum, log) => sum + (log.totals?.kcal || 0), 0);
-        const totalMacros = mealLogs.reduce(
+        // Calculate totals from meals (totals field contains the macros)
+        const meals = mealLogsResult.data || [];
+        const totalCalories = meals.reduce((sum, log) => sum + (log.totals?.kcal || 0), 0);
+        const totalMacros = meals.reduce(
           (totals, log) => ({
             protein: totals.protein + (log.totals?.protein_g || 0),
             carbs: totals.carbs + (log.totals?.carbs_g || 0),
