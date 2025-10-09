@@ -22,17 +22,19 @@ export async function saveMeal(normalizedMeal: NormalizedMealData): Promise<{
         p_session_type: 'general'
       });
 
-    if (sessionError || !session) {
+    if (sessionError || !session || !session[0]) {
       console.error('Error getting session:', sessionError);
       return { ok: false, error: 'Failed to get chat session' };
     }
+
+    const sessionId = session[0].id;
 
     // 1. Insert into meals (renamed from meal_logs)
     const { data: mealData, error: mealError } = await supabase
       .from('meals')
       .insert({
         user_id: user.id,
-        session_id: normalizedMeal.meal.session_id || session,
+        session_id: normalizedMeal.meal.session_id || sessionId,
         eaten_at: normalizedMeal.meal.eaten_at,
         name: normalizedMeal.meal.name,
         meal_slot: normalizedMeal.meal.meal_slot,
