@@ -133,7 +133,7 @@ export const DashboardPage: React.FC = () => {
             .eq('meal_logs.user_id', user.data.user.id)
             .gte('meal_logs.ts', dayBoundaries.day_start)
             .lte('meal_logs.ts', dayBoundaries.day_end)
-            .order('meal_logs.ts', { ascending: false, foreignTable: 'meal_logs' }) : Promise.resolve({ data: [], error: null }),
+            .order('id', { ascending: false }) : Promise.resolve({ data: [], error: null }),
 
           // Workout logs for dashboard
           supabase
