@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import MainHeader from '../components/layout/MainHeader';
 import NavigationSidebar from '../components/NavigationSidebar';
+import TDEEGuard from '../components/auth/TDEEGuard';
 import { ChatManager } from '../utils/chatManager';
 import { getSupabase, getUserProfile } from '../lib/supabase';
 
@@ -105,7 +106,9 @@ export default function RootLayout() {
 
       {/* pt-[44px] to clear fixed 44px header */}
       <main className="flex-1 overflow-y-auto pt-[44px]">
-        <Outlet />
+        <TDEEGuard>
+          <Outlet />
+        </TDEEGuard>
       </main>
     </div>
   );
