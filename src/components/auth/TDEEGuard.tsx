@@ -38,18 +38,18 @@ export default function TDEEGuard({ children }: { children: JSX.Element }) {
           return;
         }
 
-        // Check if user has completed TDEE by checking user_metrics.tdee_calories
+        // Check if user has completed TDEE by checking user_metrics.tdee
         // This is the same field the UI uses to determine completion status
         const { data: metrics } = await supabase
           .from('user_metrics')
-          .select('tdee_calories')
+          .select('tdee')
           .eq('user_id', user.id)
           .maybeSingle();
 
         if (!mounted) return;
 
-        // User has completed TDEE if tdee_calories exists and is > 0
-        const completed = metrics?.tdee_calories != null && metrics.tdee_calories > 0;
+        // User has completed TDEE if tdee exists and is > 0
+        const completed = metrics?.tdee != null && metrics.tdee > 0;
         setHasCompletedTDEE(completed);
         setLoading(false);
       } catch (error) {

@@ -403,10 +403,10 @@ export const PersonalInformationSection: React.FC<PersonalInformationSectionProp
             <div className="col-span-2">
               <div className="text-sm text-gray-400 mb-1">TDEE Status</div>
               <div className="flex items-center gap-2">
-                {metrics.tdee_calories ? (
+                {metrics.tdee ? (
                   <>
                     <CheckCircle size={16} className="text-green-400" />
-                    <span className="text-white font-medium">{Math.round(metrics.tdee_calories)} kcal/day</span>
+                    <span className="text-white font-medium">{Math.round(metrics.tdee)} kcal/day</span>
                     <span className="text-gray-400 text-xs">
                       (Calculated {metrics.last_tdee_update ? new Date(metrics.last_tdee_update).toLocaleDateString() : 'recently'})
                     </span>
