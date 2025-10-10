@@ -523,13 +523,22 @@ export const MacrosTab: React.FC = () => {
               <span className="text-white font-medium">{metrics.tdee || 0} cal</span>
             </div>
 
-            {caloricGoal !== 'maintenance' && (
+            {!isManualOverride && caloricGoal !== 'maintenance' && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-400">
                   {caloricGoal === 'deficit' ? 'Deficit' : 'Surplus'} Amount
                 </span>
                 <span className={`font-medium ${caloricGoal === 'deficit' ? 'text-red-400' : 'text-green-400'}`}>
                   {caloricGoal === 'deficit' ? '-' : '+'}{customDeficit} cal
+                </span>
+              </div>
+            )}
+
+            {isManualOverride && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-400">Deficit Amount</span>
+                <span className={`font-medium ${totalDeficit > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                  {totalDeficit > 0 ? '-' : '+'}{Math.abs(Math.round(totalDeficit))} cal
                 </span>
               </div>
             )}
@@ -553,15 +562,6 @@ export const MacrosTab: React.FC = () => {
               <span className="text-gray-300 font-semibold">Net Daily Target</span>
               <span className="text-orange-400 font-bold text-lg">{Math.round(netCalories)} cal</span>
             </div>
-
-            {isManualOverride && (
-              <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700">
-                <span className="text-gray-300 font-semibold">Difference from TDEE</span>
-                <span className={`font-bold ${totalDeficit > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                  {totalDeficit > 0 ? '-' : '+'}{Math.abs(Math.round(totalDeficit))} cal
-                </span>
-              </div>
-            )}
 
             {!isManualOverride && caloricGoal !== 'maintenance' && (
               <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700">
