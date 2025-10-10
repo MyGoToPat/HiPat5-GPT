@@ -209,12 +209,6 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({ onBackToDashbo
     color: week.sessions_count >= 5 ? '#10b981' : '#3b82f6'
   }));
 
-  const caloriesBarData = weeklyData.slice(-8).map(week => ({
-    label: new Date(week.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    value: week.avg_calories,
-    color: '#f59e0b'
-  }));
-
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 py-4 pb-20">
       <div className="px-4 sm:px-6">
@@ -364,29 +358,6 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({ onBackToDashbo
               <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-800">
                 <h3 className="text-lg font-semibold text-white mb-4">Effort Score</h3>
                 <LineChart data={effortChartData} height={180} color="#f59e0b" />
-              </div>
-            </div>
-
-            <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-800">
-              <h3 className="text-lg font-semibold text-white mb-4">Average Daily Calories</h3>
-              <BarChart data={caloriesBarData} height={200} showValues />
-            </div>
-
-            <div className="mt-6 bg-gray-900/50 rounded-xl p-6 border border-gray-800">
-              <h3 className="text-lg font-semibold text-white mb-4">Weekly Macros</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-red-400">{currentWeek.avg_protein_g.toFixed(0)}g</div>
-                  <div className="text-sm text-gray-400 mt-1">Avg Protein</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-400">{currentWeek.avg_carbs_g.toFixed(0)}g</div>
-                  <div className="text-sm text-gray-400 mt-1">Avg Carbs</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-yellow-400">{currentWeek.avg_fat_g.toFixed(0)}g</div>
-                  <div className="text-sm text-gray-400 mt-1">Avg Fat</div>
-                </div>
               </div>
             </div>
           </>
