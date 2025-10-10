@@ -13,6 +13,7 @@ interface EnergySectionProps {
   targetProtein?: number;
   targetCarbs?: number;
   targetFat?: number;
+  targetFiber?: number;
   targetCalories?: number;
 }
 
@@ -21,6 +22,7 @@ export const EnergySection: React.FC<EnergySectionProps> = ({
   targetProtein,
   targetCarbs,
   targetFat,
+  targetFiber,
   targetCalories
 }) => {
   const [showEditModal, setShowEditModal] = React.useState(false);
@@ -53,7 +55,7 @@ export const EnergySection: React.FC<EnergySectionProps> = ({
 
         const { data, error } = await supabase
           .from('user_metrics')
-          .select('protein_g, carbs_g, fat_g')
+          .select('protein_g, carbs_g, fat_g, fiber_g_target')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -201,6 +203,7 @@ export const EnergySection: React.FC<EnergySectionProps> = ({
           targetProtein={targetProtein}
           targetCarbs={targetCarbs}
           targetFat={targetFat}
+          targetFiber={targetFiber}
           targetCalories={targetCalories}
         />
       </div>

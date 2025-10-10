@@ -6,6 +6,7 @@ interface MacroWheelProps {
   targetProtein?: number;
   targetCarbs?: number;
   targetFat?: number;
+  targetFiber?: number;
   targetCalories?: number;
   className?: string;
 }
@@ -15,6 +16,7 @@ export const MacroWheel: React.FC<MacroWheelProps> = ({
   targetProtein,
   targetCarbs,
   targetFat,
+  targetFiber,
   targetCalories,
   className = ''
 }) => {
@@ -22,18 +24,21 @@ export const MacroWheel: React.FC<MacroWheelProps> = ({
   const proteinConsumed = data.protein_g;
   const carbsConsumed = data.carb_g;
   const fatConsumed = data.fat_g;
+  const fiberConsumed = data.fiber_g || 0;
   const caloriesConsumed = data.calories;
 
   // Target macros (from TDEE onboarding)
   const proteinTarget = targetProtein || data.protein_g;
   const carbsTarget = targetCarbs || data.carb_g;
   const fatTarget = targetFat || data.fat_g;
+  const fiberTarget = targetFiber || 25; // Default USDA recommendation
   const caloriesTarget = targetCalories || data.tdee;
 
   // Remaining macros
   const proteinRemaining = Math.max(0, proteinTarget - proteinConsumed);
   const carbsRemaining = Math.max(0, carbsTarget - carbsConsumed);
   const fatRemaining = Math.max(0, fatTarget - fatConsumed);
+  const fiberRemaining = Math.max(0, fiberTarget - fiberConsumed);
 
   // Calculate percentages for the wheel (consumed / target)
   const proteinPercent = Math.min(100, (proteinConsumed / proteinTarget) * 100);
@@ -124,7 +129,7 @@ export const MacroWheel: React.FC<MacroWheelProps> = ({
       </div>
       
       {/* Macro breakdown - Consumed / Target */}
-      <div className="grid grid-cols-3 gap-2 mt-4 text-xs">
+      <div className="grid grid-cols-4 gap-2 mt-4 text-xs">
         <div className="text-center">
           <div className="w-3 h-3 bg-red-500 rounded-full mx-auto mb-1"></div>
           <div className="text-white font-medium">{proteinConsumed.toFixed(0)} / {proteinTarget.toFixed(0)}g</div>
@@ -147,6 +152,14 @@ export const MacroWheel: React.FC<MacroWheelProps> = ({
           <div className="text-gray-400">Fat</div>
           <div className={fatRemaining > 0 ? 'text-yellow-400' : 'text-green-400'}>
             {fatRemaining > 0 ? `${fatRemaining.toFixed(0)}g left` : 'Goal met!'}
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="w-3 h-3 bg-green-500 rounded-full mx-auto mb-1"></div>
+          <div className="text-white font-medium">{fiberConsumed.toFixed(0)} / {fiberTarget.toFixed(0)}g</div>
+          <div className="text-gray-400">Fiber</div>
+          <div className={fiberRemaining > 0 ? 'text-yellow-400' : 'text-green-400'}>
+            {fiberRemaining > 0 ? `${fiberRemaining.toFixed(0)}g left` : 'Goal met!'}
           </div>
         </div>
       </div>

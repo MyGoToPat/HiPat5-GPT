@@ -27,6 +27,7 @@ export interface EnergyData {
   protein_g: number;
   fat_g: number;
   carb_g: number;
+  fiber_g: number;
   salt_g: number;
   water_l: number;
   first_meal_time: string;
