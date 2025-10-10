@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, TrendingUp, TrendingDown, Minus, ArrowLeft } from 'lucide-react';
 import { LineChart } from './charts/LineChart';
 import { BarChart } from './charts/BarChart';
+import { WeeklyMacroChart } from './WeeklyMacroChart';
 import { getWeeklyData, getWeekBoundaries, WeeklyData } from '../../lib/timeAggregation';
 import { getSupabase } from '../../lib/supabase';
 
@@ -9,11 +10,30 @@ interface WeeklyDashboardProps {
   onBackToDashboard?: () => void;
 }
 
+interface DailyMacroData {
+  date: string;
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g: number;
+}
+
+interface UserTargets {
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber?: number;
+}
+
 export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({ onBackToDashboard }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [weeklyData, setWeeklyData] = useState<WeeklyData[]>([]);
   const [currentWeekIndex, setCurrentWeekIndex] = useState(0);
   const [weekBoundaries, setWeekBoundaries] = useState<{ week_start: string; week_end: string } | null>(null);
+  const [dailyMacros, setDailyMacros] = useState<DailyMacroData[]>([]);
+  const [userTargets, setUserTargets] = useState<UserTargets | null>(null);
 
   useEffect(() => {
     loadWeeklyData();
@@ -32,6 +52,45 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({ onBackToDashbo
       setWeekBoundaries(boundaries);
 
       setCurrentWeekIndex(data.length - 1);
+
+      // Fetch last 7 days of macros from day_rollups
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+
+      const { data: rollups } = await supabase
+        .from('day_rollups')
+        .select('day as date, kcal, protein_g, carbs_g, fat_g, fiber_g')
+        .eq('user_id', user.id)
+        .gte('day', sevenDaysAgo.toISOString().split('T')[0])
+        .order('day', { ascending: true });
+
+      if (rollups) {
+        setDailyMacros(rollups.map(r => ({
+          date: r.date,
+          kcal: r.kcal || 0,
+          protein_g: r.protein_g || 0,
+          carbs_g: r.carbs_g || 0,
+          fat_g: r.fat_g || 0,
+          fiber_g: r.fiber_g || 0
+        })));
+      }
+
+      // Fetch user targets from user_metrics
+      const { data: metrics } = await supabase
+        .from('user_metrics')
+        .select('daily_caloric_goal, protein_g_target, carbs_g_target, fat_g_target, fiber_g_target')
+        .eq('user_id', user.id)
+        .single();
+
+      if (metrics) {
+        setUserTargets({
+          kcal: metrics.daily_caloric_goal || 2000,
+          protein: metrics.protein_g_target || 150,
+          carbs: metrics.carbs_g_target || 150,
+          fat: metrics.fat_g_target || 65,
+          fiber: metrics.fiber_g_target || 30
+        });
+      }
     } catch (error) {
       console.error('Error loading weekly data:', error);
     } finally {
@@ -199,6 +258,20 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({ onBackToDashbo
             </button>
           </div>
         </div>
+
+        {/* Weekly Macro Chart - New Data-Driven Component */}
+        {dailyMacros.length > 0 && userTargets && (
+          <div className="mb-8">
+            <WeeklyMacroChart
+              dailyData={dailyMacros}
+              targetKcal={userTargets.kcal}
+              targetProtein={userTargets.protein}
+              targetCarbs={userTargets.carbs}
+              targetFat={userTargets.fat}
+              targetFiber={userTargets.fiber}
+            />
+          </div>
+        )}
 
         {currentWeek && (
           <>
