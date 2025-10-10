@@ -7,6 +7,7 @@ import { AIInsights } from './profile/AIInsights';
 import { CustomizableHeader } from './profile/CustomizableHeader';
 import { TDEEMetricsSection } from './profile/TDEEMetricsSection';
 import { MacrosTab } from './profile/MacrosTab';
+import { PersonalInformationSection } from './profile/PersonalInformationSection';
 import { getSupabase, getUserProfile, upsertUserProfile } from '../lib/supabase';
 import { getDashboardMetrics } from '../lib/supabase';
 import RequestRoleUpgrade from './settings/RequestRoleUpgrade';
@@ -323,7 +324,7 @@ export const ProfilePage: React.FC = () => {
   const renderProfileTab = () => (
     <>
       {/* Customizable Header */}
-      <CustomizableHeader 
+      <CustomizableHeader
         userProfile={userProfile}
         onUpdate={(updates) => {
           if (userProfile) {
@@ -336,6 +337,16 @@ export const ProfilePage: React.FC = () => {
         totalWorkouts={headerMetrics?.workouts || 0}
         currentStreak={headerMetrics?.day_streak || 0}
         isLoading={metricsLoading}
+      />
+
+      {/* Personal Information Section */}
+      <PersonalInformationSection
+        userProfile={userProfile}
+        dbProfile={dbProfile}
+        onProfileUpdate={(updatedProfile) => {
+          setUserProfile(updatedProfile);
+          setEditedProfile(updatedProfile);
+        }}
       />
 
       {/* Achievement Badges */}
@@ -613,193 +624,6 @@ export const ProfilePage: React.FC = () => {
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Personal Information */}
-      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-white">Personal Information</h3>
-          
-          {/* Beta User Badge */}
-          {dbProfile?.beta_user && (
-            <div className="flex items-center gap-2">
-              <span className="px-3 py-1 bg-purple-600 text-white text-xs font-medium rounded-full">
-                Beta User
-              </span>
-            </div>
-          )}
-          
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
-          >
-            {isEditing ? (
-              <>
-                <X size={16} />
-                Cancel
-              </>
-            ) : (
-              <>
-                <Edit3 size={16} />
-                Edit
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Save/Error Messages */}
-        {saveSuccess && (
-          <div className="mb-4 p-3 bg-green-600/20 border border-green-500/30 rounded-lg text-green-300 text-sm">
-            {saveSuccess}
-          </div>
-        )}
-        
-        {saveError && (
-          <div className="mb-4 p-3 bg-red-600/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
-            {saveError}
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {/* Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <User size={16} className="inline mr-2" />
-              Full Name
-            </label>
-            {isEditing ? (
-              <input
-                type="text"
-                value={editedProfile?.name || ''}
-                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, name: e.target.value } : null)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                placeholder="Enter your full name"
-              />
-            ) : (
-              <div className="px-4 py-3 bg-gray-800 rounded-lg text-white">
-                {userProfile?.name || 'Not set'}
-              </div>
-            )}
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Mail size={16} className="inline mr-2" />
-              Email Address
-            </label>
-            {isEditing ? (
-              <input
-                type="email"
-                value={editedProfile?.email || ''}
-                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, email: e.target.value } : null)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                placeholder="Enter your email"
-              />
-            ) : (
-              <div className="px-4 py-3 bg-gray-800 rounded-lg text-white">
-                {userProfile?.email || 'Not set'}
-              </div>
-            )}
-          </div>
-
-          {/* Phone */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Phone size={16} className="inline mr-2" />
-              Phone Number
-            </label>
-            {isEditing ? (
-              <input
-                type="tel"
-                value={editedProfile?.phone || ''}
-                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, phone: e.target.value } : null)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                placeholder="Enter your phone number"
-              />
-            ) : (
-              <div className="px-4 py-3 bg-gray-800 rounded-lg text-white">
-                {userProfile?.phone || 'Not set'}
-              </div>
-            )}
-          </div>
-
-          {/* Location */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <MapPin size={16} className="inline mr-2" />
-              Location
-            </label>
-            {isEditing ? (
-              <input
-                type="text"
-                value={editedProfile?.location || ''}
-                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, location: e.target.value } : null)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                placeholder="Enter your location"
-              />
-            ) : (
-              <div className="px-4 py-3 bg-gray-800 rounded-lg text-white">
-                {userProfile?.location || 'Not set'}
-              </div>
-            )}
-          </div>
-
-          {/* Date of Birth */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Calendar size={16} className="inline mr-2" />
-              Date of Birth
-            </label>
-            {isEditing ? (
-              <input
-                type="date"
-                value={editedProfile?.dateOfBirth || ''}
-                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, dateOfBirth: e.target.value } : null)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-              />
-            ) : (
-              <div className="px-4 py-3 bg-gray-800 rounded-lg text-white">
-                {userProfile?.dateOfBirth || 'Not set'}
-              </div>
-            )}
-          </div>
-
-          {/* Bio */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Bio
-            </label>
-            {isEditing ? (
-              <textarea
-                value={editedProfile?.bio || ''}
-                onChange={(e) => setEditedProfile(prev => prev ? { ...prev, bio: e.target.value } : null)}
-                rows={3}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500 resize-none"
-                placeholder="Tell us about yourself..."
-              />
-            ) : (
-              <div className="px-4 py-3 bg-gray-800 rounded-lg text-white min-h-[80px]">
-                {userProfile?.bio || 'No bio added yet'}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Save Button */}
-        {isEditing && (
-          <div className="mt-6 flex gap-3">
-            <button
-              onClick={handleSaveProfile}
-              disabled={isSaving}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg font-medium transition-colors"
-            >
-              <Save size={16} />
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Security Settings */}

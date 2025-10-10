@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Flame, Target, TrendingUp, Zap, Minus, Plus, CreditCard as Edit2, Scale, CheckCircle, X, AlertCircle, Clock } from 'lucide-react';
+import { Activity, Flame, Target, TrendingUp, Zap, Minus, Plus, CreditCard as Edit2, Scale, CheckCircle, X, AlertCircle } from 'lucide-react';
 import { getSupabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { WeightLogModal } from './WeightLogModal';
@@ -68,19 +68,9 @@ export const MacrosTab: React.FC = () => {
     fat_g: 0,
     fiber_g_target: 0  // NEW: Optional fiber target
   });
-  const [timezone, setTimezone] = useState('America/New_York');
-  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     loadData();
-  }, []);
-
-  // Update current time every minute
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000);
-    return () => clearInterval(timer);
   }, []);
 
   const loadData = async () => {
@@ -96,7 +86,7 @@ export const MacrosTab: React.FC = () => {
 
       const [metricsResult, prefsResult, weightLogsResult, bodyFatLogsResult] = await Promise.all([
         supabase.from('user_metrics').select('*').eq('user_id', user.id).maybeSingle(),
-        supabase.from('user_preferences').select('weight_unit, height_unit, timezone').eq('user_id', user.id).maybeSingle(),
+        supabase.from('user_preferences').select('weight_unit, height_unit').eq('user_id', user.id).maybeSingle(),
         supabase.from('weight_logs').select('weight_kg, weight_lbs, log_date, logged_unit, note, id, created_at').eq('user_id', user.id).order('log_date', { ascending: false }).limit(30),
         supabase.from('body_fat_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(30)
       ]);
@@ -125,10 +115,6 @@ export const MacrosTab: React.FC = () => {
 
       if (prefsResult.data) {
         setUnitPrefs(prefsResult.data);
-        // Set timezone from preferences
-        if (prefsResult.data.timezone) {
-          setTimezone(prefsResult.data.timezone);
-        }
         // Set weight display unit from preferences
         if (prefsResult.data.weight_unit) {
           setWeightDisplayUnit(prefsResult.data.weight_unit);
@@ -301,50 +287,6 @@ export const MacrosTab: React.FC = () => {
     } catch (error: any) {
       console.error('Error saving unit preference:', error);
       toast.error('Failed to save unit preference');
-    }
-  };
-
-  const handleTimezoneChange = async (newTimezone: string) => {
-    try {
-      setTimezone(newTimezone);
-
-      const supabase = getSupabase();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert({
-          user_id: user.id,
-          timezone: newTimezone,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id'
-        });
-
-      if (error) throw error;
-
-      toast.success('Time zone updated successfully');
-    } catch (error: any) {
-      console.error('Error saving timezone:', error);
-      toast.error('Failed to save timezone');
-    }
-  };
-
-  const formatCurrentTime = () => {
-    try {
-      return currentTime.toLocaleTimeString('en-US', {
-        timeZone: timezone,
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
-    } catch (error) {
-      return currentTime.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
     }
   };
 
@@ -1047,43 +989,6 @@ export const MacrosTab: React.FC = () => {
         <div className="bg-gray-800/50 rounded-lg p-4">
           <div className="text-white font-medium">
             {metrics.dietary_preference ? dietaryPreferenceLabels[metrics.dietary_preference] : 'Not set'}
-          </div>
-        </div>
-      </div>
-
-      {/* Time Zone Settings */}
-      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-          <Clock size={20} className="text-blue-500" />
-          Time Zone
-        </h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-300 mb-2">
-              Your Time Zone
-            </label>
-            <select
-              value={timezone}
-              onChange={(e) => handleTimezoneChange(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white"
-            >
-              <option value="America/New_York">Eastern Time (ET)</option>
-              <option value="America/Chicago">Central Time (CT)</option>
-              <option value="America/Denver">Mountain Time (MT)</option>
-              <option value="America/Los_Angeles">Pacific Time (PT)</option>
-              <option value="America/Anchorage">Alaska Time (AKT)</option>
-              <option value="Pacific/Honolulu">Hawaii Time (HST)</option>
-              <option value="UTC">UTC</option>
-            </select>
-            <div className="text-xs text-gray-400 mt-1">
-              This helps Pat understand your daily schedule and track meals accurately
-            </div>
-          </div>
-          <div className="bg-gray-800/50 rounded-lg p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">Current time in your zone:</span>
-              <span className="text-lg font-semibold text-white">{formatCurrentTime()}</span>
-            </div>
           </div>
         </div>
       </div>
