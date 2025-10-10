@@ -21,6 +21,9 @@ import { ChatHistory, ChatMessage, ChatState } from '../types/chat';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { callChat } from '../lib/chat';
 import { callChatStreaming } from '../lib/streamingChat';
+import { classifyFoodMessage, type ClassificationResult } from '../lib/personality/foodClassifier';
+import { saveMeal, type SaveMealInput, type SaveMealResult } from '../lib/meals/saveMeal';
+import { inferMealSlot } from '../lib/meals/inferMealSlot';
 import { trackFirstChatMessage } from '../lib/analytics';
 import { updateDailyActivitySummary, checkAndAwardAchievements } from '../lib/supabase';
 import {
@@ -69,6 +72,12 @@ export const ChatPat: React.FC = () => {
   const [silentMode, setSilentMode] = useState(false);
   const [statusText, setStatusText] = useState<string>('');
   const [showTDEEBubble, setShowTDEEBubble] = useState(false);
+
+  // Inline confirmation banner for food logging
+  const [inlineConfirmation, setInlineConfirmation] = useState<{
+    show: boolean;
+    message?: string;
+  }>({ show: false });
 
   // Food verification screen state
   const [showFoodVerificationScreen, setShowFoodVerificationScreen] = useState(false);
@@ -525,6 +534,57 @@ export const ChatPat: React.FC = () => {
                 const userProfile = await getUserProfile(user.data.user.id);
 
                 if (userProfile) {
+                  // FOOD CLASSIFICATION & LOGGING (before orchestrator)
+                  // Simplified 3-class system: food_mention, food_question, general
+                  try {
+                    const classification = await classifyFoodMessage(newMessage.text, {
+                      userId: user.data.user.id
+                    });
+
+                    // If food_mention detected, log meal immediately
+                    if (classification.type === 'food_mention' && classification.items && classification.items.length > 0) {
+                      console.log('[ChatPat] Food mention detected, logging meal...');
+
+                      const saveResult = await saveMeal({
+                        userId: user.data.user.id,
+                        messageId: newMessage.id,  // Link to chat message
+                        items: classification.items,
+                        mealSlot: inferMealSlot(),
+                        timestamp: new Date().toISOString(),
+                        clientConfidence: classification.confidence
+                      });
+
+                      if (saveResult.ok && saveResult.totals) {
+                        // Show inline confirmation banner
+                        const confirmationMsg = `Logged ${saveResult.itemsCount} item(s) · ${Math.round(saveResult.totals.kcal)} kcal · ${Math.round(saveResult.totals.protein_g)}P/${Math.round(saveResult.totals.fat_g)}F/${Math.round(saveResult.totals.carbs_g)}C/${Math.round(saveResult.totals.fiber_g)}Fib · KPIs updated`;
+
+                        setInlineConfirmation({
+                          show: true,
+                          message: confirmationMsg
+                        });
+
+                        // Auto-hide after 3 seconds
+                        setTimeout(() => {
+                          setInlineConfirmation({ show: false });
+                        }, 3000);
+
+                        console.log('[ChatPat] Meal logged successfully:', {
+                          mealLogId: saveResult.mealLogId,
+                          items: saveResult.itemsCount,
+                          totals: saveResult.totals
+                        });
+                      } else {
+                        console.error('[ChatPat] Failed to save meal:', saveResult.error);
+                      }
+                    } else if (classification.type === 'food_question') {
+                      console.log('[ChatPat] Food question detected, answering only (no logging)');
+                    } else {
+                      console.log('[ChatPat] General message, proceeding normally');
+                    }
+                  } catch (classifyError) {
+                    console.warn('[ChatPat] Food classification failed, continuing with normal chat:', classifyError);
+                  }
+
                   // Inject context message into the pipeline
                   const userMessageWithContext = contextMessage
                     ? `${contextMessage}\n\nUser message: ${newMessage.text}`
@@ -1419,27 +1479,40 @@ export const ChatPat: React.FC = () => {
           )}
           
           <div className={`space-y-6 transition-opacity duration-300 ${isTyping || messages.length > 1 ? 'opacity-100' : 'opacity-0'}`}>
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
-              >
+            {messages.map((message, index) => (
+              <div key={message.id}>
                 <div
-                  className={`max-w-sm lg:max-w-2xl px-5 py-4 rounded-2xl ${
-                    message.isUser
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-800 text-gray-100'
-                  }`}
-                  style={{ maxWidth: message.isUser ? '480px' : '700px' }}
+                  className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
                 >
-                  <p className="message-bubble text-base leading-relaxed whitespace-pre-line" style={{ lineHeight: '1.6' }}>{message.text}</p>
-                  <p className="text-xs opacity-70 mt-2">
-                    {message.timestamp.toLocaleTimeString([], { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    })}
-                  </p>
+                  <div
+                    className={`max-w-sm lg:max-w-2xl px-5 py-4 rounded-2xl ${
+                      message.isUser
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-800 text-gray-100'
+                    }`}
+                    style={{ maxWidth: message.isUser ? '480px' : '700px' }}
+                  >
+                    <p className="message-bubble text-base leading-relaxed whitespace-pre-line" style={{ lineHeight: '1.6' }}>{message.text}</p>
+                    <p className="text-xs opacity-70 mt-2">
+                      {message.timestamp.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
                 </div>
+
+                {/* Inline Confirmation Banner (shows after last user message if food was logged) */}
+                {message.isUser && index === messages.length - 1 && inlineConfirmation.show && (
+                  <div className="flex justify-end mt-2">
+                    <div
+                      className="max-w-sm lg:max-w-2xl px-4 py-2 rounded-xl bg-green-600/90 text-white text-sm animate-fade-in"
+                      style={{ maxWidth: '480px' }}
+                    >
+                      <p className="leading-relaxed">{inlineConfirmation.message}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
             
