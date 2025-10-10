@@ -59,35 +59,35 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({ onBackToDashbo
 
       const { data: rollups } = await supabase
         .from('day_rollups')
-        .select('day as date, kcal, protein_g, carbs_g, fat_g, fiber_g')
+        .select('date, totals')
         .eq('user_id', user.id)
-        .gte('day', sevenDaysAgo.toISOString().split('T')[0])
-        .order('day', { ascending: true });
+        .gte('date', sevenDaysAgo.toISOString().split('T')[0])
+        .order('date', { ascending: true });
 
       if (rollups) {
         setDailyMacros(rollups.map(r => ({
           date: r.date,
-          kcal: r.kcal || 0,
-          protein_g: r.protein_g || 0,
-          carbs_g: r.carbs_g || 0,
-          fat_g: r.fat_g || 0,
-          fiber_g: r.fiber_g || 0
+          kcal: r.totals?.kcal || 0,
+          protein_g: r.totals?.protein_g || 0,
+          carbs_g: r.totals?.carbs_g || 0,
+          fat_g: r.totals?.fat_g || 0,
+          fiber_g: r.totals?.fiber_g || 0
         })));
       }
 
       // Fetch user targets from user_metrics
       const { data: metrics } = await supabase
         .from('user_metrics')
-        .select('daily_caloric_goal, protein_g_target, carbs_g_target, fat_g_target, fiber_g_target')
+        .select('tdee, protein_g, carbs_g, fat_g, fiber_g_target')
         .eq('user_id', user.id)
         .single();
 
       if (metrics) {
         setUserTargets({
-          kcal: metrics.daily_caloric_goal || 2000,
-          protein: metrics.protein_g_target || 150,
-          carbs: metrics.carbs_g_target || 150,
-          fat: metrics.fat_g_target || 65,
+          kcal: metrics.tdee || 2000,
+          protein: metrics.protein_g || 150,
+          carbs: metrics.carbs_g || 150,
+          fat: metrics.fat_g || 65,
           fiber: metrics.fiber_g_target || 30
         });
       }
