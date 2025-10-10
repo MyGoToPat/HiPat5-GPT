@@ -1,5 +1,6 @@
 import React from 'react';
 import { BarChart } from './charts/BarChart';
+import { LineChart } from './charts/LineChart';
 
 interface DayData {
   date: string;
@@ -16,6 +17,7 @@ interface WeeklyMacroChartProps {
   targetProtein: number;
   targetCarbs: number;
   targetFat: number;
+  targetFiber?: number;
 }
 
 export const WeeklyMacroChart: React.FC<WeeklyMacroChartProps> = ({
@@ -23,7 +25,8 @@ export const WeeklyMacroChart: React.FC<WeeklyMacroChartProps> = ({
   targetKcal,
   targetProtein,
   targetCarbs,
-  targetFat
+  targetFat,
+  targetFiber
 }) => {
   // Prepare calorie chart data
   const calorieChartData = dailyData.map(day => {
@@ -65,7 +68,8 @@ export const WeeklyMacroChart: React.FC<WeeklyMacroChartProps> = ({
     kcal: targetKcal * 7,
     protein_g: targetProtein * 7,
     carbs_g: targetCarbs * 7,
-    fat_g: targetFat * 7
+    fat_g: targetFat * 7,
+    fiber_g: targetFiber ? targetFiber * 7 : 0
   };
 
   const weeklyDeficit = weeklyTargets.kcal - weeklyTotals.kcal;
@@ -73,7 +77,7 @@ export const WeeklyMacroChart: React.FC<WeeklyMacroChartProps> = ({
   return (
     <div className="space-y-6">
       {/* Weekly Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
           <div className="text-xs text-gray-400 mb-1">Total Calories</div>
           <div className="text-2xl font-bold text-white">{Math.round(weeklyTotals.kcal).toLocaleString()}</div>
@@ -121,6 +125,66 @@ export const WeeklyMacroChart: React.FC<WeeklyMacroChartProps> = ({
             Math.abs(weeklyTotals.fat_g - weeklyTargets.fat_g) < weeklyTargets.fat_g * 0.1 ? 'text-green-400' : 'text-gray-400'
           }`}>
             {Math.round(weeklyTotals.fat_g - weeklyTargets.fat_g > 0 ? '+' : '')}{Math.round(weeklyTotals.fat_g - weeklyTargets.fat_g)}g
+          </div>
+        </div>
+
+        {targetFiber && (
+          <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
+            <div className="text-xs text-green-400 mb-1">Fiber</div>
+            <div className="text-2xl font-bold text-white">{Math.round(weeklyTotals.fiber_g)}g</div>
+            <div className="text-xs text-gray-500 mt-1">
+              Target: {Math.round(weeklyTargets.fiber_g)}g
+            </div>
+            <div className={`text-xs font-medium mt-1 ${
+              weeklyTotals.fiber_g >= weeklyTargets.fiber_g ? 'text-green-400' : 'text-yellow-400'
+            }`}>
+              {weeklyTotals.fiber_g >= weeklyTargets.fiber_g ? '✓ Goal met' : `${Math.round(weeklyTargets.fiber_g - weeklyTotals.fiber_g)}g short`}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Average Calories Section */}
+      <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-800">
+        <h3 className="text-lg font-semibold text-white mb-4">Average Daily Calories</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <LineChart
+              data={calorieChartData.map(d => ({
+                label: d.label,
+                value: d.value
+              }))}
+              height={200}
+              color="#10b981"
+              fillGradient={true}
+              showGrid={true}
+              showPoints={true}
+            />
+          </div>
+          <div className="space-y-4">
+            <div className="bg-gray-800/50 rounded-lg p-4">
+              <div className="text-xs text-gray-400 mb-1">Average</div>
+              <div className="text-3xl font-bold text-white">
+                {Math.round(weeklyTotals.kcal / dailyData.length).toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">calories/day</div>
+            </div>
+            <div className="bg-gray-800/50 rounded-lg p-4">
+              <div className="text-xs text-gray-400 mb-1">Daily Target</div>
+              <div className="text-2xl font-bold text-white">
+                {Math.round(targetKcal).toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">calories/day</div>
+            </div>
+            <div className="bg-gray-800/50 rounded-lg p-4">
+              <div className="text-xs text-gray-400 mb-1">Avg Deficit</div>
+              <div className={`text-2xl font-bold ${
+                targetKcal - (weeklyTotals.kcal / dailyData.length) > 0 ? 'text-green-400' : 'text-red-400'
+              }`}>
+                {Math.round(targetKcal - (weeklyTotals.kcal / dailyData.length)).toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">cal/day</div>
+            </div>
           </div>
         </div>
       </div>
