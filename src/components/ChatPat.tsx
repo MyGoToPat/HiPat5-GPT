@@ -8,7 +8,6 @@ import { Plus, Mic, Folder, Camera, Image, ArrowUp, Check, X } from 'lucide-reac
 import { FoodVerificationScreen } from './FoodVerificationScreen';
 import { MealSuccessTransition } from './MealSuccessTransition';
 import { fetchFoodMacros, processMealWithTMWYA } from '../lib/food';
-import { saveMeal } from '../lib/meals/saveMeal';
 import type { AnalysisResult, NormalizedMealData } from '../types/food';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
 import { MetricAlert } from '../types/metrics';
@@ -22,7 +21,8 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { callChat } from '../lib/chat';
 import { callChatStreaming } from '../lib/streamingChat';
 import { classifyFoodMessage, type ClassificationResult } from '../lib/personality/foodClassifier';
-import { saveMeal, type SaveMealInput, type SaveMealResult } from '../lib/meals/saveMeal';
+import { saveMeal as saveMealAction } from '../lib/meals/saveMeal';
+import type { SaveMealInput, SaveMealResult } from '../lib/meals/saveMeal';
 import { inferMealSlot } from '../lib/meals/inferMealSlot';
 import { trackFirstChatMessage } from '../lib/analytics';
 import { updateDailyActivitySummary, checkAndAwardAchievements } from '../lib/supabase';
@@ -279,7 +279,7 @@ export const ChatPat: React.FC = () => {
   const handleConfirmVerification = async (normalizedMeal: NormalizedMealData) => {
     try {
       setIsLoggingActivity(true);
-      const result = await saveMeal(normalizedMeal);
+      const result = await saveMealAction(normalizedMeal);
 
       if (result.ok) {
         const totals = normalizedMeal.mealLog.totals;
@@ -545,7 +545,7 @@ export const ChatPat: React.FC = () => {
                     if (classification.type === 'food_mention' && classification.items && classification.items.length > 0) {
                       console.log('[ChatPat] Food mention detected, logging meal...');
 
-                      const saveResult = await saveMeal({
+                      const saveResult = await saveMealAction({
                         userId: user.data.user.id,
                         messageId: newMessage.id,  // Link to chat message
                         items: classification.items,
