@@ -290,12 +290,19 @@ export const DashboardPage: React.FC = () => {
             <DailySummary
               totalCalories={dashboardData?.totalCalories || 0}
               targetCalories={
-                // Use macro-derived calories if manual override is active
-                dashboardData?.userMetrics?.manual_macro_override
-                  ? ((dashboardData?.userMetrics?.protein_g || 0) * 4) +
-                    ((dashboardData?.userMetrics?.carbs_g || 0) * 4) +
-                    ((dashboardData?.userMetrics?.fat_g || 0) * 9)
-                  : (dashboardData?.userMetrics?.tdee || 2200)
+                // CRITICAL: Use NET DAILY TARGET (after TEF), not TDEE
+                // Calculate target from macros (including manual overrides)
+                (() => {
+                  const protein = dashboardData?.userMetrics?.protein_g || 0;
+                  const carbs = dashboardData?.userMetrics?.carbs_g || 0;
+                  const fat = dashboardData?.userMetrics?.fat_g || 0;
+                  const targetBeforeTEF = (protein * 4) + (carbs * 4) + (fat * 9);
+                  // Calculate TEF: Protein (30%), Carbs (12%), Fat (2%)
+                  const tef = Math.round(
+                    (protein * 4 * 0.30) + (carbs * 4 * 0.12) + (fat * 9 * 0.02)
+                  );
+                  return Math.round(targetBeforeTEF - tef);
+                })()
               }
               proteinTarget={dashboardData?.userMetrics?.protein_g || 150}
               currentProtein={dashboardData?.totalMacros?.protein || 0}
@@ -326,7 +333,19 @@ export const DashboardPage: React.FC = () => {
                 targetProtein={dashboardData?.userMetrics?.protein_g}
                 targetCarbs={dashboardData?.userMetrics?.carbs_g}
                 targetFat={dashboardData?.userMetrics?.fat_g}
-                targetCalories={dashboardData?.userMetrics?.tdee}
+                targetCalories={
+                  // Calculate Net Daily Target (after TEF)
+                  (() => {
+                    const protein = dashboardData?.userMetrics?.protein_g || 0;
+                    const carbs = dashboardData?.userMetrics?.carbs_g || 0;
+                    const fat = dashboardData?.userMetrics?.fat_g || 0;
+                    const targetBeforeTEF = (protein * 4) + (carbs * 4) + (fat * 9);
+                    const tef = Math.round(
+                      (protein * 4 * 0.30) + (carbs * 4 * 0.12) + (fat * 9 * 0.02)
+                    );
+                    return Math.round(targetBeforeTEF - tef);
+                  })()
+                }
               />
               <EffortSection workouts={dashboardData?.workoutLogs || []} />
             </div>

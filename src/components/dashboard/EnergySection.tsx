@@ -83,8 +83,9 @@ export const EnergySection: React.FC<EnergySectionProps> = ({
 
   // Use provided data or fallback to defaults
   const calories = energyData?.calories || 0;
-  const tdee = targetCalories || energyData?.tdee || 2200;
-  const deficit = tdee - calories;
+  // targetCalories is now the NET DAILY TARGET (after TEF), not TDEE
+  const netTarget = targetCalories || energyData?.tdee || 2200;
+  const deficit = netTarget - calories;
 
   // CONSUMED macros (from food logs today)
   const proteinConsumed = energyData?.protein_g || 0;
@@ -112,7 +113,7 @@ export const EnergySection: React.FC<EnergySectionProps> = ({
     water_l: 3.2,
     first_meal_time: '08:30',
     last_meal_time: '20:15',
-    tdee: tdee,
+    tdee: netTarget,
     bmr: 1850
   };
 
