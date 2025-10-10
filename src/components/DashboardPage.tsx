@@ -289,7 +289,14 @@ export const DashboardPage: React.FC = () => {
             {/* Daily Summary */}
             <DailySummary
               totalCalories={dashboardData?.totalCalories || 0}
-              targetCalories={dashboardData?.userMetrics?.tdee || 2200}
+              targetCalories={
+                // Use macro-derived calories if manual override is active
+                dashboardData?.userMetrics?.manual_macro_override
+                  ? ((dashboardData?.userMetrics?.protein_g || 0) * 4) +
+                    ((dashboardData?.userMetrics?.carbs_g || 0) * 4) +
+                    ((dashboardData?.userMetrics?.fat_g || 0) * 9)
+                  : (dashboardData?.userMetrics?.tdee || 2200)
+              }
               proteinTarget={dashboardData?.userMetrics?.protein_g || 150}
               currentProtein={dashboardData?.totalMacros?.protein || 0}
               currentFiber={dashboardData?.totalMacros?.fiber || 0}

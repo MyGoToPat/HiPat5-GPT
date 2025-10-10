@@ -20,6 +20,7 @@ interface TDEEMetrics {
   body_fat_percent?: number;
   activity_level?: 'sedentary' | 'light' | 'moderate' | 'very';
   dietary_preference?: 'carnivore_keto' | 'ketovore' | 'low_carb' | 'balanced_omnivore';
+  manual_macro_override?: boolean;
 }
 
 interface UnitPreferences {
@@ -172,13 +173,15 @@ export const MacrosTab: React.FC = () => {
       const totalCals = (editMacros.protein_g * 4) + (editMacros.carbs_g * 4) + (editMacros.fat_g * 9);
 
       // Update user_metrics (source of truth)
+      // Set manual_macro_override = TRUE to indicate manual edit
       const { error: metricsError } = await supabase
         .from('user_metrics')
         .update({
           protein_g: editMacros.protein_g,
           carbs_g: editMacros.carbs_g,
           fat_g: editMacros.fat_g,
-          fiber_g_target: editMacros.fiber_g_target || null,  // NEW: Update fiber target
+          fiber_g_target: editMacros.fiber_g_target || null,
+          manual_macro_override: true,  // FLAG: User manually set macros
           updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id);
@@ -198,7 +201,7 @@ export const MacrosTab: React.FC = () => {
 
       if (profilesError) console.warn('Profile sync warning:', profilesError);
 
-      toast.success('Macros updated successfully!');
+      toast.success('Macros updated successfully! Calorie targets will now be calculated from your custom macros.');
       setIsEditingMacros(false);
       loadData();
     } catch (error: any) {
@@ -213,17 +216,21 @@ export const MacrosTab: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Reset manual override when user adjusts caloric goal slider
+      // This returns to automatic macro calculation
       const { error } = await supabase
         .from('user_metrics')
         .update({
           caloric_goal: caloricGoal,
-          caloric_adjustment: customDeficit
+          caloric_adjustment: customDeficit,
+          manual_macro_override: false  // Reset to automatic mode
         })
         .eq('user_id', user.id);
 
       if (error) throw error;
 
-      toast.success('Caloric goal saved!');
+      toast.success('Caloric goal saved! Macros will be automatically calculated.');
+      loadData();  // Reload to recalculate macros
     } catch (error: any) {
       console.error('Error saving caloric goal:', error);
       toast.error('Failed to save caloric goal');
@@ -347,26 +354,40 @@ export const MacrosTab: React.FC = () => {
     );
   }
 
-  // CRITICAL: Always use BASE macros from metrics, NOT adjusted ones
-  // User's manual edits override everything
+  // CRITICAL: Use BASE macros from metrics (user's manual edits take priority)
   const displayProtein = isEditingMacros ? editMacros.protein_g : (metrics?.protein_g || 0);
   const displayCarbs = isEditingMacros ? editMacros.carbs_g : (metrics?.carbs_g || 0);
   const displayFat = isEditingMacros ? editMacros.fat_g : (metrics?.fat_g || 0);
 
   const tef = calculateTEF(displayProtein, displayCarbs, displayFat);
 
-  // Calculate target before TEF (TDEE adjusted for goal)
-  const targetBeforeTEF = caloricGoal === 'maintenance'
-    ? (metrics.tdee || 0)
-    : caloricGoal === 'deficit'
-      ? (metrics.tdee || 0) - customDeficit
-      : (metrics.tdee || 0) + customDeficit;
+  // BIDIRECTIONAL CALCULATION:
+  // If manual_macro_override = TRUE: Calculate target FROM macros
+  // If manual_macro_override = FALSE: Calculate macros FROM target (slider)
+  const isManualOverride = metrics?.manual_macro_override === true;
 
-  // Net Daily Target = Target Before TEF - TEF
-  const netCalories = targetBeforeTEF - tef;
+  let targetBeforeTEF: number;
+  let netCalories: number;
+  let totalDeficit: number;
 
-  // Total Deficit/Surplus is just a display value showing the total adjustment
-  const totalDeficit = caloricGoal === 'maintenance' ? tef : customDeficit + tef;
+  if (isManualOverride) {
+    // MACROS → CALORIES: User set macros manually, derive target from them
+    const macroCalories = (displayProtein * 4) + (displayCarbs * 4) + (displayFat * 9);
+    targetBeforeTEF = macroCalories;
+    netCalories = macroCalories - tef;
+    // Calculate what the deficit/surplus would be compared to TDEE
+    const tdee = metrics.tdee || 0;
+    totalDeficit = tdee - macroCalories + tef;  // Positive = deficit, Negative = surplus
+  } else {
+    // CALORIES → MACROS: Traditional slider-based calculation
+    targetBeforeTEF = caloricGoal === 'maintenance'
+      ? (metrics.tdee || 0)
+      : caloricGoal === 'deficit'
+        ? (metrics.tdee || 0) - customDeficit
+        : (metrics.tdee || 0) + customDeficit;
+    netCalories = targetBeforeTEF - tef;
+    totalDeficit = caloricGoal === 'maintenance' ? tef : customDeficit + tef;
+  }
 
   return (
     <div className="space-y-6">
@@ -478,7 +499,14 @@ export const MacrosTab: React.FC = () => {
 
       {/* Target Calories */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-        <h3 className="text-lg font-semibold text-white mb-4">Target Calories</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white">Target Calories</h3>
+          {isManualOverride && (
+            <span className="text-xs text-blue-300 bg-blue-600/10 px-3 py-1 rounded-full border border-blue-500/30">
+              Calculated from Manual Macros
+            </span>
+          )}
+        </div>
 
         <div className="space-y-4">
           <div className="bg-gradient-to-r from-orange-600/20 to-red-600/20 rounded-lg p-6 border border-orange-500/30">
@@ -507,12 +535,10 @@ export const MacrosTab: React.FC = () => {
             )}
 
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-400">Target (Before TEF)</span>
-              <span className="text-blue-300 font-medium">
-                {caloricGoal === 'maintenance' ? metrics.tdee :
-                  caloricGoal === 'deficit' ? (metrics.tdee || 0) - customDeficit :
-                  (metrics.tdee || 0) + customDeficit} cal
+              <span className="text-gray-400">
+                {isManualOverride ? 'Target from Macros' : 'Target (Before TEF)'}
               </span>
+              <span className="text-blue-300 font-medium">{Math.round(targetBeforeTEF)} cal</span>
             </div>
 
             <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700">
@@ -525,21 +551,33 @@ export const MacrosTab: React.FC = () => {
 
             <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700">
               <span className="text-gray-300 font-semibold">Net Daily Target</span>
-              <span className="text-orange-400 font-bold text-lg">{netCalories} cal</span>
+              <span className="text-orange-400 font-bold text-lg">{Math.round(netCalories)} cal</span>
             </div>
 
-            {caloricGoal !== 'maintenance' && (
+            {isManualOverride && (
+              <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700">
+                <span className="text-gray-300 font-semibold">Difference from TDEE</span>
+                <span className={`font-bold ${totalDeficit > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                  {totalDeficit > 0 ? '-' : '+'}{Math.abs(Math.round(totalDeficit))} cal
+                </span>
+              </div>
+            )}
+
+            {!isManualOverride && caloricGoal !== 'maintenance' && (
               <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700">
                 <span className="text-gray-300 font-semibold">Total Deficit/Surplus</span>
                 <span className={`font-bold ${caloricGoal === 'deficit' ? 'text-red-400' : 'text-green-400'}`}>
-                  {caloricGoal === 'deficit' ? '-' : '+'}{totalDeficit} cal
+                  {caloricGoal === 'deficit' ? '-' : '+'}{Math.round(totalDeficit)} cal
                 </span>
               </div>
             )}
           </div>
 
           <div className="text-xs text-gray-500 text-center">
-            TEF calculated: Protein (30%), Carbs (12%), Fat (2%) of macro calories
+            {isManualOverride
+              ? 'Target calculated from your manual macros • Protein (4 cal/g), Carbs (4 cal/g), Fat (9 cal/g)'
+              : 'TEF calculated: Protein (30%), Carbs (12%), Fat (2%) of macro calories'
+            }
           </div>
         </div>
       </div>
@@ -547,23 +585,60 @@ export const MacrosTab: React.FC = () => {
       {/* Daily Macro Targets */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">Daily Macro Targets</h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-semibold text-white">Daily Macro Targets</h3>
+            {isManualOverride && !isEditingMacros && (
+              <span className="px-2 py-1 bg-blue-600/20 border border-blue-500/50 rounded text-xs text-blue-300">
+                Manual Mode
+              </span>
+            )}
+          </div>
           {!isEditingMacros ? (
-            <button
-              onClick={() => {
-                // Edit BASE macros, not adjusted ones
-                setEditMacros({
-                  protein_g: metrics?.protein_g || 0,
-                  carbs_g: metrics?.carbs_g || 0,
-                  fat_g: metrics?.fat_g || 0
-                });
-                setIsEditingMacros(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors"
-            >
-              <Edit2 size={16} />
-              Edit
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  // Edit BASE macros, not adjusted ones
+                  setEditMacros({
+                    protein_g: metrics?.protein_g || 0,
+                    carbs_g: metrics?.carbs_g || 0,
+                    fat_g: metrics?.fat_g || 0,
+                    fiber_g_target: metrics?.fiber_g_target || 0
+                  });
+                  setIsEditingMacros(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors"
+              >
+                <Edit2 size={16} />
+                Edit
+              </button>
+              {isManualOverride && (
+                <button
+                  onClick={async () => {
+                    try {
+                      const supabase = getSupabase();
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (!user) return;
+
+                      const { error } = await supabase
+                        .from('user_metrics')
+                        .update({ manual_macro_override: false })
+                        .eq('user_id', user.id);
+
+                      if (error) throw error;
+
+                      toast.success('Switched to automatic macro calculation');
+                      loadData();
+                    } catch (error) {
+                      console.error('Error resetting override:', error);
+                      toast.error('Failed to reset');
+                    }
+                  }}
+                  className="px-4 py-2 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/50 text-orange-300 text-sm rounded-lg transition-colors"
+                >
+                  Reset to Auto
+                </button>
+              )}
+            </div>
           ) : (
             <div className="flex items-center gap-2">
               <button
