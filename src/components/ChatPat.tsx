@@ -73,6 +73,9 @@ export const ChatPat: React.FC = () => {
   const [statusText, setStatusText] = useState<string>('');
   const [showTDEEBubble, setShowTDEEBubble] = useState(false);
 
+  // Swarm 2.1: Store last food question items for "log that" follow-up
+  const [lastQuestionItems, setLastQuestionItems] = useState<any[] | null>(null);
+
   // Inline confirmation banner for food logging
   const [inlineConfirmation, setInlineConfirmation] = useState<{
     show: boolean;
@@ -625,16 +628,23 @@ export const ChatPat: React.FC = () => {
                         rest: "tracking",
                         energy: "logging",
                         effort: "measuring"
-                      }
+                      },
+                      // Swarm 2.1: Pass lastQuestionItems for "log that" intent
+                      lastQuestionItems: lastQuestionItems
                     }
                   });
 
                   if (pipelineResult.ok) {
                     let responseText = pipelineResult.answer;
 
+                    // Swarm 2.1: Sync lastQuestionItems from orchestrator
+                    if (pipelineResult.lastQuestionItems !== undefined) {
+                      setLastQuestionItems(pipelineResult.lastQuestionItems);
+                    }
+
                     // Pat's response already includes "Log" for macro responses
                     // Do NOT add extra instructions
-                    
+
                     const patResponse: ChatMessage = {
                       id: (Date.now() + 1).toString(),
                       text: responseText,

@@ -22,6 +22,9 @@ import {
   personaGovernor,
   type MacroPayload
 } from './swarms/macroSwarmV2';
+import { intentClassifier } from './intentClassifier';
+import { handleFoodMention, handleFoodQuestion, handleLogThat, handleUndoLast } from '../handlers/food';
+import { handleKpiQuestion } from '../handlers/kpi';
 
 // Guardrail constants
 const MAX_TURN_MS = 5000; // Overall per-turn budget
@@ -409,7 +412,9 @@ async function finishWithPostAgents(
     ok: !initialError,
     answer: currentDraft,
     meta: draftObj.meta,
-    error: initialError
+    error: initialError,
+    // Swarm 2.1: Return lastQuestionItems so ChatPat can sync state
+    lastQuestionItems: context.lastQuestionItems
   };
 }
 
@@ -445,12 +450,130 @@ export async function runPersonalityPipeline(input: RunInput) {
     const redactionStart = Date.now();
     const redactedResult = await runAgent("privacy-redaction", currentMessage, input.context);
     debug.timings.redaction = Date.now() - redactionStart;
-    
+
     if (redactedResult.error) {
       console.warn("Privacy redaction failed, proceeding with original message:", redactedResult.error);
     } else if (redactedResult.json?.sanitized) {
       currentMessage = redactedResult.json.sanitized;
     }
+
+    // 1.5. NEW: Swarm 2.1 Intent Classification (high-priority intents)
+    const intentStart = Date.now();
+    const classified = await intentClassifier(currentMessage);
+    debug.timings.intentClassification = Date.now() - intentStart;
+    debug.intentClassified = classified.intent;
+
+    // Handle high-priority intents (bypass normal routing)
+    if (classified.intent === 'kpi_question') {
+      const kpiResult = await handleKpiQuestion(
+        input.context.userId,
+        input.context.timezone || 'UTC'
+      );
+      debug.chosenPath = 'intent:kpi_question';
+      return finishWithPostAgents(kpiResult.reply, input.context, kpiResult.error);
+    }
+
+    if (classified.intent === 'undo') {
+      const undoResult = await handleUndoLast(input.context.userId);
+      debug.chosenPath = 'intent:undo';
+      if (undoResult.removed) {
+        return finishWithPostAgents(
+          "Last meal removed • KPIs updated",
+          input.context
+        );
+      } else {
+        return finishWithPostAgents(
+          undoResult.message || "No recent meal found to undo.",
+          input.context
+        );
+      }
+    }
+
+    if (classified.intent === 'log_that') {
+      // Check if we have lastQuestionItems in context
+      const lastItems = input.context.lastQuestionItems;
+      if (!lastItems || lastItems.length === 0) {
+        return finishWithPostAgents(
+          "I don't have a previous food item to log. Ask about a food first.",
+          input.context,
+          "No lastQuestionItems in context"
+        );
+      }
+
+      const logResult = await handleLogThat(lastItems, {
+        userId: input.context.userId,
+        timestamp: new Date().toISOString()
+      });
+
+      debug.chosenPath = 'intent:log_that';
+      if (logResult.ok) {
+        // Clear lastQuestionItems after successful log
+        input.context.lastQuestionItems = null;
+        return finishWithPostAgents(
+          {
+            text: `Logged ${logResult.itemsCount} item(s) • ${Math.round(logResult.totals?.kcal || 0)} kcal • KPIs updated`,
+            meta: {
+              route: 'log_that',
+              mealLogId: logResult.mealLogId,
+              totals: logResult.totals
+            }
+          },
+          input.context
+        );
+      } else {
+        return finishWithPostAgents(
+          logResult.error || "Failed to log meal",
+          input.context,
+          logResult.error
+        );
+      }
+    }
+
+    if (classified.intent === 'food_question') {
+      const questionResult = await handleFoodQuestion(classified.items);
+      debug.chosenPath = 'intent:food_question';
+      // Store items in context for potential "log that"
+      input.context.lastQuestionItems = classified.items;
+      return finishWithPostAgents(questionResult.reply, input.context);
+    }
+
+    if (classified.intent === 'food_mention') {
+      const mentionResult = await handleFoodMention(classified.items, {
+        userId: input.context.userId,
+        timestamp: new Date().toISOString()
+      });
+
+      debug.chosenPath = 'intent:food_mention';
+      if (mentionResult.ok) {
+        return finishWithPostAgents(
+          {
+            text: `Logged ${mentionResult.itemsCount} item(s) • ${Math.round(mentionResult.totals?.kcal || 0)} kcal • KPIs updated`,
+            meta: {
+              route: 'food_mention',
+              mealLogId: mentionResult.mealLogId,
+              totals: mentionResult.totals
+            }
+          },
+          input.context
+        );
+      } else {
+        return finishWithPostAgents(
+          mentionResult.error || "Failed to log meal",
+          input.context,
+          mentionResult.error
+        );
+      }
+    }
+
+    if (classified.intent === 'workout_mention' || classified.intent === 'workout_question') {
+      debug.chosenPath = `intent:${classified.intent}`;
+      return finishWithPostAgents(
+        "Workout logging coming soon!",
+        input.context
+      );
+    }
+
+    // If general or unhandled intent, continue to normal routing...
 
     // 2. Deterministic Routing (fastRoute)
     const fastRouteStart = Date.now();
