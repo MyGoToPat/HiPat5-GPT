@@ -46,6 +46,7 @@ export async function classifyIntent(userMessage: string): Promise<IntentResult>
 
   // 2. High-confidence regex patterns (no LLM needed)
   const patterns: Record<string, RegExp> = {
+    food_question: /(tell me|what (are|is)|how many|show me|give me).*(macro|calorie|kcal|nutrition|protein|carb|fat)/i,
     food_log_followup: /^(log|save|record)(\s+(that|it|this))?$/i,
     undo_meal: /^undo(\s+(last(\s+meal)?|that))?$/i,
     kpi_query: /^(how\s+(much|many))?.*(left|remaining).*(today|now)/i
@@ -53,6 +54,7 @@ export async function classifyIntent(userMessage: string): Promise<IntentResult>
 
   for (const [intent, pattern] of Object.entries(patterns)) {
     if (pattern.test(trimmed)) {
+      console.log(`[intentClassifier] High-confidence match: ${intent} (regex)`);
       return {
         intent: intent as IntentType,
         confidence: 0.95,

@@ -40,12 +40,23 @@ export async function logMeal(input: LogMealInput): Promise<LogMealResult> {
     );
 
     // Pre-check for duplicate (avoid round-trip)
-    const { data: existing } = await supabase
-      .from('meal_logs')
-      .select('id')
-      .eq('user_id', input.userId)
-      .eq('idempotency_key', idempotencyKey)
-      .maybeSingle();
+    // Skip if idempotency_key is null (shouldn't happen but be defensive)
+    let existing = null;
+    if (idempotencyKey) {
+      const { data, error: checkError } = await supabase
+        .from('meal_logs')
+        .select('id')
+        .eq('user_id', input.userId)
+        .eq('idempotency_key', idempotencyKey)
+        .maybeSingle();
+
+      if (checkError) {
+        console.warn('[logMeal] Dedupe check failed:', checkError);
+        // Continue anyway
+      } else {
+        existing = data;
+      }
+    }
 
     if (existing) {
       console.log('[logMeal] Dedupe: meal already logged', { idempotencyKey });

@@ -36,21 +36,32 @@ export function formatFoodQuestion(
   summary: MacroSummary,
   validation: ValidationResult
 ): FormattedResponse {
-  // Format individual items
-  const bullets = summary.items.map(item => {
-    const macroLine = `${Math.round(item.macros.protein_g)}P / ${Math.round(item.macros.fat_g)}F / ${Math.round(item.macros.carbs_g)}C`;
-    const fiberLine = item.macros.fiber_g > 0 ? ` / ${Math.round(item.macros.fiber_g)}Fi` : '';
+  // Format individual items with full breakdown (like GPT-4o-mini output)
+  const itemsText = summary.items.map(item => {
+    const itemName = item.name.charAt(0).toUpperCase() + item.name.slice(1);
+    const prepNote = item.metadata?.prepState && !item.metadata?.explicitPrep ? ' (assumed cooked)' : '';
 
-    return `• ${item.name} (${item.quantity}${item.unit}): ${Math.round(item.macros.kcal)} kcal\n  ${macroLine}${fiberLine}`;
+    const lines = [
+      `**${itemName} (${item.quantity} ${item.unit}${prepNote})**`,
+      `• Protein: ${Math.round(item.macros.protein_g)} g`,
+      `• Fat: ${Math.round(item.macros.fat_g)} g`,
+      `• Carbs: ${Math.round(item.macros.carbs_g)} g`
+    ];
+
+    return lines.join('\n');
   }).join('\n\n');
 
-  // Format totals
-  const total = `\n\n**Total:**\n` +
-    `• Calories: ${Math.round(summary.totals.kcal)} kcal\n` +
-    `• Protein: ${Math.round(summary.totals.protein_g)}g\n` +
-    `• Fat: ${Math.round(summary.totals.fat_g)}g\n` +
-    `• Carbs: ${Math.round(summary.totals.carbs_g)}g` +
-    (summary.totals.fiber_g > 0 ? `\n• Fiber: ${Math.round(summary.totals.fiber_g)}g` : '');
+  // Format totals section
+  const totalsLines = [
+    `**Totals:**`,
+    `• Protein: ${Math.round(summary.totals.protein_g)} g`,
+    `• Fat: ${Math.round(summary.totals.fat_g)} g`,
+    `• Carbs: ${Math.round(summary.totals.carbs_g)} g`,
+    `• Calories: ${Math.round(summary.totals.kcal)} kcal`
+  ];
+
+  const total = `\n\n${totalsLines.join('\n')}`;
+  const bullets = itemsText;
 
   // Collect assumptions
   const assumptions: string[] = [];
