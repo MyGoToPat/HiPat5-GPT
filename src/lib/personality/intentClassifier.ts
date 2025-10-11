@@ -49,9 +49,9 @@ export async function intentClassifier(userMessage: string): Promise<Classified>
     };
   }
 
-  // 2. Check "log that" pattern (high-confidence regex)
-  const logThatPattern = /^log\s+(that|it|this)$/i;
-  if (logThatPattern.test(userMessage.trim())) {
+  // 2. Check log follow-up pattern (accepts "log", "log that", "save it", etc.)
+  const LOG_FOLLOWUP_RE = /^(log|save|record)(\s+(that|it|this))?$/i;
+  if (LOG_FOLLOWUP_RE.test(userMessage.trim())) {
     return { intent: 'log_that', confidence: 0.95 };
   }
 

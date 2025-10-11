@@ -73,8 +73,16 @@ export const ChatPat: React.FC = () => {
   const [statusText, setStatusText] = useState<string>('');
   const [showTDEEBubble, setShowTDEEBubble] = useState(false);
 
-  // Swarm 2.1: Store last food question items for "log that" follow-up
+  // Swarm 2.1: Ephemeral cache for "log" follow-up with TTL
   const [lastQuestionItems, setLastQuestionItems] = useState<any[] | null>(null);
+  const lastSetRef = useRef<number>(0);
+  const TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+  // Helper to get cached items if still valid
+  const getCachedItems = () =>
+    lastQuestionItems && Date.now() - lastSetRef.current < TTL_MS
+      ? lastQuestionItems
+      : null;
 
   // Inline confirmation banner for food logging
   const [inlineConfirmation, setInlineConfirmation] = useState<{
@@ -637,9 +645,10 @@ export const ChatPat: React.FC = () => {
                   if (pipelineResult.ok) {
                     let responseText = pipelineResult.answer;
 
-                    // Swarm 2.1: Sync lastQuestionItems from orchestrator
+                    // Swarm 2.1: Sync lastQuestionItems from orchestrator with TTL
                     if (pipelineResult.lastQuestionItems !== undefined) {
                       setLastQuestionItems(pipelineResult.lastQuestionItems);
+                      lastSetRef.current = Date.now(); // Update timestamp
                     }
 
                     // Pat's response already includes "Log" for macro responses

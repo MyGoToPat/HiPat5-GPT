@@ -16,6 +16,10 @@ import {
   hasColumn
 } from './schemaMap';
 
+// UUID validator to prevent "invalid input syntax for uuid" errors
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export interface SaveMealInput {
   userId: string;
   messageId?: string;
@@ -88,6 +92,10 @@ export async function saveMeal(input: SaveMealInput): Promise<SaveMealResult> {
       return { ok: false, error: 'No items provided' };
     }
 
+    // Guard message_id: only use if it's a valid UUID (prevents 400 errors)
+    const safeMessageId =
+      input.messageId && UUID_RE.test(input.messageId) ? input.messageId : null;
+
     // Compute totals JSONB (REQUIRED for NOT NULL constraint)
     const totals = computeTotals(input.items);
 
@@ -107,8 +115,8 @@ export async function saveMeal(input: SaveMealInput): Promise<SaveMealResult> {
     };
 
     // Add optional fields only if they exist in schema
-    if (hasColumn('meal_logs', 'message_id') && input.messageId) {
-      mealLogPayload[MealLogColumns.messageId] = input.messageId;
+    if (hasColumn('meal_logs', 'message_id') && safeMessageId) {
+      mealLogPayload[MealLogColumns.messageId] = safeMessageId;
     }
 
     if (hasColumn('meal_logs', 'note') && input.note) {

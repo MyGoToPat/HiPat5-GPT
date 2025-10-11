@@ -95,6 +95,16 @@ export async function handleFoodMention(
 }
 
 /**
+ * Format food items as bulleted list
+ */
+function formatBullets(items: FoodItem[]): string {
+  return items.map(i =>
+    `• ${i.name}: ${Math.round(i.energy_kcal)} kcal\n` +
+    `  – Protein: ${Math.round(i.protein_g)}g • Fat: ${Math.round(i.fat_g)}g • Carbs: ${Math.round(i.carbs_g)}g • Fiber: ${Math.round(i.fiber_g ?? 0)}g`
+  ).join('\n');
+}
+
+/**
  * Handle food_question intent - provide nutritional info without logging
  */
 export async function handleFoodQuestion(items: FoodItem[]): Promise<FoodQuestionResult> {
@@ -106,27 +116,9 @@ export async function handleFoodQuestion(items: FoodItem[]): Promise<FoodQuestio
     };
   }
 
-  // Compute totals
-  const totals = items.reduce((acc, item) => ({
-    calories: acc.calories + item.energy_kcal,
-    protein: acc.protein + item.protein_g,
-    carbs: acc.carbs + item.carbs_g,
-    fat: acc.fat + item.fat_g,
-    fiber: acc.fiber + item.fiber_g
-  }), { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
-
-  // Format item list
-  const itemsList = items.length === 1
-    ? items[0].name
-    : items.map(i => {
-        const qtyStr = i.quantity === 1 && i.unit === 'serving'
-          ? ''
-          : `${i.quantity}${i.unit} `;
-        return `${qtyStr}${i.name}`;
-      }).join(', ');
-
-  // Build reply with macros
-  const reply = `${itemsList} has approximately ${Math.round(totals.calories)} kcal • ${Math.round(totals.protein)}g Protein • ${Math.round(totals.fat)}g Fat • ${Math.round(totals.carbs)}g Carbs • ${Math.round(totals.fiber)}g Fiber`;
+  // Format bulleted reply with CTA
+  const bulleted = formatBullets(items);
+  const reply = `${bulleted}\n\nSay "log" to save this.`;
 
   return {
     ok: true,
