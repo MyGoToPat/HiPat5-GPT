@@ -534,10 +534,80 @@ export const ChatPat: React.FC = () => {
               console.warn('Context check failed, continuing without context:', ctxError);
             }
 
-            // Use new personality pipeline if available
+            // Check feature flag for Swarm 2.2
+            const user = await getSupabase().auth.getUser();
+            if (!user.data.user) {
+              throw new Error('User not authenticated');
+            }
+
+            const { getFeatureFlags } = await import('../lib/featureFlags');
+            const flags = await getFeatureFlags(user.data.user.id);
+
+            if (flags.swarm_v2_enabled) {
+              // Swarm 2.2 Pipeline
+              console.log('[ChatPat] Using Swarm 2.2 (feature flag enabled)');
+
+              const { runSwarmV2Pipeline } = await import('../lib/personality/orchestrator.v2');
+              const { getUserProfile } = await import('../lib/supabase');
+              const userProfile = await getUserProfile(user.data.user.id);
+
+              if (!userProfile) {
+                throw new Error('User profile not found');
+              }
+
+              // Get user preferences
+              const { data: prefs } = await getSupabase()
+                .from('user_preferences')
+                .select('timezone')
+                .eq('user_id', user.data.user.id)
+                .maybeSingle();
+
+              const timezone = prefs?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+              const result = await runSwarmV2Pipeline({
+                userMessage: newMessage.text,
+                userId: user.data.user.id,
+                timezone,
+                tonePreference: 'concise',
+                context: {
+                  messageId: newMessage.id,
+                  source: 'chat'
+                }
+              });
+
+              if (!result.success) {
+                console.error('[ChatPat] Swarm 2.2 error:', result.error);
+                throw new Error(result.error || 'Pipeline failed');
+              }
+
+              // Add Pat's response
+              const patMessage: ChatMessage = {
+                id: crypto.randomUUID(),
+                text: result.answer,
+                isUser: false,
+                timestamp: new Date()
+              };
+
+              setMessages(prev => [...prev, patMessage]);
+              setIsSpeaking(false);
+              setStatusText('');
+
+              // Save to history
+              const historyEntry = {
+                ...chatState,
+                messages: [...messages, newMessage, patMessage],
+                updatedAt: new Date().toISOString()
+              };
+              await upsertThread(historyEntry);
+
+              return; // Skip legacy code
+            }
+
+            // Legacy Path (Swarm 2.1)
+            console.log('[ChatPat] Using legacy path (Swarm 2.2 disabled)');
+
             try {
               const { runPersonalityPipeline } = await import('../lib/personality/orchestrator');
-              const user = await getSupabase().auth.getUser();
 
               if (user.data.user) {
                 // Get user profile for permission checks
