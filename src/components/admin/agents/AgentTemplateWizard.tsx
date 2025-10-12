@@ -59,7 +59,7 @@ export default function AgentTemplateWizard({ open, onClose, editingAgent }: Pro
   const [name, setName] = useState(editingAgent?.name || "");
   const [phase, setPhase] = useState<AgentPhase>(editingAgent?.phase || starter.phase);
   const [enabled, setEnabled] = useState(editingAgent?.enabled ?? true);
-  const [order, setOrder] = useState<number>(editingAgent?.order || (getPersonalitySwarm().length || 0) + 1);
+  const [order, setOrder] = useState<number>(editingAgent?.order || ((getPersonalitySwarm()?.length || 0) + 1));
 
   const [instructions, setInstructions] = useState(editingAgent?.instructions || starter.instructions);
   const [promptTemplate, setPromptTemplate] = useState(editingAgent?.promptTemplate || starter.promptTemplate);

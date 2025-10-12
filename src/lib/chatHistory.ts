@@ -4,7 +4,9 @@ export interface ChatSession {
   id: string;
   user_id: string;
   started_at: string;
-  title: string | null;
+  ended_at?: string | null;
+  active: boolean;
+  session_type: string;
 }
 
 export interface ChatMessage {
@@ -20,7 +22,8 @@ export async function createChatSession(userId: string, title?: string): Promise
     .from('chat_sessions')
     .insert({
       user_id: userId,
-      title: title || null,
+      session_type: 'general',
+      active: true,
       started_at: new Date().toISOString()
     })
     .select()
@@ -87,17 +90,6 @@ export async function getChatMessages(sessionId: string): Promise<ChatMessage[]>
   return data || [];
 }
 
-export async function updateSessionTitle(sessionId: string, title: string): Promise<void> {
-  const { error } = await supabase
-    .from('chat_sessions')
-    .update({ title })
-    .eq('id', sessionId);
-
-  if (error) {
-    console.error('[chatHistory] Error updating title:', error);
-  }
-}
-
 export async function deleteSession(sessionId: string): Promise<void> {
   const { error } = await supabase
     .from('chat_sessions')
@@ -116,6 +108,7 @@ export async function getOrCreateTodaySession(userId: string): Promise<ChatSessi
     .from('chat_sessions')
     .select('*')
     .eq('user_id', userId)
+    .eq('active', true)
     .gte('started_at', `${today}T00:00:00Z`)
     .lt('started_at', `${today}T23:59:59Z`)
     .maybeSingle();
@@ -124,5 +117,5 @@ export async function getOrCreateTodaySession(userId: string): Promise<ChatSessi
     return existing;
   }
 
-  return createChatSession(userId, `Chat ${today}`);
+  return createChatSession(userId);
 }
