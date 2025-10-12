@@ -95,7 +95,7 @@ export default function AgentTemplateWizard({ open, onClose, editingAgent }: Pro
       setName("");
       setPhase(starter.phase);
       setEnabled(true);
-      setOrder((getPersonalitySwarm().length || 0) + 1);
+      setOrder((getPersonalitySwarm()?.length || 0) + 1);
       setInstructions(starter.instructions);
       setPromptTemplate(starter.promptTemplate);
       setTonePreset("spartan");
