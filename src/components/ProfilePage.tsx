@@ -8,6 +8,7 @@ import { CustomizableHeader } from './profile/CustomizableHeader';
 import { TDEEMetricsSection } from './profile/TDEEMetricsSection';
 import { MacrosTab } from './profile/MacrosTab';
 import { PersonalInformationSection } from './profile/PersonalInformationSection';
+import { CreditsWallet } from './profile/CreditsWallet';
 import { getSupabase, getUserProfile, upsertUserProfile } from '../lib/supabase';
 import { getDashboardMetrics } from '../lib/supabase';
 import RequestRoleUpgrade from './settings/RequestRoleUpgrade';
@@ -674,6 +675,9 @@ export const ProfilePage: React.FC = () => {
 
   const renderUsageTab = () => (
     <div className="space-y-6">
+      {/* Credits Wallet */}
+      <CreditsWallet />
+
       {/* Usage Statistics */}
       <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
         <h3 className="text-lg font-semibold text-white mb-4">

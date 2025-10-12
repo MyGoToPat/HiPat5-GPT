@@ -33,6 +33,11 @@ import {
   newThreadId,
   type ChatThread
 } from '../lib/history';
+import {
+  getOrCreateTodaySession,
+  addChatMessage,
+  getChatMessages
+} from '../lib/chatHistory';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
@@ -61,6 +66,7 @@ export const ChatPat: React.FC = () => {
   const [isLoadingChat, setIsLoadingChat] = useState(true);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -181,20 +187,36 @@ export const ChatPat: React.FC = () => {
           // Store userId in state for chat message persistence
           setUserId(user.id);
 
+          // Initialize or load today's chat session
+          const session = await getOrCreateTodaySession(user.id);
+          setSessionId(session.id);
+
+          // Load messages from session
+          const sessionMessages = await getChatMessages(session.id);
+          if (sessionMessages.length > 0) {
+            const mappedMessages = sessionMessages.map(msg => ({
+              role: msg.role,
+              content: msg.content,
+              timestamp: new Date(msg.created_at)
+            }));
+            setMessages(mappedMessages as ChatMessage[]);
+          } else {
+            setMessages(ChatManager.getInitialMessages());
+          }
+
           // Check TDEE completion status
           const { getUserContextFlags } = await import('../lib/personality/contextChecker');
           const contextFlags = await getUserContextFlags(user.id);
           setShowTDEEBubble(!contextFlags.hasTDEE);
 
-          // Load or create active session
-          const session = await ChatManager.ensureActiveSession(user.id);
-          setActiveChatId(session.id);
-          setThreadId(session.id);
+          // Load or create active session (legacy)
+          const legacySession = await ChatManager.ensureActiveSession(user.id);
+          setActiveChatId(legacySession.id);
+          setThreadId(legacySession.id);
 
-          // Load session messages
+          // Load session messages (legacy)
           const chatStateData = await ChatManager.loadChatState(user.id);
           setChatState(chatStateData);
-          setMessages(chatStateData.currentMessages);
         } else {
           // Not logged in, use default
           setMessages(ChatManager.getInitialMessages());
@@ -489,6 +511,12 @@ export const ChatPat: React.FC = () => {
             return;
           }
 
+          // Save to new chat_messages table
+          if (sessionId) {
+            await addChatMessage(sessionId, 'user', newMessage.text);
+          }
+
+          // Legacy persistence
           await ChatManager.saveMessage(
             userId,
             threadId,
@@ -714,6 +742,12 @@ export const ChatPat: React.FC = () => {
                 return;
               }
 
+              // Save to new chat_messages table
+              if (sessionId) {
+                await addChatMessage(sessionId, 'assistant', finalStreamingResponse.text);
+              }
+
+              // Legacy persistence
               await ChatManager.saveMessage(
                 userId,
                 threadId,
