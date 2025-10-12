@@ -38,6 +38,7 @@ import {
   addChatMessage,
   getChatMessages
 } from '../lib/chatHistory';
+import { spendCredits, PRICING } from '../lib/credits';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
@@ -754,6 +755,17 @@ export const ChatPat: React.FC = () => {
                 finalStreamingResponse.text,
                 'pat'
               );
+
+              // Spend credits for chat turn (non-blocking)
+              try {
+                await spendCredits(PRICING.AMA_TURN, 'Chat conversation turn');
+              } catch (creditError: any) {
+                if (creditError.message === 'INSUFFICIENT_CREDITS') {
+                  console.warn('[ChatPat] Insufficient credits, but allowing conversation');
+                } else {
+                  console.error('[ChatPat] Credits error:', creditError);
+                }
+              }
             } catch (error) {
               console.error('Failed to save AI response:', error);
             }

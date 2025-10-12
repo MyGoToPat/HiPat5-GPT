@@ -1,6 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -9,7 +13,10 @@ export default defineConfig({
     {
       name: 'deployment-lock-check',
       buildStart() {
-        if (process.env.VITE_DEPLOYMENT_UNLOCKED !== 'true') {
+        const unlockFile = path.join(__dirname, 'DEPLOY_UNLOCKED');
+        const isUnlocked = existsSync(unlockFile) || process.env.VITE_DEPLOYMENT_UNLOCKED === 'true';
+
+        if (!isUnlocked) {
           const message = `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   ⚠️  DEPLOYMENT LOCKED
@@ -17,14 +24,13 @@ export default defineConfig({
 
 This build is locked to prevent accidental deployments.
 
-To unlock:
-  1. Add to your .env file:
-     VITE_DEPLOYMENT_UNLOCKED=true
+To unlock (choose one):
+  1. Create empty file: touch DEPLOY_UNLOCKED
+  2. Or set env var: export VITE_DEPLOYMENT_UNLOCKED=true
 
-  2. Run build again:
-     npm run build
+Then run: npm run build
 
-Why? This safeguard prevents CI/CD from deploying
+Why? Manual unlock prevents CI/CD from deploying
 incomplete code during development sprints.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

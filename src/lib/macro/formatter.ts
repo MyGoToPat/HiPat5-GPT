@@ -4,6 +4,14 @@
  * NO LLM - guarantees identical output for identical input
  */
 
+export interface USDAMacros {
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g?: number;
+}
+
 export interface MacroItem {
   name: string;
   qty: number;
