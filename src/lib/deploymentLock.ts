@@ -1,16 +1,20 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
+/**
+ * Deployment Lock System
+ *
+ * Prevents accidental deployments by requiring manual unlock.
+ * Guards against "npm run build" in CI/CD pipelines.
+ */
 
-// https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [
-    react(),
-    {
-      name: 'deployment-lock-check',
-      buildStart() {
-        if (process.env.VITE_DEPLOYMENT_UNLOCKED !== 'true') {
-          const message = `
+const LOCK_FILE_CHECK = import.meta.env.VITE_DEPLOYMENT_UNLOCKED === 'true';
+
+export function checkDeploymentLock(): { locked: boolean; message?: string } {
+  if (LOCK_FILE_CHECK) {
+    return { locked: false };
+  }
+
+  return {
+    locked: true,
+    message: `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   ⚠️  DEPLOYMENT LOCKED
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -28,19 +32,15 @@ Why? This safeguard prevents CI/CD from deploying
 incomplete code during development sprints.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          `.trim();
-          console.error('\n' + message + '\n');
-          throw new Error('DEPLOYMENT_LOCKED');
-        }
-      }
-    }
-  ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-  optimizeDeps: {
-    exclude: ['lucide-react'],
-  },
-});
+    `.trim()
+  };
+}
+
+export function assertDeploymentUnlocked(): void {
+  const { locked, message } = checkDeploymentLock();
+
+  if (locked) {
+    console.error(message);
+    throw new Error('DEPLOYMENT_LOCKED');
+  }
+}

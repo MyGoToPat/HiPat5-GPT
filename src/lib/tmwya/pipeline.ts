@@ -9,6 +9,7 @@ import { callChat } from '../chat';
 import { fetchFoodMacros } from '../food';
 import { saveMeal } from '../meals/saveMeal';
 import { getSupabase } from '../supabase';
+import { hasRoleAccess } from '../roleAccess';
 import type {
   AnalysisResult,
   MealNLUParseResult,
@@ -40,6 +41,16 @@ interface TMWYAResult {
 export async function runTMWYAPipeline(input: TMWYAInput): Promise<TMWYAResult> {
   try {
     console.log('[TMWYA] Starting pipeline for:', input.source);
+
+    // Check role access
+    const hasAccess = await hasRoleAccess(input.userId, 'TMWYA');
+    if (!hasAccess) {
+      return {
+        ok: false,
+        error: 'TMWYA feature not available for your account tier',
+        step: 'role_check'
+      };
+    }
 
     // Step 1: Parse the input based on source
     let parseResult: MealNLUParseResult;
