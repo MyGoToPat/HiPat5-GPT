@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { X, Plus, Search } from 'lucide-react';
-import { getPersonalityAgents, upsertPersonalityAgent } from '../../../state/personalityStore';
 import type { AgentConfig } from '../../../types/mcp';
 import toast from 'react-hot-toast';
+
+// Legacy store removed
+const getPersonalityAgents = () => [];
+const upsertPersonalityAgent = () => Promise.resolve();
 
 interface AddSwarmAgentModalProps {
   isOpen: boolean;

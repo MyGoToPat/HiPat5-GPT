@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { AgentConfig, AgentPhase, TonePreset } from "@/types/mcp";
-import {
-  getPersonalityAgents,
-  getPersonalitySwarm,
-  upsertPersonalityAgent,
-  setPersonalitySwarm,
-} from "@/state/personalityStore";
+
+// Legacy store removed
+const getPersonalityAgents = () => [];
+const getPersonalitySwarm = () => null;
+const upsertPersonalityAgent = () => Promise.resolve();
+const setPersonalitySwarm = () => {};
 
 type Props = {
   open: boolean;

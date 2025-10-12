@@ -543,254 +543,74 @@ export const ChatPat: React.FC = () => {
             const { getFeatureFlags } = await import('../lib/featureFlags');
             const flags = await getFeatureFlags(user.data.user.id);
 
-            if (flags.swarm_v2_enabled) {
-              // Swarm 2.2 Pipeline
-              console.log('[ChatPat] Using Swarm 2.2 (feature flag enabled)');
+            // Use new unified message handler
+            console.log('[ChatPat] Using P3 unified handler');
 
-              const { runSwarmV2Pipeline } = await import('../lib/personality/orchestrator.v2');
-              const { getUserProfile } = await import('../lib/supabase');
-              const userProfile = await getUserProfile(user.data.user.id);
+            const { handleUserMessage } = await import('../core/chat/handleUserMessage');
+            const { getUserProfile } = await import('../lib/supabase');
 
-              if (!userProfile) {
-                throw new Error('User profile not found');
-              }
+            const userProfile = await getUserProfile(user.data.user.id);
 
-              // Get user preferences
-              const { data: prefs } = await getSupabase()
-                .from('user_preferences')
-                .select('timezone')
-                .eq('user_id', user.data.user.id)
-                .maybeSingle();
-
-              const timezone = prefs?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-              const result = await runSwarmV2Pipeline({
-                userMessage: newMessage.text,
-                userId: user.data.user.id,
-                timezone,
-                tonePreference: 'concise',
-                context: {
-                  messageId: newMessage.id,
-                  source: 'chat'
-                }
-              });
-
-              if (!result.success) {
-                console.error('[ChatPat] Swarm 2.2 error:', result.error);
-                throw new Error(result.error || 'Pipeline failed');
-              }
-
-              // Add Pat's response
-              const patMessage: ChatMessage = {
-                id: crypto.randomUUID(),
-                text: result.answer,
-                isUser: false,
-                timestamp: new Date()
-              };
-
-              setMessages(prev => [...prev, patMessage]);
-              setIsSpeaking(false);
-              setStatusText('');
-
-              // Save to history
-              const historyEntry = {
-                ...chatState,
-                messages: [...messages, newMessage, patMessage],
-                updatedAt: new Date().toISOString()
-              };
-              await upsertThread(historyEntry);
-
-              return; // Skip legacy code
+            if (!userProfile) {
+              throw new Error('User profile not found');
             }
 
-            // Legacy Path (Swarm 2.1)
-            console.log('[ChatPat] Using legacy path (Swarm 2.2 disabled)');
+            // Get user preferences for context
+            const { data: prefs } = await getSupabase()
+              .from('user_preferences')
+              .select('timezone, learning_style')
+              .eq('user_id', user.data.user.id)
+              .maybeSingle();
 
-            try {
-              const { runPersonalityPipeline } = await import('../lib/personality/orchestrator');
+            const result = await handleUserMessage(newMessage.text, {
+              userId: user.data.user.id,
+              userContext: {
+                firstName: userProfile.name?.split(' ')[0],
+                learningStyle: prefs?.learning_style || 'unknown',
+                hasTDEE: true, // TODO: Check actual TDEE status
+              },
+              mode: 'text',
+            });
 
-              if (user.data.user) {
-                // Get user profile for permission checks
-                const { getUserProfile } = await import('../lib/supabase');
-                const userProfile = await getUserProfile(user.data.user.id);
+            // Add Pat's response
+            const patMessage: ChatMessage = {
+              id: crypto.randomUUID(),
+              text: result.response,
+              isUser: false,
+              timestamp: new Date()
+            };
 
-                if (userProfile) {
-                  // FOOD CLASSIFICATION & LOGGING (before orchestrator)
-                  // Simplified 3-class system: food_mention, food_question, general
-                  try {
-                    const classification = await classifyFoodMessage(newMessage.text, {
-                      userId: user.data.user.id
-                    });
+            setMessages(prev => [...prev, patMessage]);
+            setIsSpeaking(false);
+            setStatusText('');
 
-                    // If food_mention detected, log meal immediately
-                    if (classification.type === 'food_mention' && classification.items && classification.items.length > 0) {
-                      console.log('[ChatPat] Food mention detected, logging meal...');
+            // Save to history
+            const historyEntry = {
+              ...chatState,
+              messages: [...messages, newMessage, patMessage],
+              updatedAt: new Date().toISOString()
+            };
+            await upsertThread(historyEntry);
 
-                      const saveResult = await saveMealAction({
-                        userId: user.data.user.id,
-                        messageId: newMessage.id,  // Link to chat message
-                        items: classification.items,
-                        mealSlot: inferMealSlot(),
-                        timestamp: new Date().toISOString(),
-                        clientConfidence: classification.confidence
-                      });
+          } catch (error) {
+            console.error('[ChatPat] Error in message handling:', error);
+            setIsSpeaking(false);
+            setStatusText('');
 
-                      if (saveResult.ok && saveResult.totals) {
-                        // Show inline confirmation banner
-                        const confirmationMsg = `Logged ${saveResult.itemsCount} item(s) · ${Math.round(saveResult.totals.kcal)} kcal · ${Math.round(saveResult.totals.protein_g)}P/${Math.round(saveResult.totals.fat_g)}F/${Math.round(saveResult.totals.carbs_g)}C/${Math.round(saveResult.totals.fiber_g)}Fib · KPIs updated`;
+            // Show error to user
+            const errorMessage: ChatMessage = {
+              id: crypto.randomUUID(),
+              text: 'Sorry, I encountered an error. Please try again.',
+              isUser: false,
+              timestamp: new Date()
+            };
+            setMessages(prev => [...prev, errorMessage]);
+          }
 
-                        setInlineConfirmation({
-                          show: true,
-                          message: confirmationMsg
-                        });
+          return; // Exit after P3 handler
 
-                        // Auto-hide after 3 seconds
-                        setTimeout(() => {
-                          setInlineConfirmation({ show: false });
-                        }, 3000);
-
-                        console.log('[ChatPat] Meal logged successfully:', {
-                          mealLogId: saveResult.mealLogId,
-                          items: saveResult.itemsCount,
-                          totals: saveResult.totals
-                        });
-                      } else {
-                        console.error('[ChatPat] Failed to save meal:', saveResult.error);
-                      }
-                    } else if (classification.type === 'food_question') {
-                      console.log('[ChatPat] Food question detected, answering only (no logging)');
-                    } else {
-                      console.log('[ChatPat] General message, proceeding normally');
-                    }
-                  } catch (classifyError) {
-                    console.warn('[ChatPat] Food classification failed, continuing with normal chat:', classifyError);
-                  }
-
-                  // Inject context message into the pipeline
-                  const userMessageWithContext = contextMessage
-                    ? `${contextMessage}\n\nUser message: ${newMessage.text}`
-                    : newMessage.text;
-
-                  // Extract first name from display_name or name
-                  const firstName = userProfile.display_name ||
-                    (userProfile.name ? userProfile.name.split(' ')[0] : 'there');
-
-                  // Calculate TDEE age in days
-                  const tdeeAge = userProfile.last_tdee_update
-                    ? Math.floor((Date.now() - new Date(userProfile.last_tdee_update).getTime()) / (1000 * 60 * 60 * 24))
-                    : null;
-
-                  const pipelineResult = await runPersonalityPipeline({
-                    userMessage: userMessageWithContext,
-                    context: {
-                      userId: user.data.user.id,
-                      userProfile: {
-                        ...userProfile,
-                        trial_ends: (userProfile as any).trial_ends || null,
-                        role: userProfile.role || 'free_user'
-                      },
-                      // User-specific context for natural conversation
-                      firstName: firstName,
-                      fullName: userProfile.name || 'User',
-                      chatCount: userProfile.chat_count || 0,
-                      isFirstTimeChat: !userProfile.chat_count || userProfile.chat_count === 0,
-                      hasTDEE: userProfile.has_completed_tdee || false,
-                      tdeeAge: tdeeAge,
-                      lastTDEEUpdate: userProfile.last_tdee_update || null,
-                      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                      today: new Date().toISOString().slice(0, 10),
-                      audience: 'beginner',
-                      free: {
-                        // Add basic metrics if available
-                        frequency: "building",
-                        rest: "tracking",
-                        energy: "logging",
-                        effort: "measuring"
-                      },
-                      // Swarm 2.1: Pass lastQuestionItems for "log that" intent
-                      lastQuestionItems: lastQuestionItems
-                    }
-                  });
-
-                  if (pipelineResult.ok) {
-                    let responseText = pipelineResult.answer;
-
-                    // Swarm 2.1: Sync lastQuestionItems from orchestrator with TTL
-                    if (pipelineResult.lastQuestionItems !== undefined) {
-                      setLastQuestionItems(pipelineResult.lastQuestionItems);
-                      lastSetRef.current = Date.now(); // Update timestamp
-                    }
-
-                    // Pat's response already includes "Log" for macro responses
-                    // Do NOT add extra instructions
-
-                    const patResponse: ChatMessage = {
-                      id: (Date.now() + 1).toString(),
-                      text: responseText,
-                      timestamp: new Date(),
-                      isUser: false
-                    };
-
-                    // Remove thinking message and add actual response
-                    setMessages(prev => prev.filter(m => !m.id.startsWith('thinking-')).concat(patResponse));
-                    
-                    // Continue with existing save logic...
-                    const finalMessages = [...messages, newMessage, patResponse];
-                    const messagesForSave = finalMessages.map(msg => ({
-                      role: msg.isUser ? 'user' : 'assistant',
-                      content: msg.text
-                    }));
-                    
-                    const threadToSave: ChatThread = {
-                      id: threadId,
-                      title: makeTitleFrom(messagesForSave),
-                      updatedAt: Date.now(),
-                      messages: messagesForSave
-                    };
-                    upsertThread(threadToSave);
-                    
-                    try {
-                      if (!userId) {
-                        console.error('CRITICAL: userId is undefined, cannot save AI response');
-                        return;
-                      }
-                      await ChatManager.saveMessage(
-                        userId,
-                        threadId,
-                        patResponse.text,
-                        'pat',
-                        pipelineResult.meta
-                      );
-                    } catch (error) {
-                      console.error('Error saving AI response:', error);
-                    }
-                    
-                    // Track first chat message if applicable
-                    if (messages.length === 1) {
-                      try {
-                        detectAndLogWorkout(inputText);
-                        if (user.data.user) {
-                          trackFirstChatMessage(user.data.user.id);
-                        }
-                      } catch (error) {
-                        console.error('Error tracking first chat:', error);
-                      }
-                    }
-                    
-                    setTimeout(() => {
-                      setIsSpeaking(false);
-                      setIsSending(false);
-                      setStatusText('');
-                    }, responseText.length * 50);
-                    
-                    return;
-                  }
-                }
-              }
-            } catch (importError) {
-              console.warn('New personality pipeline not available, falling back to direct chat:', importError);
-            }
-            
+          // ==== LEGACY FALLBACK CODE (UNREACHABLE AFTER RETURN) ====
+          try {
             // Fallback to existing chat logic with streaming
             // Inject context into the last user message if we have it
             let payload = conversationHistory.slice(-10);

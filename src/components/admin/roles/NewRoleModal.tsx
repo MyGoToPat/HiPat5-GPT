@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { X, Plus } from 'lucide-react';
-import { addSwarmTab } from '../../../lib/swarm-tabs';
 import toast from 'react-hot-toast';
+
+// Legacy import removed
+const addSwarmTab = () => {};
 
 interface NewRoleModalProps {
   isOpen: boolean;

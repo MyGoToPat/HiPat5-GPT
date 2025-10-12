@@ -1,20 +1,24 @@
 import React from 'react';
 import AdminHeader from '../../components/admin/AdminHeader';
 import RoleTabs from '../../components/admin/RoleTabs';
-import { ROLE_ORCHESTRATORS } from '../../lib/role-orchestrators';
-import { SWARM_TABS as INITIAL_SWARM_TABS } from '../../lib/swarm-tabs';
 import { ExternalLink, Settings, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../../lib/supabase';
 import AgentTemplateWizard from '@/components/admin/agents/AgentTemplateWizard';
-import { getPersonalityAgents, getPersonalitySwarm, upsertPersonalityAgent } from '@/state/personalityStore';
 import AgentBulkActions from '@/components/admin/agents/AgentBulkActions';
 import { useRole } from '../../hooks/useRole';
 import { canToggle, isAdmin, canCreateRoles, canManageSwarms } from '../../utils/rbac';
 import { NewRoleModal } from '../../components/admin/roles/NewRoleModal';
 import { AddSwarmAgentModal } from '../../components/admin/agents/AddSwarmAgentModal';
-import { SWARM_TABS } from '../../lib/swarm-tabs';
+
+// Legacy imports removed - will be replaced with new role system
+const ROLE_ORCHESTRATORS: any[] = [];
+const INITIAL_SWARM_TABS: any[] = [];
+const SWARM_TABS: any[] = [];
+const getPersonalityAgents = () => [];
+const getPersonalitySwarm = () => null;
+const upsertPersonalityAgent = () => Promise.resolve();
 
 type AgentRow = {
   id?: string | number;

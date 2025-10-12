@@ -1,5 +1,6 @@
 import React from 'react';
-import { SWARM_TABS } from '../../lib/swarm-tabs';
+// Legacy import removed
+const SWARM_TABS: any[] = [];
 
 interface RoleTabsProps {
   value: string | null;

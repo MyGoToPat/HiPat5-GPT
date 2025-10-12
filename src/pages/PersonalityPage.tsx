@@ -1,9 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { SWARM_TABS } from '../lib/swarm-tabs';
 import { PatAvatar } from '../components/PatAvatar';
 import { getSupabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
+
+// Legacy import removed
+const SWARM_TABS: any[] = [];
 
 const sb = getSupabase();
 

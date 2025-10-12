@@ -1,6 +1,8 @@
 import React from "react";
-import { resetPersonalityState } from "@/state/personalityStore";
 import AgentTestModal from "@/components/admin/agents/AgentTestModal";
+
+// Legacy store removed
+const resetPersonalityState = () => {};
 
 export default function AgentBulkActions() {
   const [openTest, setOpenTest] = React.useState(false);

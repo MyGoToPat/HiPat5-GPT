@@ -1,6 +1,12 @@
 import React from "react";
-import { runPersonalityPipeline } from "@/lib/personality/orchestrator";
 import { X, Play } from "lucide-react";
+
+// Legacy orchestrator removed - stub for now
+const runPersonalityPipeline = async (_params: any) => ({
+  ok: false,
+  answer: "Legacy orchestrator removed. Use new P3 system.",
+  error: "Not implemented"
+});
 
 type Props = { open: boolean; onClose: () => void };
 
