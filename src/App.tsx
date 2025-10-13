@@ -27,6 +27,7 @@ import AdminPage from './pages/AdminPage';
 
 // Admin/agents
 import AdminUsersPage from './pages/admin/AdminUsersPage';
+import SwarmsPage from './pages/admin/SwarmsPage';
 import AdminGuard from './components/guards/AdminGuard';
 import RoleAccessPage from './pages/admin/RoleAccessPage';
 import DiagnosticsPage from './pages/admin/DiagnosticsPage';
@@ -79,6 +80,7 @@ function App() {
             <Route path="diagnostics" element={<AdminGuard><DiagnosticsPage /></AdminGuard>} />
             <Route path="shoplens" element={<AdminGuard><ShopLensPage /></AdminGuard>} />
             <Route path="users" element={<AdminGuard><AdminUsersPage /></AdminGuard>} />
+            <Route path="swarms" element={<AdminGuard><SwarmsPage /></AdminGuard>} />
           </Route>
         </Route>
 
