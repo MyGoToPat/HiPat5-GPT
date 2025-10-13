@@ -214,7 +214,7 @@ export async function saveMealFromMacros(
 
     // Insert meal items
     const itemsToInsert = items.map((item, idx) => ({
-      meal_id: meal.id,
+      meal_log_id: meal.id,
       position: idx + 1,
       name: item.name,
       qty: item.qty || 1,
