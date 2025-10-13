@@ -35,9 +35,9 @@ export default function UsagePage() {
 
       if (creditsRes.data) {
         setCredits({
-          balance: creditsRes.data.balance || 0,
+          balance: creditsRes.data.balance_usd || 0,
           plan: creditsRes.data.plan || 'free',
-          monthly_spent: creditsRes.data.monthly_spent || 0
+          monthly_spent: creditsRes.data.month_delta_usd || 0
         });
       }
 

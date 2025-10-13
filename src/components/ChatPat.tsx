@@ -313,10 +313,34 @@ export const ChatPat: React.FC = () => {
   const handleConfirmVerification = async (normalizedMeal: NormalizedMealData) => {
     try {
       setIsLoggingActivity(true);
-      const result = await saveMealAction(normalizedMeal);
+
+      // Convert NormalizedMealData to SaveMealInput
+      const saveInput: SaveMealInput = {
+        userId: userId!,
+        messageId: undefined,
+        items: normalizedMeal.mealItems.map(item => ({
+          name: item.name,
+          quantity: item.qty || 1,
+          unit: item.unit,
+          energy_kcal: item.macros.kcal,
+          protein_g: item.macros.protein_g,
+          fat_g: item.macros.fat_g,
+          carbs_g: item.macros.carbs_g,
+          fiber_g: item.micros?.fiber_g || 0,
+          brand: item.brand,
+          description: undefined
+        })),
+        mealSlot: normalizedMeal.meal.meal_slot,
+        timestamp: normalizedMeal.meal.eaten_at,
+        note: normalizedMeal.meal.note,
+        clientConfidence: normalizedMeal.meal.client_confidence,
+        source: normalizedMeal.meal.source
+      };
+
+      const result = await saveMealAction(saveInput);
 
       if (result.ok) {
-        const totals = normalizedMeal.mealLog.totals;
+        const totals = normalizedMeal.meal.totals;
 
         // Close verification screen
         setShowFoodVerificationScreen(false);

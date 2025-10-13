@@ -17,9 +17,9 @@ export default function UserMenu({ email }: UserMenuProps) {
 
   async function loadBalance() {
     try {
-      const { data } = await supabase.from('v_user_credits').select('balance').maybeSingle();
+      const { data } = await supabase.from('v_user_credits').select('balance_usd').maybeSingle();
       if (data) {
-        const bal = data.balance || 0;
+        const bal = data.balance_usd || 0;
         setBalance(bal);
         setIsLow(bal < 0.20);
       }

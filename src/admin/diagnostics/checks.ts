@@ -104,7 +104,7 @@ async function checkInboxBell(): Promise<CheckResult> {
 async function checkUsagePage(): Promise<CheckResult> {
   try {
     // Check if v_user_credits view exists
-    const { error } = await supabase.from('v_user_credits').select('balance').limit(1);
+    const { error } = await supabase.from('v_user_credits').select('balance_usd').limit(1);
 
     if (error) throw error;
 
@@ -279,7 +279,7 @@ async function checkTokenWalletsTables(): Promise<CheckResult> {
     const [wallets, transactions, view] = await Promise.all([
       supabase.from('token_wallets').select('id').limit(1),
       supabase.from('token_transactions').select('id').limit(1),
-      supabase.from('v_user_credits').select('balance').limit(1)
+      supabase.from('v_user_credits').select('balance_usd').limit(1)
     ]);
 
     if (wallets.error) throw wallets.error;

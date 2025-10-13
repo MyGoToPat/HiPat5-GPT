@@ -30,12 +30,12 @@ export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentC
     try {
       const { data, error } = await supabase
         .from('v_user_credits')
-        .select('balance')
+        .select('balance_usd')
         .maybeSingle();
 
       if (error) throw error;
 
-      const balance = data?.balance || 0;
+      const balance = data?.balance_usd || 0;
       setCreditBalance(balance);
       setIsLowBalance(balance < 0.20);
     } catch (err) {

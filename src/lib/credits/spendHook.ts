@@ -14,10 +14,10 @@ export async function spendCredits(amount: number, reason: string): Promise<void
 
     const { data: balance } = await supabase
       .from('v_user_credits')
-      .select('balance')
+      .select('balance_usd')
       .maybeSingle();
 
-    if (balance && balance.balance < 0.20) {
+    if (balance && balance.balance_usd < 0.20) {
       await createLowCreditAnnouncement();
     }
   } catch (err) {
