@@ -362,17 +362,7 @@ export default function SwarmsPage() {
                   )}
                 </div>
               </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-                <Settings className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Select an Agent
-                </h3>
-                <p className="text-gray-600">
-                  Choose an agent from the left to view and edit its configuration
-                </p>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
