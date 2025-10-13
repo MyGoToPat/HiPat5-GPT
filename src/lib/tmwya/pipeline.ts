@@ -40,6 +40,7 @@ interface TMWYAResult {
  */
 export async function runTMWYAPipeline(input: TMWYAInput): Promise<TMWYAResult> {
   try {
+    console.log('[SWARM] persona loaded: patSystem.v2');
     console.log('[TMWYA] Starting pipeline for:', input.source);
 
     // Check role access

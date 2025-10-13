@@ -46,15 +46,16 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
   tdeeComparison
 }) => {
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
-  const [mealSlot, setMealSlot] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack' | 'unknown'>('unknown');
+  const [mealSlot, setMealSlot] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('breakfast');
   const [note, setNote] = useState<string>('');
 
   // Initialize meal slot based on time or analysis result
-  const determineMealSlot = (): 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'unknown' => {
-    if (analysisResult.meal_slot) {
-      return analysisResult.meal_slot;
+  const determineMealSlot = (): 'breakfast' | 'lunch' | 'dinner' | 'snack' => {
+    const slot = analysisResult.meal_slot?.toLowerCase();
+    if (slot && ['breakfast', 'lunch', 'dinner', 'snack'].includes(slot)) {
+      return slot as 'breakfast' | 'lunch' | 'dinner' | 'snack';
     }
-    
+
     const hour = new Date().getHours();
     if (hour >= 5 && hour < 10) return 'breakfast';
     if (hour >= 10 && hour < 15) return 'lunch';

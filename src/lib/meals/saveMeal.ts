@@ -279,12 +279,20 @@ export async function logMealViaRpc(input: SaveMealInput): Promise<SaveMealResul
     }));
 
     // Call RPC with new signature
+    console.log('[SWARM] rpc/log_meal → params:', {
+      p_meal_slot_text,
+      items_count: p_items.length,
+      totals_kcal: totals.kcal
+    });
+
     const { data: mealLogId, error } = await supabase.rpc('log_meal', {
       p_ts: p_ts.toISOString(),
       p_meal_slot_text,
       p_note,
       p_items
     });
+
+    console.log('[SWARM] rpc/log_meal → result:', { mealLogId, error: error?.message });
 
     if (error) {
       console.error('[logMealViaRpc] RPC error:', error);
