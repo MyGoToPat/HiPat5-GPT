@@ -237,10 +237,16 @@ export async function logMealViaRpc(input: SaveMealInput): Promise<SaveMealResul
       return { ok: false, error: 'No items provided' };
     }
 
-    // Prepare RPC parameters
-    const p_ts = input.timestamp || new Date().toISOString();
-    const p_meal_slot = input.mealSlot || null;
-    const p_source = input.source || 'text';
+    // Validate and sanitize meal_slot (must match enum values)
+    const allowedSlots = new Set(['breakfast', 'lunch', 'dinner', 'snack']);
+    const safeMealSlot = input.mealSlot && allowedSlots.has(input.mealSlot.toLowerCase())
+      ? input.mealSlot.toLowerCase()
+      : null;
+
+    // Prepare RPC parameters (matching new signature)
+    const p_ts = input.timestamp ? new Date(input.timestamp) : new Date();
+    const p_meal_slot_text = safeMealSlot;
+    const p_note = input.note || null;
 
     // Compute totals
     const totals = {
@@ -248,8 +254,7 @@ export async function logMealViaRpc(input: SaveMealInput): Promise<SaveMealResul
       protein_g: 0,
       fat_g: 0,
       carbs_g: 0,
-      fiber_g: 0,
-      assumptions: [] as string[]
+      fiber_g: 0
     };
 
     for (const item of input.items) {
@@ -260,26 +265,24 @@ export async function logMealViaRpc(input: SaveMealInput): Promise<SaveMealResul
       totals.fiber_g += item.fiber_g || 0;
     }
 
-    // Prepare items for RPC
-    const p_items = input.items.map(item => ({
+    // Prepare items JSONB (matching new signature)
+    const p_items = input.items.map((item, index) => ({
+      position: index + 1,
       name: item.name,
-      quantity: item.quantity || 1,
+      quantity: String(item.quantity || 1),
       unit: item.unit || 'serving',
-      macros: {
-        kcal: item.energy_kcal || 0,
-        protein_g: item.protein_g || 0,
-        fat_g: item.fat_g || 0,
-        carbs_g: item.carbs_g || 0,
-        fiber_g: item.fiber_g || 0
-      }
+      energy_kcal: String(item.energy_kcal || 0),
+      protein_g: String(item.protein_g || 0),
+      fat_g: String(item.fat_g || 0),
+      carbs_g: String(item.carbs_g || 0),
+      fiber_g: String(item.fiber_g || 0)
     }));
 
-    // Call RPC
+    // Call RPC with new signature
     const { data: mealLogId, error } = await supabase.rpc('log_meal', {
-      p_ts,
-      p_meal_slot,
-      p_source,
-      p_totals: totals,
+      p_ts: p_ts.toISOString(),
+      p_meal_slot_text,
+      p_note,
       p_items
     });
 
