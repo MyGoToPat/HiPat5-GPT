@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit, Mic, BarChart3, User, Users, Settings, Zap, AlertCircle } from 'lucide-react';
+import { X, Edit, Mic, BarChart3, User, Users, Settings, Zap, AlertCircle, Network } from 'lucide-react';
 import { NAV_ITEMS } from '../config/navItems';
 import { useRole } from '../hooks/useRole';
 import { supabase } from '../lib/supabase';
@@ -70,6 +70,7 @@ export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentC
       case 'Client Management': return Users;
       case 'Role Access': return Settings;
       case 'User Management': return Settings;
+      case 'Swarms': return Network;
       case 'ShopLens': return Settings;
       case 'TDEE Calculator': return Zap;
       default: return undefined;
