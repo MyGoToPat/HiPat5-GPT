@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getSupabase } from '../../lib/supabase';
-import { Settings, ChevronRight, Edit2, Save, X } from 'lucide-react';
+import { Settings, ChevronRight, Edit2, Save, X, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 type Agent = {
@@ -32,6 +32,7 @@ export default function SwarmsPage() {
   const [editingConfig, setEditingConfig] = useState<string>('');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>('macro');
 
   useEffect(() => {
     loadSwarms();
@@ -142,6 +143,14 @@ export default function SwarmsPage() {
     );
   }
 
+  // Get the currently active swarm based on tab
+  const currentSwarm = swarms.find(s => s.name.toLowerCase() === activeTab);
+  const tabs = swarms.map(s => ({
+    id: s.name.toLowerCase(),
+    label: `${s.name.charAt(0).toUpperCase() + s.name.slice(1)} Swarm`,
+    count: s.agents.length
+  }));
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -152,63 +161,127 @@ export default function SwarmsPage() {
           </p>
         </div>
 
+        {/* Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setSelectedAgent(null);
+                }}
+                className={`${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+              >
+                {tab.label}
+                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
+                  activeTab === tab.id
+                    ? 'bg-blue-100 text-blue-600'
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </nav>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Swarm List */}
-          <div className="lg:col-span-1 space-y-6">
-            {swarms.map((swarm) => (
-              <div key={swarm.name} className="bg-white rounded-lg shadow-sm border border-gray-200">
+          {/* Left: Agent List for Active Tab */}
+          <div className="lg:col-span-1">
+            {currentSwarm && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                 <div className="p-4 border-b border-gray-200 bg-gray-50">
-                  <h2 className="text-lg font-semibold text-gray-900 capitalize">
-                    {swarm.name} Swarm
-                  </h2>
+                  <h2 className="text-lg font-semibold text-gray-900">Agent Configuration</h2>
                   <p className="text-sm text-gray-600 mt-1">
-                    {swarm.agents.length} agent{swarm.agents.length !== 1 ? 's' : ''}
+                    Toggle enabled status, adjust order for execution priority, then click Save on any changed row to persist changes.
                   </p>
                 </div>
 
-                <div className="divide-y divide-gray-100">
-                  {swarm.agents.map((agent) => (
-                    <div
-                      key={agent.id}
-                      className={`p-3 hover:bg-gray-50 cursor-pointer transition-colors ${
-                        selectedAgent?.id === agent.id ? 'bg-blue-50' : ''
-                      }`}
-                      onClick={() => loadAgentConfig(agent)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-900 truncate">
-                              {agent.name}
-                            </span>
-                            {selectedAgent?.id === agent.id && (
-                              <ChevronRight className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500 mt-0.5 truncate">
-                            {agent.slug}
-                          </p>
-                        </div>
-
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleAgent(agent);
-                          }}
-                          className={`ml-2 px-2 py-1 rounded text-xs font-medium flex-shrink-0 ${
-                            agent.active
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-700'
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-900 text-white text-xs uppercase">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-semibold w-8">
+                          <ChevronDown className="h-4 w-4" />
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold">Agent</th>
+                        <th className="px-4 py-3 text-left font-semibold">Status</th>
+                        <th className="px-4 py-3 text-left font-semibold">Order</th>
+                        <th className="px-4 py-3 text-left font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {currentSwarm.agents.map((agent) => (
+                        <tr
+                          key={agent.id}
+                          className={`hover:bg-gray-50 ${
+                            selectedAgent?.id === agent.id ? 'bg-blue-50' : ''
                           }`}
                         >
-                          {agent.active ? 'Active' : 'Inactive'}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => {
+                                if (selectedAgent?.id === agent.id) {
+                                  setSelectedAgent(null);
+                                } else {
+                                  loadAgentConfig(agent);
+                                }
+                              }}
+                              className="text-gray-400 hover:text-gray-600"
+                            >
+                              <ChevronRight className={`h-4 w-4 transition-transform ${
+                                selectedAgent?.id === agent.id ? 'rotate-90' : ''
+                              }`} />
+                            </button>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {agent.name}
+                              </div>
+                              <div className="text-xs text-gray-500">{agent.slug}</div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleAgent(agent);
+                              }}
+                              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                                agent.active ? 'bg-green-600' : 'bg-gray-200'
+                              }`}
+                            >
+                              <span
+                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                  agent.active ? 'translate-x-5' : 'translate-x-0'
+                                }`}
+                              />
+                            </button>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-sm text-gray-900">{agent.order}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => loadAgentConfig(agent)}
+                              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                              Edit
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            ))}
+            )}
           </div>
 
           {/* Right: Agent Details */}
