@@ -6,6 +6,7 @@ interface CreditInfo {
   balance: number;
   plan: string;
   monthly_spent: number;
+  is_unlimited?: boolean;
 }
 
 interface Transaction {
@@ -37,7 +38,8 @@ export default function UsagePage() {
         setCredits({
           balance: creditsRes.data.balance_usd || 0,
           plan: creditsRes.data.plan || 'free',
-          monthly_spent: creditsRes.data.month_delta_usd || 0
+          monthly_spent: creditsRes.data.month_delta_usd || 0,
+          is_unlimited: creditsRes.data.is_unlimited || false
         });
       }
 
@@ -106,45 +108,63 @@ export default function UsagePage() {
   }
 
   const isLow = (credits?.balance || 0) < 0.20;
+  const isUnlimited = credits?.is_unlimited || false;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Credits & Usage</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm text-gray-600 mb-1">Current Balance</div>
-          <div className={`text-3xl font-bold ${isLow ? 'text-red-600' : 'text-gray-900'}`}>
-            ${credits?.balance.toFixed(2) || '0.00'}
+      {isUnlimited ? (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-500 rounded-lg shadow-lg p-8 mb-8">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <div className="text-6xl">∞</div>
+            <div>
+              <div className="text-3xl font-bold text-green-700">Unlimited Plan</div>
+              <div className="text-sm text-green-600 mt-1">Admin-granted unlimited usage</div>
+            </div>
           </div>
-          {isLow && (
-            <div className="text-xs text-red-600 mt-1">Low balance</div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm text-gray-600 mb-1">Plan</div>
-          <div className="text-3xl font-bold text-gray-900 capitalize">
-            {credits?.plan || 'Free'}
+          <div className="text-center text-gray-600 mt-4">
+            You have unlimited access to all features with no credit deductions.
           </div>
         </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="text-sm text-gray-600 mb-1">Current Balance</div>
+              <div className={`text-3xl font-bold ${isLow ? 'text-red-600' : 'text-gray-900'}`}>
+                ${credits?.balance.toFixed(2) || '0.00'}
+              </div>
+              {isLow && (
+                <div className="text-xs text-red-600 mt-1">Low balance</div>
+              )}
+            </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm text-gray-600 mb-1">This Month</div>
-          <div className="text-3xl font-bold text-gray-900">
-            ${credits?.monthly_spent.toFixed(2) || '0.00'}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="text-sm text-gray-600 mb-1">Plan</div>
+              <div className="text-3xl font-bold text-gray-900 capitalize">
+                {credits?.plan || 'Free'}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="text-sm text-gray-600 mb-1">This Month</div>
+              <div className="text-3xl font-bold text-gray-900">
+                ${credits?.monthly_spent.toFixed(2) || '0.00'}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div className="mb-8">
-        <button
-          onClick={() => setShowTopUp(true)}
-          className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-        >
-          Add Credits
-        </button>
-      </div>
+          <div className="mb-8">
+            <button
+              onClick={() => setShowTopUp(true)}
+              className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Add Credits
+            </button>
+          </div>
+        </>
+      )}
 
       {showTopUp && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

@@ -21,7 +21,7 @@ const getRoleChip = (role: AppRole) => {
   const colors = { admin: 'bg-red-100 text-red-800 border-red-200', trainer: 'bg-blue-100 text-blue-800 border-blue-200', paid_user: 'bg-green-100 text-green-800 border-green-200', free_user: 'bg-gray-100 text-gray-800 border-gray-200', user: 'bg-gray-100 text-gray-800 border-gray-200' };
   const icons = { admin: Crown, trainer: UserCheck, paid_user: CheckCircle, free_user: User, user: User };
   const IconComponent = icons[role];
-  
+
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${colors[role] || colors.free_user}`}>
       <IconComponent size={12} />
@@ -29,6 +29,73 @@ const getRoleChip = (role: AppRole) => {
     </span>
   );
 };
+
+function UnlimitedToggle({ userId }: { userId: string }) {
+  const [unlimited, setUnlimited] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const supabase = getSupabase();
+
+  useEffect(() => {
+    loadStatus();
+  }, [userId]);
+
+  async function loadStatus() {
+    try {
+      const { data } = await supabase
+        .from('v_user_credits')
+        .select('is_unlimited')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      setUnlimited(data?.is_unlimited || false);
+    } catch (err) {
+      console.error('Failed to load unlimited status:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function toggleUnlimited() {
+    const newValue = !unlimited;
+    setLoading(true);
+    try {
+      const { error } = await supabase.rpc('set_unlimited_credits', {
+        p_user: userId,
+        p_enabled: newValue
+      });
+
+      if (error) throw error;
+
+      setUnlimited(newValue);
+      toast.success(`Unlimited credits ${newValue ? 'enabled' : 'disabled'}`);
+    } catch (err: any) {
+      console.error('Failed to toggle unlimited:', err);
+      toast.error(`Failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) {
+    return <div className="w-10 h-5 bg-gray-200 rounded-full animate-pulse"></div>;
+  }
+
+  return (
+    <button
+      onClick={toggleUnlimited}
+      className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${
+        unlimited ? 'bg-green-600' : 'bg-gray-300'
+      }`}
+      aria-label={`Toggle unlimited credits for user`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+          unlimited ? 'translate-x-5' : 'translate-x-1'
+        }`}
+      />
+    </button>
+  );
+}
 
 const EditUserModal = ({
   supabase,
@@ -574,6 +641,7 @@ export default function AdminUsersPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beta</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unlimited</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sign-up</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beta Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -616,6 +684,9 @@ export default function AdminUsersPage() {
                           <XCircle size={16} className="text-gray-400" />
                         </span>
                       )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <UnlimitedToggle userId={user.user_id} />
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {formatDate(user.created_at)}
