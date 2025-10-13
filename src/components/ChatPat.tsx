@@ -310,37 +310,42 @@ export const ChatPat: React.FC = () => {
   const [successMealData, setSuccessMealData] = useState<{ kcal: number; items: number } | null>(null);
 
   // Food verification screen handlers
-  const handleConfirmVerification = async (normalizedMeal: NormalizedMealData) => {
+  const handleConfirmVerification = async (normalizedMeal: any) => {
     try {
       setIsLoggingActivity(true);
 
-      // Convert NormalizedMealData to SaveMealInput
+      // The FoodVerificationScreen returns {mealLog, mealItems}
+      // Extract the data regardless of structure
+      const mealData = normalizedMeal.mealLog || normalizedMeal.meal || normalizedMeal;
+      const items = normalizedMeal.mealItems || normalizedMeal.items || [];
+
+      // Convert to SaveMealInput format
       const saveInput: SaveMealInput = {
         userId: userId!,
         messageId: undefined,
-        items: normalizedMeal.mealItems.map(item => ({
-          name: item.name,
-          quantity: item.qty || 1,
-          unit: item.unit,
-          energy_kcal: item.macros.kcal,
-          protein_g: item.macros.protein_g,
-          fat_g: item.macros.fat_g,
-          carbs_g: item.macros.carbs_g,
-          fiber_g: item.micros?.fiber_g || 0,
+        items: items.map((item: any) => ({
+          name: item.name || '',
+          quantity: Number(item.qty || item.quantity || 1),
+          unit: item.unit || 'serving',
+          energy_kcal: Number(item.macros?.kcal || item.energy_kcal || 0),
+          protein_g: Number(item.macros?.protein_g || item.protein_g || 0),
+          fat_g: Number(item.macros?.fat_g || item.fat_g || 0),
+          carbs_g: Number(item.macros?.carbs_g || item.carbs_g || 0),
+          fiber_g: Number(item.macros?.fiber_g || item.micros?.fiber_g || item.fiber_g || 0),
           brand: item.brand,
           description: undefined
         })),
-        mealSlot: normalizedMeal.meal.meal_slot,
-        timestamp: normalizedMeal.meal.eaten_at,
-        note: normalizedMeal.meal.note,
-        clientConfidence: normalizedMeal.meal.client_confidence,
-        source: normalizedMeal.meal.source
+        mealSlot: mealData.meal_slot || null,
+        timestamp: mealData.ts || mealData.eaten_at || new Date().toISOString(),
+        note: mealData.note,
+        clientConfidence: mealData.client_confidence,
+        source: mealData.source || 'text'
       };
 
       const result = await saveMealAction(saveInput);
 
       if (result.ok) {
-        const totals = normalizedMeal.meal.totals;
+        const totals = mealData.totals || { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
 
         // Close verification screen
         setShowFoodVerificationScreen(false);
@@ -348,8 +353,8 @@ export const ChatPat: React.FC = () => {
 
         // Show success transition
         setSuccessMealData({
-          kcal: Math.round(totals.kcal),
-          items: normalizedMeal.mealItems.length
+          kcal: Math.round(totals.kcal || 0),
+          items: items.length
         });
         setShowSuccessTransition(true);
 
@@ -365,8 +370,8 @@ export const ChatPat: React.FC = () => {
           navigate('/dashboard', {
             state: {
               mealJustLogged: true,
-              mealCalories: totals.kcal,
-              mealItems: normalizedMeal.mealItems.length
+              mealCalories: totals.kcal || 0,
+              mealItems: items.length
             }
           });
         }, 2000);

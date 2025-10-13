@@ -119,6 +119,52 @@ export interface NormalizedMealData {
   mealItems: NormalizedMealItem[];
 }
 
+// ========== HOTFIX: Simplified Types for TMWYA → Save Flow ==========
+
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack' | null;
+
+export interface NormalizedItem {
+  name: string;
+  quantity: number;
+  unit: string;
+  macros: {
+    kcal: number;
+    protein_g: number;
+    fat_g: number;
+    carbs_g: number;
+    fiber_g: number;
+  };
+}
+
+export interface SimplifiedNormalizedMealData {
+  items: NormalizedItem[];
+  totals: {
+    kcal: number;
+    protein_g: number;
+    fat_g: number;
+    carbs_g: number;
+    fiber_g: number;
+    assumptions?: string[];
+  };
+  meal_slot?: MealSlot;
+  ts?: string;
+}
+
+export interface SimplifiedSaveMealInput {
+  ts: string;
+  meal_slot: MealSlot;
+  source: 'text' | 'voice' | 'photo';
+  totals: {
+    kcal: number;
+    protein_g: number;
+    fat_g: number;
+    carbs_g: number;
+    fiber_g: number;
+    assumptions?: string[];
+  };
+  items: NormalizedItem[];
+}
+
 export interface NutritionDatabase {
   id: string;
   name: string;
