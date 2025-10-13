@@ -320,6 +320,35 @@ export const FoodVerificationScreen: React.FC<FoodVerificationScreenProps> = ({
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
+        {/* TODAY'S KPIs Banner */}
+        {tdeeComparison && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="text-sm font-semibold text-blue-900 mb-2">TODAY'S TOTALS</h3>
+            <div className="grid grid-cols-5 gap-2 text-sm">
+              <div>
+                <div className="text-gray-600 text-xs">Calories</div>
+                <div className="font-bold text-gray-900">{tdeeComparison.consumed_today?.kcal || 0}</div>
+              </div>
+              <div>
+                <div className="text-gray-600 text-xs">Protein</div>
+                <div className="font-bold text-gray-900">{tdeeComparison.consumed_today?.protein_g || 0}g</div>
+              </div>
+              <div>
+                <div className="text-gray-600 text-xs">Fat</div>
+                <div className="font-bold text-gray-900">{tdeeComparison.consumed_today?.fat_g || 0}g</div>
+              </div>
+              <div>
+                <div className="text-gray-600 text-xs">Carbs</div>
+                <div className="font-bold text-gray-900">{tdeeComparison.consumed_today?.carbs_g || 0}g</div>
+              </div>
+              <div>
+                <div className="text-gray-600 text-xs">Fiber</div>
+                <div className="font-bold text-gray-900">{tdeeComparison.consumed_today?.fiber_g || 0}g</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Food Items List */}
         <div className="space-y-4 mb-6">
           {analysisResult.items.map((originalItem, index) => {
