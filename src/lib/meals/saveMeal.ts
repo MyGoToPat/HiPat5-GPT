@@ -295,7 +295,13 @@ export async function logMealViaRpc(input: SaveMealInput): Promise<SaveMealResul
     console.log('[SWARM] rpc/log_meal → result:', { mealLogId, error: error?.message });
 
     if (error) {
-      console.error('[logMealViaRpc] RPC error:', error);
+      console.error('[logMealViaRpc] RPC error FULL:', error);
+      console.error('[logMealViaRpc] RPC error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       return {
         ok: false,
         error: `Failed to log meal: ${error.message}`
