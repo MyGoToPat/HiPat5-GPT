@@ -101,24 +101,44 @@ interface LLMCallParams {
 }
 
 /**
- * Call LLM with prepared context
- * TODO: Implement actual OpenAI/Gemini API calls
+ * Call LLM with prepared context via OpenAI edge function
  */
 async function callLLM(params: LLMCallParams): Promise<string> {
   const { system, userMessage, messageHistory, roleData, modelSelection } = params;
 
-  // Placeholder implementation
   console.log('[callLLM] Calling', getModelDisplayName(modelSelection));
   console.log('[callLLM] System prompt length:', system.length);
   console.log('[callLLM] Message history:', messageHistory.length, 'messages');
   console.log('[callLLM] Role data:', roleData ? 'present' : 'none');
 
-  // TODO: Replace with actual API call to OpenAI or Gemini
-  // For now, return a placeholder response
+  // Build messages array for OpenAI
+  const messages = [
+    { role: 'system' as const, content: system },
+    ...messageHistory.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    })),
+    { role: 'user' as const, content: userMessage }
+  ];
 
-  if (roleData) {
-    return `I've processed your request and here's what I found:\n\n${JSON.stringify(roleData, null, 2)}\n\nLet me know if you need anything else!`;
+  // Call OpenAI chat edge function
+  const { getSupabase } = await import('../../lib/supabase');
+  const supabase = getSupabase();
+
+  const { data, error } = await supabase.functions.invoke('openai-chat', {
+    body: { messages, stream: false }
+  });
+
+  if (error) {
+    console.error('[callLLM] Edge function error:', error);
+    throw new Error('Failed to get response from AI assistant');
   }
 
-  return `I understand you're asking: "${userMessage}"\n\nI'm here to help with fitness and nutrition questions. This is a placeholder response - the full LLM integration is coming next.\n\nNext: Ask me about macros, workouts, or your daily progress!`;
+  if (!data?.message) {
+    console.error('[callLLM] No message in response:', data);
+    throw new Error('No response from AI assistant');
+  }
+
+  console.log('[callLLM] Response received, length:', data.message.length);
+  return data.message;
 }
