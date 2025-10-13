@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { AdminGuard } from '../hooks/useRole';
 import AdminUsersTable from '../components/admin/AdminUsersTable';
 import MetricsSummary from '../components/admin/MetricsSummary';
@@ -12,6 +13,21 @@ export default function AdminPage() {
         <h1 style={{ marginBottom: 8 }}>Admin Dashboard</h1>
         <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 16 }}>
           Build: {import.meta.env.MODE} — {new Date().toLocaleString()}
+        </div>
+
+        <div style={{ marginBottom: 24, display: 'flex', gap: 12 }}>
+          <Link
+            to="/admin/roles"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Role Access Control
+          </Link>
+          <Link
+            to="/admin/users"
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+          >
+            Manage Users
+          </Link>
         </div>
 
         <div style={{ marginBottom: 24 }}>

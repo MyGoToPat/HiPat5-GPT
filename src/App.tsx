@@ -17,6 +17,7 @@ import BetaPendingPage from './pages/auth/BetaPendingPage';
 // App pages
 import DashboardPage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
+import UsagePage from './pages/profile/UsagePage';
 import VoicePage from './pages/VoicePage';
 import ChatPage from './pages/ChatPage';
 import CameraPage from './pages/CameraPage';
@@ -27,8 +28,7 @@ import AdminPage from './pages/AdminPage';
 // Admin/agents
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminGuard from './components/guards/AdminGuard';
-import AgentsListPage from './pages/admin/AgentsListPage';
-import AgentDetailPage from './pages/admin/AgentDetailPage';
+import RoleAccessPage from './pages/admin/RoleAccessPage';
 import ShopLensPage from './pages/agents/ShopLensPage';
 import WelcomeBetaPage from './pages/WelcomeBetaPage';
 import { TMWYATestPage } from './pages/TMWYATestPage';
@@ -60,6 +60,7 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="profile/usage" element={<UsagePage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="camera" element={<CameraPage />} />
           <Route path="voice" element={<VoicePage />} />
@@ -73,9 +74,8 @@ function App() {
           {/* ADMIN-ONLY NESTED ROUTES */}
           <Route path="admin">
             <Route index element={<AdminPage />} />
-            <Route path="agents" element={<AdminGuard><AgentsListPage /></AdminGuard>} />
-            <Route path="agents/shoplens" element={<AdminGuard><ShopLensPage /></AdminGuard>} />
-            <Route path="agents/:agentId" element={<AdminGuard><AgentDetailPage /></AdminGuard>} />
+            <Route path="roles" element={<AdminGuard><RoleAccessPage /></AdminGuard>} />
+            <Route path="shoplens" element={<AdminGuard><ShopLensPage /></AdminGuard>} />
             <Route path="users" element={<AdminGuard><AdminUsersPage /></AdminGuard>} />
           </Route>
         </Route>
