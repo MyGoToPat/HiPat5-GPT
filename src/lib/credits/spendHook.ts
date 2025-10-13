@@ -2,6 +2,18 @@ import { supabase } from '@/lib/supabase';
 
 export async function spendCredits(amount: number, reason: string): Promise<void> {
   try {
+    // Check if user has unlimited plan first
+    const { data: credits } = await supabase
+      .from('v_user_credits')
+      .select('is_unlimited, balance_usd, plan')
+      .maybeSingle();
+
+    // Short-circuit: unlimited users don't spend or get warnings
+    if (credits?.is_unlimited) {
+      console.log('[spendCredits] User has unlimited plan, skipping deduction');
+      return;
+    }
+
     const { error } = await supabase.rpc('spend_credits', {
       amount,
       reason

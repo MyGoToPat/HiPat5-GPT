@@ -10,6 +10,7 @@ export default function UserMenu({ email }: UserMenuProps) {
   const supabase = getSupabase();
   const [balance, setBalance] = useState<number | null>(null);
   const [isLow, setIsLow] = useState(false);
+  const [isUnlimited, setIsUnlimited] = useState(false);
 
   useEffect(() => {
     loadBalance();
@@ -17,11 +18,18 @@ export default function UserMenu({ email }: UserMenuProps) {
 
   async function loadBalance() {
     try {
-      const { data } = await supabase.from('v_user_credits').select('balance_usd').maybeSingle();
+      const { data } = await supabase.from('v_user_credits').select('balance_usd, is_unlimited, plan').maybeSingle();
       if (data) {
-        const bal = data.balance_usd || 0;
-        setBalance(bal);
-        setIsLow(bal < 0.20);
+        const unlimited = data.is_unlimited || false;
+        setIsUnlimited(unlimited);
+        if (unlimited) {
+          setBalance(null);
+          setIsLow(false);
+        } else {
+          const bal = data.balance_usd || 0;
+          setBalance(bal);
+          setIsLow(bal < 0.20);
+        }
       }
     } catch (err) {
       console.error('Failed to load balance:', err);
@@ -35,11 +43,19 @@ export default function UserMenu({ email }: UserMenuProps) {
   return (
     <div className="flex items-center gap-3 text-sm">
       <Link to="/profile?tab=usage" className="relative flex items-center gap-2 hover:opacity-80">
-        <span className={`font-medium ${isLow ? 'text-red-600' : 'text-gray-700'}`}>
-          {balance !== null ? `$${balance.toFixed(2)}` : '...'}
-        </span>
-        {isLow && (
-          <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full" title="Low credits"></span>
+        {isUnlimited ? (
+          <span className="font-medium text-green-600">
+            ∞ Unlimited
+          </span>
+        ) : (
+          <>
+            <span className={`font-medium ${isLow ? 'text-red-600' : 'text-gray-700'}`}>
+              {balance !== null ? `$${balance.toFixed(2)}` : '...'}
+            </span>
+            {isLow && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full" title="Low credits"></span>
+            )}
+          </>
         )}
       </Link>
       <span className="opacity-70">{email}</span>

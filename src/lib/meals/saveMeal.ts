@@ -1,7 +1,7 @@
 /**
  * Save Meal with Production Schema
  * Works with existing meal_logs and meal_items tables
- * NO database modifications - strictly uses existing columns
+ * Uses RPC to bypass RLS issues
  */
 
 import { getSupabase } from '../supabase';
@@ -217,6 +217,89 @@ export async function saveMeal(input: SaveMealInput): Promise<SaveMealResult> {
       }
     }
 
+    return {
+      ok: false,
+      error: error.message || 'Unexpected error occurred'
+    };
+  }
+}
+
+/**
+ * Log meal via RPC (bypasses RLS issues)
+ * This is the preferred method for saving meals
+ */
+export async function logMealViaRpc(input: SaveMealInput): Promise<SaveMealResult> {
+  const supabase = getSupabase();
+
+  try {
+    // Validate input
+    if (!input.items || input.items.length === 0) {
+      return { ok: false, error: 'No items provided' };
+    }
+
+    // Prepare RPC parameters
+    const p_ts = input.timestamp || new Date().toISOString();
+    const p_meal_slot = input.mealSlot || null;
+    const p_source = input.source || 'text';
+
+    // Compute totals
+    const totals = {
+      kcal: 0,
+      protein_g: 0,
+      fat_g: 0,
+      carbs_g: 0,
+      fiber_g: 0,
+      assumptions: [] as string[]
+    };
+
+    for (const item of input.items) {
+      totals.kcal += item.energy_kcal || 0;
+      totals.protein_g += item.protein_g || 0;
+      totals.fat_g += item.fat_g || 0;
+      totals.carbs_g += item.carbs_g || 0;
+      totals.fiber_g += item.fiber_g || 0;
+    }
+
+    // Prepare items for RPC
+    const p_items = input.items.map(item => ({
+      name: item.name,
+      quantity: item.quantity || 1,
+      unit: item.unit || 'serving',
+      macros: {
+        kcal: item.energy_kcal || 0,
+        protein_g: item.protein_g || 0,
+        fat_g: item.fat_g || 0,
+        carbs_g: item.carbs_g || 0,
+        fiber_g: item.fiber_g || 0
+      }
+    }));
+
+    // Call RPC
+    const { data: mealLogId, error } = await supabase.rpc('log_meal', {
+      p_ts,
+      p_meal_slot,
+      p_source,
+      p_totals: totals,
+      p_items
+    });
+
+    if (error) {
+      console.error('[logMealViaRpc] RPC error:', error);
+      return {
+        ok: false,
+        error: `Failed to log meal: ${error.message}`
+      };
+    }
+
+    return {
+      ok: true,
+      mealLogId: mealLogId as string,
+      itemsCount: input.items.length,
+      totals
+    };
+
+  } catch (error: any) {
+    console.error('[logMealViaRpc] Unexpected error:', error);
     return {
       ok: false,
       error: error.message || 'Unexpected error occurred'

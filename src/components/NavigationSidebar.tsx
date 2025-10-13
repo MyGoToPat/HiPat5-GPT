@@ -19,6 +19,7 @@ export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentC
   const { can } = useRole();
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isLowBalance, setIsLowBalance] = useState(false);
+  const [isUnlimited, setIsUnlimited] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -30,14 +31,22 @@ export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentC
     try {
       const { data, error } = await supabase
         .from('v_user_credits')
-        .select('balance_usd')
+        .select('balance_usd, is_unlimited, plan')
         .maybeSingle();
 
       if (error) throw error;
 
-      const balance = data?.balance_usd || 0;
-      setCreditBalance(balance);
-      setIsLowBalance(balance < 0.20);
+      const unlimited = data?.is_unlimited || false;
+      setIsUnlimited(unlimited);
+
+      if (unlimited) {
+        setCreditBalance(null);
+        setIsLowBalance(false);
+      } else {
+        const balance = data?.balance_usd || 0;
+        setCreditBalance(balance);
+        setIsLowBalance(balance < 0.20);
+      }
     } catch (err) {
       console.error('Failed to load credit balance:', err);
       setCreditBalance(null);
@@ -100,28 +109,38 @@ export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentC
 
         <nav className="flex-1 overflow-y-auto px-2 py-3">
           {/* Credit Balance Display */}
-          {creditBalance !== null && (
+          {(creditBalance !== null || isUnlimited) && (
             <div className="mx-2 mb-4 p-3 rounded-lg border bg-gray-50">
               <div className="text-xs text-gray-600 mb-1">Credit Balance</div>
               <div className="flex items-center justify-between">
-                <div className={`text-lg font-bold ${
-                  isLowBalance ? 'text-red-600' : 'text-gray-900'
-                }`}>
-                  ${creditBalance.toFixed(2)}
-                </div>
-                {isLowBalance && (
-                  <div className="flex items-center gap-1 text-xs text-red-600">
-                    <AlertCircle size={14} />
-                    Low
+                {isUnlimited ? (
+                  <div className="text-lg font-bold text-green-600">
+                    ∞ Unlimited
                   </div>
+                ) : (
+                  <>
+                    <div className={`text-lg font-bold ${
+                      isLowBalance ? 'text-red-600' : 'text-gray-900'
+                    }`}>
+                      ${creditBalance!.toFixed(2)}
+                    </div>
+                    {isLowBalance && (
+                      <div className="flex items-center gap-1 text-xs text-red-600">
+                        <AlertCircle size={14} />
+                        Low
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
-              <button
-                onClick={() => { onNavigate('/profile/usage'); onClose(); }}
-                className="mt-2 w-full text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-              >
-                Top Up
-              </button>
+              {!isUnlimited && (
+                <button
+                  onClick={() => { onNavigate('/profile/usage'); onClose(); }}
+                  className="mt-2 w-full text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  Top Up
+                </button>
+              )}
             </div>
           )}
 

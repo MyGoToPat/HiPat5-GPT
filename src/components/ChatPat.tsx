@@ -21,7 +21,7 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { callChat } from '../lib/chat';
 import { callChatStreaming } from '../lib/streamingChat';
 import { classifyFoodMessage, type ClassificationResult } from '../lib/personality/foodClassifier';
-import { saveMeal as saveMealAction } from '../lib/meals/saveMeal';
+import { logMealViaRpc as saveMealAction } from '../lib/meals/saveMeal';
 import type { SaveMealInput, SaveMealResult } from '../lib/meals/saveMeal';
 import { inferMealSlot } from '../lib/meals/inferMealSlot';
 import { trackFirstChatMessage } from '../lib/analytics';
@@ -440,8 +440,20 @@ export const ChatPat: React.FC = () => {
 
   const handleSendMessage = () => {
     if (inputText.trim()) {
-      // Check for "log" command to log previous macro discussion
       const lowerInput = inputText.toLowerCase().trim();
+
+      // SHORTCUT: If verification screen is active and user types "log" or "save", confirm it
+      if (showFoodVerificationScreen && currentAnalysisResult && (lowerInput === 'log' || lowerInput === 'save')) {
+        setInputText('');
+        // Trigger the same confirmation flow
+        // The verification screen will call handleConfirmVerification with the data
+        // We need to get the normalized meal data from FoodVerificationScreen
+        // For now, just show a message - the user should click the Log button
+        toast.success('Click the "Log" button to confirm');
+        return;
+      }
+
+      // Check for "log" command to log previous macro discussion
 
       // Detect "log" commands including subset logging like "log the prime rib and eggs"
       const logPattern = /^log(?:\s+(?:the\s+)?(.+))?$/i;
