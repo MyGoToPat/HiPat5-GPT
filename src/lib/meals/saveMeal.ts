@@ -278,7 +278,8 @@ export async function logMealViaRpc(input: SaveMealInput): Promise<SaveMealResul
       fiber_g: String(item.fiber_g || 0)
     }));
 
-    // Call RPC with new signature
+    // Call RPC with correct parameter order matching DB function signature:
+    // log_meal(p_ts timestamptz, p_meal_slot_text text, p_note text, p_items jsonb)
     console.log('[SWARM] rpc/log_meal → params:', {
       p_meal_slot_text,
       items_count: p_items.length,
