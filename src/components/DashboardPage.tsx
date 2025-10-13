@@ -128,7 +128,7 @@ export const DashboardPage: React.FC = () => {
             .from('meal_items')
             .select(`
               *,
-              meal_logs!inner(id, user_id, ts, meal_slot, source, totals, micros_totals)
+              meal_logs!meal_items_meal_log_id_fkey(id, user_id, ts, meal_slot, source, totals, micros_totals)
             `)
             .eq('meal_logs.user_id', user.data.user.id)
             .gte('meal_logs.ts', dayBoundaries.day_start)
