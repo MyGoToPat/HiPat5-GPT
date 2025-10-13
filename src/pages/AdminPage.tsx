@@ -15,12 +15,18 @@ export default function AdminPage() {
           Build: {import.meta.env.MODE} — {new Date().toLocaleString()}
         </div>
 
-        <div style={{ marginBottom: 24, display: 'flex', gap: 12 }}>
+        <div style={{ marginBottom: 24, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <Link
             to="/admin/roles"
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
           >
             Role Access Control
+          </Link>
+          <Link
+            to="/admin/diagnostics"
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+          >
+            System Diagnostics
           </Link>
           <Link
             to="/admin/users"

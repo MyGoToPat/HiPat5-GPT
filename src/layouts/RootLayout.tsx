@@ -14,9 +14,10 @@ type ChatSummary = {
 
 type UserProfile = { role?: 'admin' | 'trainer' | 'user' | string } | null;
 function getPageTitle(pathname: string): string {
-  if (pathname.startsWith('/admin/agents/')) return 'Agent Details';
-  if (pathname.startsWith('/admin/agents')) return 'Agents';
+  if (pathname.startsWith('/admin/roles')) return 'Role Access';
   if (pathname.startsWith('/admin/users')) return 'Users';
+  if (pathname.startsWith('/admin/shoplens')) return 'ShopLens';
+  if (pathname.startsWith('/admin/diagnostics')) return 'Diagnostics';
   if (pathname.startsWith('/admin')) return 'Admin';
   if (pathname.startsWith('/chat')) return 'Chat';
   if (pathname.startsWith('/voice')) return 'Voice';

@@ -127,7 +127,7 @@ export default function ShopLensPage() {
     <div className="min-h-screen bg-gray-50 p-6 pt-[44px]">
       {/* Standardized Back Button */}
       <div className="mb-6">
-        <BackButton to="/admin/agents" label="Back to Agents" />
+        <BackButton to="/admin" label="Back to Admin" />
       </div>
       
       <div className="max-w-6xl mx-auto">

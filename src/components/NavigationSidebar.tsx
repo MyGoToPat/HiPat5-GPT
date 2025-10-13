@@ -1,7 +1,8 @@
-import React from 'react';
-import { X, Edit, Mic, BarChart3, User, Users, Settings, Zap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Edit, Mic, BarChart3, User, Users, Settings, Zap, AlertCircle } from 'lucide-react';
 import { NAV_ITEMS } from '../config/navItems';
 import { useRole } from '../hooks/useRole';
+import { supabase } from '../lib/supabase';
 
 type ChatSummary = { id: string; title: string | null; updated_at: string | null; };
 type UserProfile = { role?: 'admin' | 'trainer' | 'user' | string } | null;
@@ -16,7 +17,33 @@ type Props = {
 
 export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentChats, userProfile }: Props) {
   const { can } = useRole();
-  
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [isLowBalance, setIsLowBalance] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadCreditBalance();
+    }
+  }, [isOpen]);
+
+  async function loadCreditBalance() {
+    try {
+      const { data, error } = await supabase
+        .from('v_user_credits')
+        .select('balance')
+        .maybeSingle();
+
+      if (error) throw error;
+
+      const balance = data?.balance || 0;
+      setCreditBalance(balance);
+      setIsLowBalance(balance < 0.20);
+    } catch (err) {
+      console.error('Failed to load credit balance:', err);
+      setCreditBalance(null);
+    }
+  }
+
   if (!isOpen) return null;
 
   const role = (userProfile?.role ?? 'user') as 'admin' | 'trainer' | 'user';
@@ -32,8 +59,9 @@ export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentC
       case 'Dashboard': return BarChart3;
       case 'Profile': return User;
       case 'Client Management': return Users;
-      case 'Admin Agents': return Settings;
+      case 'Role Access': return Settings;
       case 'User Management': return Settings;
+      case 'ShopLens': return Settings;
       case 'TDEE Calculator': return Zap;
       default: return undefined;
     }
@@ -71,6 +99,32 @@ export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentC
         </div>
 
         <nav className="flex-1 overflow-y-auto px-2 py-3">
+          {/* Credit Balance Display */}
+          {creditBalance !== null && (
+            <div className="mx-2 mb-4 p-3 rounded-lg border bg-gray-50">
+              <div className="text-xs text-gray-600 mb-1">Credit Balance</div>
+              <div className="flex items-center justify-between">
+                <div className={`text-lg font-bold ${
+                  isLowBalance ? 'text-red-600' : 'text-gray-900'
+                }`}>
+                  ${creditBalance.toFixed(2)}
+                </div>
+                {isLowBalance && (
+                  <div className="flex items-center gap-1 text-xs text-red-600">
+                    <AlertCircle size={14} />
+                    Low
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => { onNavigate('/profile/usage'); onClose(); }}
+                className="mt-2 w-full text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Top Up
+              </button>
+            </div>
+          )}
+
           <Section>
             {primary.map(i => <Row key={i.key} label={i.label} to={i.path} />)}
           </Section>

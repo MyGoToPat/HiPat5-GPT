@@ -18,10 +18,10 @@ export const NAV_ITEMS: NavItem[] = [
 
   // Admin / Beta modules
   { key: 'client-mgmt', label: 'Client Management', path: '/trainer-dashboard', section: 'admin', roles: ['admin','trainer'], requirePrivilege: 'clients.read' },
-  { key: 'admin-agents',label: 'Admin Agents',      path: '/admin/agents',      section: 'admin', roles: ['admin'], requirePrivilege: 'agents.view' },
+  { key: 'role-access', label: 'Role Access',       path: '/admin/roles',       section: 'admin', roles: ['admin'], requirePrivilege: 'admin.panel' },
   { key: 'user-mgmt',   label: 'User Management',   path: '/admin/users',       section: 'admin', roles: ['admin'], requirePrivilege: 'admin.panel' },
   // Optional
-  { key: 'shoplens',    label: 'ShopLens',         path: '/admin/agents/shoplens', section: 'admin', roles: ['admin'], requirePrivilege: 'agents.use.shoplens' },
+  { key: 'shoplens',    label: 'ShopLens',         path: '/admin/shoplens', section: 'admin', roles: ['admin'], requirePrivilege: 'agents.use.shoplens' },
 
   // Utilities
   { key: 'tdee',        label: 'TDEE Calculator',  path: '/tdee',            section: 'utilities' },
