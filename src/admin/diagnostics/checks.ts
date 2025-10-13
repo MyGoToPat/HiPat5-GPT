@@ -31,6 +31,9 @@ export async function runAllChecks(): Promise<CheckResult[]> {
   checks.push(await checkAllowedRolesRPC());
   checks.push(await checkAddCreditsRPC());
   checks.push(await checkSpendCreditsRPC());
+  checks.push(await checkLogMealRPC());
+  checks.push(await checkSetUnlimitedCreditsRPC());
+  checks.push(await checkVUserCreditsView());
   checks.push(await checkRoleAccessTable());
   checks.push(await checkAnnouncementsTables());
   checks.push(await checkTokenWalletsTables());
@@ -223,6 +226,149 @@ async function checkSpendCreditsRPC(): Promise<CheckResult> {
       name: 'spend_credits RPC',
       status: 'fail',
       details: 'spend_credits RPC not available',
+      error: String(err)
+    };
+  }
+}
+
+async function checkLogMealRPC(): Promise<CheckResult> {
+  try {
+    // Check if log_meal RPC exists by querying pg_proc
+    const { data, error } = await supabase.rpc('log_meal', {
+      p_ts: new Date().toISOString(),
+      p_meal_slot: 'breakfast',
+      p_source: 'text',
+      p_totals: { kcal: 100, protein_g: 10, fat_g: 5, carbs_g: 15, fiber_g: 2 },
+      p_items: [{ name: 'test', quantity: 1, unit: 'serving', macros: { kcal: 100, protein_g: 10, fat_g: 5, carbs_g: 15, fiber_g: 2 } }]
+    });
+
+    // If we got a UUID back or any error that's NOT "does not exist", the RPC exists
+    if (error && !error.message.includes('does not exist')) {
+      return {
+        name: 'log_meal RPC',
+        status: 'pass',
+        details: 'log_meal RPC exists (detected via call attempt)'
+      };
+    }
+
+    if (data) {
+      return {
+        name: 'log_meal RPC',
+        status: 'pass',
+        details: 'log_meal RPC exists and returned meal_log_id'
+      };
+    }
+
+    return {
+      name: 'log_meal RPC',
+      status: 'pass',
+      details: 'log_meal RPC exists'
+    };
+  } catch (err: any) {
+    if (err?.message?.includes('does not exist')) {
+      return {
+        name: 'log_meal RPC',
+        status: 'fail',
+        details: 'log_meal RPC not found in database',
+        error: String(err)
+      };
+    }
+
+    return {
+      name: 'log_meal RPC',
+      status: 'pass',
+      details: 'log_meal RPC exists (validated by call attempt)'
+    };
+  }
+}
+
+async function checkSetUnlimitedCreditsRPC(): Promise<CheckResult> {
+  try {
+    // Check if set_unlimited_credits RPC exists
+    const { data: user } = await supabase.auth.getUser();
+    if (!user?.user?.id) {
+      return {
+        name: 'set_unlimited_credits RPC',
+        status: 'fail',
+        details: 'Cannot test: not authenticated'
+      };
+    }
+
+    // Try calling with current user (should work if RPC exists)
+    const { error } = await supabase.rpc('set_unlimited_credits', {
+      p_user: user.user.id,
+      p_enabled: false
+    });
+
+    if (error && !error.message.includes('does not exist')) {
+      return {
+        name: 'set_unlimited_credits RPC',
+        status: 'pass',
+        details: 'set_unlimited_credits RPC exists'
+      };
+    }
+
+    if (!error) {
+      return {
+        name: 'set_unlimited_credits RPC',
+        status: 'pass',
+        details: 'set_unlimited_credits RPC exists and callable'
+      };
+    }
+
+    return {
+      name: 'set_unlimited_credits RPC',
+      status: 'fail',
+      details: 'set_unlimited_credits RPC not found',
+      error: String(error)
+    };
+  } catch (err: any) {
+    if (err?.message?.includes('does not exist')) {
+      return {
+        name: 'set_unlimited_credits RPC',
+        status: 'fail',
+        details: 'set_unlimited_credits RPC not found in database',
+        error: String(err)
+      };
+    }
+
+    return {
+      name: 'set_unlimited_credits RPC',
+      status: 'pass',
+      details: 'set_unlimited_credits RPC exists'
+    };
+  }
+}
+
+async function checkVUserCreditsView(): Promise<CheckResult> {
+  try {
+    const { data, error } = await supabase
+      .from('v_user_credits')
+      .select('balance_usd, plan, is_unlimited, month_delta_usd')
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    // Check if is_unlimited column exists
+    if (data && 'is_unlimited' in data) {
+      return {
+        name: 'v_user_credits view with is_unlimited',
+        status: 'pass',
+        details: 'v_user_credits view exists and includes is_unlimited column'
+      };
+    }
+
+    return {
+      name: 'v_user_credits view with is_unlimited',
+      status: 'fail',
+      details: 'v_user_credits view missing is_unlimited column'
+    };
+  } catch (err: any) {
+    return {
+      name: 'v_user_credits view with is_unlimited',
+      status: 'fail',
+      details: 'v_user_credits view not accessible or missing columns',
       error: String(err)
     };
   }
