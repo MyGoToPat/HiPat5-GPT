@@ -309,6 +309,9 @@ export const ChatPat: React.FC = () => {
   const [showSuccessTransition, setShowSuccessTransition] = useState(false);
   const [successMealData, setSuccessMealData] = useState<{ kcal: number; items: number } | null>(null);
 
+  // Track when Pat is expecting a food response (after asking "What did you eat?")
+  const [expectingFoodResponse, setExpectingFoodResponse] = useState(false);
+
   // Food verification screen handlers
   const handleConfirmVerification = async (normalizedMeal: any) => {
     try {
@@ -510,6 +513,16 @@ export const ChatPat: React.FC = () => {
         }
         // If no macro data found, let Pat know
         toast.error('No recent macro discussion to log. Ask me about food first!');
+        return;
+      }
+
+      // Check if Pat is expecting a food response
+      if (expectingFoodResponse) {
+        console.log('[ChatPat] Pat was expecting food, treating input as meal');
+        setExpectingFoodResponse(false);
+
+        // Treat the response as if user said "I ate [food]"
+        handleMealTextInput(inputText.startsWith('I ate') || inputText.startsWith('i ate') ? inputText : `I ate ${inputText}`);
         return;
       }
 
@@ -992,6 +1005,10 @@ export const ChatPat: React.FC = () => {
 
         setMessages(prev => [...prev, patMessage]);
         setIsSpeaking(false);
+
+        // Set flag so next user input is treated as food
+        setExpectingFoodResponse(true);
+        console.log('[ChatPat] Set expectingFoodResponse=true');
 
         return;
       } catch (error) {
