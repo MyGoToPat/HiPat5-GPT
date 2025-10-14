@@ -207,10 +207,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const messagesWithSystem: ChatMessage[] = [
-      { role: 'system', content: PAT_SYSTEM_PROMPT_FALLBACK },
-      ...messages
-    ];
+    // Use the system prompt from messages if provided, otherwise fallback
+    const hasSystemPrompt = messages.length > 0 && messages[0].role === 'system';
+    const messagesWithSystem: ChatMessage[] = hasSystemPrompt
+      ? messages
+      : [{ role: 'system', content: PAT_SYSTEM_PROMPT_FALLBACK }, ...messages];
+
+    console.log('[openai-chat] System prompt source:', hasSystemPrompt ? 'from-client' : 'fallback');
+    console.log('[openai-chat] Total messages:', messagesWithSystem.length);
 
     // Tool calling is only supported in non-streaming mode
     if (stream) {
