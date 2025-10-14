@@ -959,55 +959,115 @@ export const ChatPat: React.FC = () => {
     }
   };
 
-  const handleChipClick = (chipText: string) => {
+  const handleChipClick = async (chipText: string) => {
     setIsThinking(true);
-    
+
     // Check if input triggers a specific agent
     const triggeredAgent = ConversationAgentManager.findAgentByTrigger(chipText);
-    
-    // Generate dynamic user message based on agent title
-    let userMessage = chipText; // Default fallback
-    
+
+    // Special handling for "Tell me what you ate" - enable TMWYA conversation mode
+    if (triggeredAgent?.title === "Tell me what you ate") {
+      try {
+        const user = await getSupabase().auth.getUser();
+        if (!user.data.user) {
+          throw new Error('User not authenticated');
+        }
+
+        // Get user's first name
+        const { getUserProfile } = await import('../lib/supabase');
+        const userProfile = await getUserProfile(user.data.user.id);
+        const firstName = userProfile?.name?.split(' ')[0] || 'there';
+
+        // Set conversation mode to TMWYA
+        const { setConversationMode } = await import('../core/chat/handleUserMessage');
+        const { ensureChatSession } = await import('../core/chat/sessions');
+        const sessionId = await ensureChatSession(user.data.user.id);
+        await setConversationMode(sessionId, 'tmwya');
+
+        console.log('[ChatPat] Enabled TMWYA conversation mode');
+
+        // Pat asks what they ate (no user message bubble)
+        setIsThinking(false);
+        setIsSpeaking(true);
+
+        const responseText = `${firstName}, what did you eat?`;
+        const patMessage: ChatMessage = {
+          id: crypto.randomUUID(),
+          text: responseText,
+          isUser: false,
+          timestamp: new Date()
+        };
+
+        setMessages(prev => [...prev, patMessage]);
+        setIsSpeaking(false);
+
+        return;
+      } catch (error) {
+        console.error('[ChatPat] Error enabling TMWYA mode:', error);
+        toast.error('Error starting food logging');
+        setIsThinking(false);
+        return;
+      }
+    }
+
+    // Handle camera-required agents
+    if (triggeredAgent?.requiresCamera) {
+      const session = ConversationAgentManager.startAgentSession(triggeredAgent.id);
+      setActiveAgentSession(session);
+
+      setIsThinking(false);
+
+      const cameraMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        text: ConversationAgentManager.generateCameraResponse(triggeredAgent.id),
+        timestamp: new Date(),
+        isUser: false
+      };
+      setMessages(prev => [...prev, cameraMessage]);
+
+      // Auto-open camera
+      setTimeout(() => {
+        const autoStartMode = triggeredAgent.id.includes('meal') || triggeredAgent.id.includes('eating') ? 'takePhoto' : 'videoStream';
+        navigate('/camera', { state: { autoStartMode } });
+      }, 1500);
+
+      return;
+    }
+
+    // For other chips, use the standard message flow
+    let userMessage = chipText;
     if (triggeredAgent) {
+      const session = ConversationAgentManager.startAgentSession(triggeredAgent.id);
+      setActiveAgentSession(session);
+
+      // Customize user message based on agent title
       const title = triggeredAgent.title;
-      
-      if (title === "Tell me what you ate") {
-        // Trigger TMWYA food logging flow by asking user for food input
-        userMessage = "What did you eat?";
-      } else if (title.startsWith("Show me")) {
-        // "Show me what you're eating" -> Open camera
-        const restOfTitle = title.substring(8).toLowerCase(); // Remove "Show me "
+      if (title.startsWith("Show me")) {
+        const restOfTitle = title.substring(8).toLowerCase();
         userMessage = `How do I show you ${restOfTitle}?`;
       } else if (title === "Need a meal idea?") {
         userMessage = "Can you suggest a meal idea?";
       } else if (title === "Find nearby restaurants") {
         userMessage = "Can you find nearby restaurants?";
       }
-      // For any other cases, userMessage remains as chipText (default)
     }
-    
+
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
       text: userMessage,
       timestamp: new Date(),
       isUser: true
     };
-    
+
     setMessages(prev => [...prev, newMessage]);
-    
-    // Handle agent-specific responses
+
+    // Use standard response handling
     setTimeout(() => {
       setIsThinking(false);
       setIsSpeaking(true);
-      
+
       let responseText = "";
-      
       if (triggeredAgent) {
-        // Start agent session
-        const session = ConversationAgentManager.startAgentSession(triggeredAgent.id);
-        setActiveAgentSession(session);
-        
-        // Generate contextual response based on the user's question
         if (userMessage.includes("tell you")) {
           responseText = "You can tell me by typing here, pressing the mic button to speak, or clicking on my face at the bottom to start a voice conversation!";
         } else if (userMessage.includes("show you")) {
@@ -1019,25 +1079,7 @@ export const ChatPat: React.FC = () => {
         } else {
           responseText = "I'm here to help! You can interact with me through voice, text, or camera depending on what you need.";
         }
-        
-        // Handle camera requirement
-        if (triggeredAgent.requiresCamera) {
-          setTimeout(() => {
-            const cameraResponse: ChatMessage = {
-              id: (Date.now() + 2).toString(),
-              text: ConversationAgentManager.generateCameraResponse(triggeredAgent.id),
-              timestamp: new Date(),
-              isUser: false
-            };
-            setMessages(prev => [...prev, cameraResponse]);
-            
-            // Auto-open camera with appropriate mode
-            const autoStartMode = triggeredAgent.id.includes('meal') || triggeredAgent.id.includes('eating') ? 'takePhoto' : 'videoStream';
-             navigate('/camera', { state: { autoStartMode } });
-          }, 2000);
-        }
       } else {
-        // Default responses
         const responses = [
           "I understand. Let me help you with that.",
           "Great! I've logged that information for you.",
