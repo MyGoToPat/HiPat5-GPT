@@ -960,12 +960,22 @@ export const ChatPat: React.FC = () => {
   };
 
   const handleChipClick = async (chipText: string) => {
-    setIsThinking(true);
+    // Simply set the input text and let user send it
+    // This way the LLM handles everything naturally
+    setInputText(chipText);
+    setIsThinking(false);
 
-    // Check if input triggers a specific agent
+    // OLD CODE REMOVED: No more special handling, conversation modes, or complex routing
+    // The LLM will understand the message naturally and use tools as needed
+
+    // Optionally: auto-send the message
+    // setTimeout(() => handleSendMessage(), 100);
+
+    return;
+
+    // ===== LEGACY CODE BELOW (kept for reference but unreachable) =====
     const triggeredAgent = ConversationAgentManager.findAgentByTrigger(chipText);
 
-    // Special handling for "Tell me what you ate" - enable TMWYA conversation mode
     if (triggeredAgent?.title === "Tell me what you ate") {
       try {
         const user = await getSupabase().auth.getUser();
@@ -973,22 +983,11 @@ export const ChatPat: React.FC = () => {
           throw new Error('User not authenticated');
         }
 
-        // Get user's first name
         const { getUserProfile } = await import('../lib/supabase');
         const userProfile = await getUserProfile(user.data.user.id);
         const firstName = userProfile?.name?.split(' ')[0] || 'there';
 
-        // Set conversation mode to TMWYA
-        const { setConversationMode } = await import('../core/chat/handleUserMessage');
-        const { ensureChatSession } = await import('../core/chat/sessions');
-        const sessionId = await ensureChatSession(user.data.user.id);
-        await setConversationMode(sessionId, 'tmwya');
-
-        console.log('[ChatPat] Enabled TMWYA conversation mode');
-
-        // Pat asks what they ate (no user message bubble)
-        setIsThinking(false);
-        setIsSpeaking(true);
+        console.log('[ChatPat] Button clicked - setting input text');
 
         const responseText = `${firstName}, what did you eat?`;
         const patMessage: ChatMessage = {
@@ -999,12 +998,12 @@ export const ChatPat: React.FC = () => {
         };
 
         setMessages(prev => [...prev, patMessage]);
-        setIsSpeaking(false);
+        setIsThinking(false);
 
         return;
       } catch (error) {
-        console.error('[ChatPat] Error enabling TMWYA mode:', error);
-        toast.error('Error starting food logging');
+        console.error('[ChatPat] Error handling button click:', error);
+        toast.error('Error starting conversation');
         setIsThinking(false);
         return;
       }
