@@ -659,7 +659,7 @@ export const ChatPat: React.FC = () => {
               mode: 'text',
             });
 
-            // Add Pat's response
+            // Add Pat's response and remove thinking indicator
             const patMessage: ChatMessage = {
               id: crypto.randomUUID(),
               text: result.response,
@@ -667,11 +667,19 @@ export const ChatPat: React.FC = () => {
               timestamp: new Date()
             };
 
-            setMessages(prev => [...prev, patMessage]);
+            // Remove thinking message and add Pat's response
+            setMessages(prev => prev.filter(m => !m.id.startsWith('thinking-')).concat(patMessage));
             setIsSpeaking(false);
+            setIsThinking(false);
+            setIsSending(false);
             setStatusText('');
 
-            // Save to history
+            // Save assistant message to database
+            if (sessionId) {
+              await addChatMessage(sessionId, 'assistant', patMessage.text);
+            }
+
+            // Save to history (legacy)
             const historyEntry = {
               ...chatState,
               messages: [...messages, newMessage, patMessage],
@@ -681,17 +689,21 @@ export const ChatPat: React.FC = () => {
 
           } catch (error) {
             console.error('[ChatPat] Error in message handling:', error);
+
+            // Clear all loading states
             setIsSpeaking(false);
+            setIsThinking(false);
+            setIsSending(false);
             setStatusText('');
 
-            // Show error to user
+            // Remove thinking message and show error
             const errorMessage: ChatMessage = {
               id: crypto.randomUUID(),
               text: 'Sorry, I encountered an error. Please try again.',
               isUser: false,
               timestamp: new Date()
             };
-            setMessages(prev => [...prev, errorMessage]);
+            setMessages(prev => prev.filter(m => !m.id.startsWith('thinking-')).concat(errorMessage));
           }
 
           return; // Exit after P3 handler
