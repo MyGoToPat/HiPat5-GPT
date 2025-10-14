@@ -1,4 +1,6 @@
 import { corsHeaders } from './cors.ts';
+import { PAT_TOOLS, executeTool } from './tools.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2.53.0';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -8,12 +10,22 @@ interface ChatMessage {
 interface ChatRequest {
   messages: ChatMessage[];
   stream?: boolean;
+  userId?: string;
 }
 
 const PAT_SYSTEM_PROMPT_FALLBACK = `You are Pat, Hyper Intelligent Personal Assistant Team.
 
 CORE IDENTITY:
 I am Pat. I speak as "I" (first person). I am your personal assistant with the knowledge depth of 12 PhDs in fitness, nutrition, exercise physiology, sports medicine, biochemistry, and related health sciences. I am NOT limited to these domains - I engage with any topic you bring to me.
+
+AVAILABLE TOOLS:
+I have access to tools that let me take actions:
+- log_meal: Log food items to the user's meal tracker
+- get_macros: Calculate nutritional macros for food (without logging)
+- get_remaining_macros: Check user's remaining macro targets for today
+- undo_last_meal: Remove the most recently logged meal
+
+When users reference food from our conversation history and want to log it, I extract the details and use log_meal. I understand context naturally.
 
 KNOWLEDGE BASE (Core Expertise):
 - Exercise Physiology: Training adaptations, periodization, biomechanics, muscle physiology
@@ -146,7 +158,23 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { messages, stream = false }: ChatRequest = await req.json();
+    const { messages, stream = false, userId }: ChatRequest = await req.json();
+
+    // Extract user ID from Authorization header if not provided
+    let effectiveUserId = userId;
+    if (!effectiveUserId) {
+      const authHeader = req.headers.get('Authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+          global: { headers: { Authorization: authHeader } }
+        });
+        const { data: { user } } = await supabase.auth.getUser();
+        effectiveUserId = user?.id;
+      }
+    }
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(
@@ -173,6 +201,11 @@ Deno.serve(async (req: Request) => {
       { role: 'system', content: PAT_SYSTEM_PROMPT_FALLBACK },
       ...messages
     ];
+
+    // Tool calling is only supported in non-streaming mode
+    if (stream) {
+      console.log('[openai-chat] Streaming mode - tools disabled');
+    }
 
     if (stream) {
       const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -276,6 +309,8 @@ Deno.serve(async (req: Request) => {
         messages: messagesWithSystem,
         max_tokens: 700,
         temperature: 0.3,
+        tools: PAT_TOOLS,
+        tool_choice: 'auto'
       }),
     });
 
@@ -303,7 +338,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const openaiData = await openaiResponse.json();
-    const assistantMessage = openaiData.choices?.[0]?.message?.content;
+    const assistantMessage = openaiData.choices?.[0]?.message;
 
     if (!assistantMessage) {
       return new Response(
@@ -322,9 +357,98 @@ Deno.serve(async (req: Request) => {
       timestamp: new Date().toISOString()
     });
 
+    // CHECK FOR TOOL CALLS
+    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+      console.log('[openai-chat] Tool calls detected:', assistantMessage.tool_calls.length);
+
+      if (!effectiveUserId) {
+        return new Response(
+          JSON.stringify({ error: 'User authentication required for tool execution' }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      // Execute all tool calls
+      const toolResults = [];
+      for (const toolCall of assistantMessage.tool_calls) {
+        const toolName = toolCall.function.name;
+        const toolArgs = JSON.parse(toolCall.function.arguments);
+
+        console.log(`[openai-chat] Executing tool: ${toolName}`);
+
+        const result = await executeTool(toolName, toolArgs, {
+          userId: effectiveUserId,
+          supabaseUrl: Deno.env.get('SUPABASE_URL')!,
+          supabaseKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+        });
+
+        toolResults.push({
+          tool_call_id: toolCall.id,
+          role: 'tool',
+          name: toolName,
+          content: JSON.stringify(result)
+        });
+      }
+
+      // Call OpenAI again with tool results
+      const followUpMessages = [
+        ...messagesWithSystem,
+        assistantMessage,
+        ...toolResults
+      ];
+
+      const followUpResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: followUpMessages,
+          max_tokens: 700,
+          temperature: 0.3,
+        }),
+      });
+
+      if (!followUpResponse.ok) {
+        console.error('[openai-chat] Follow-up call failed');
+        return new Response(
+          JSON.stringify({ error: 'Failed to process tool results' }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      const followUpData = await followUpResponse.json();
+      const finalMessage = followUpData.choices?.[0]?.message?.content;
+
+      return new Response(
+        JSON.stringify({
+          message: finalMessage,
+          tool_calls: assistantMessage.tool_calls.map((tc: any) => tc.function.name),
+          usage: {
+            prompt_tokens: openaiData.usage?.prompt_tokens + followUpData.usage?.prompt_tokens,
+            completion_tokens: openaiData.usage?.completion_tokens + followUpData.usage?.completion_tokens,
+            total_tokens: openaiData.usage?.total_tokens + followUpData.usage?.total_tokens
+          }
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // No tool calls - return normal text response
     return new Response(
       JSON.stringify({
-        message: assistantMessage,
+        message: assistantMessage.content,
         usage: openaiData.usage
       }),
       {

@@ -77,6 +77,7 @@ export async function handleUserMessage(
     messageHistory,
     roleData,
     modelSelection,
+    userId: context.userId,
   });
 
   // Step 7: Store assistant response
@@ -98,13 +99,14 @@ interface LLMCallParams {
   messageHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
   roleData: any;
   modelSelection: ModelSelection;
+  userId: string;
 }
 
 /**
  * Call LLM with prepared context via OpenAI edge function
  */
 async function callLLM(params: LLMCallParams): Promise<string> {
-  const { system, userMessage, messageHistory, roleData, modelSelection } = params;
+  const { system, userMessage, messageHistory, roleData, modelSelection, userId } = params;
 
   console.log('[callLLM] Calling', getModelDisplayName(modelSelection));
   console.log('[callLLM] System prompt length:', system.length);
@@ -121,12 +123,12 @@ async function callLLM(params: LLMCallParams): Promise<string> {
     { role: 'user' as const, content: userMessage }
   ];
 
-  // Call OpenAI chat edge function
+  // Call OpenAI chat edge function with userId for tool execution
   const { getSupabase } = await import('../../lib/supabase');
   const supabase = getSupabase();
 
   const { data, error } = await supabase.functions.invoke('openai-chat', {
-    body: { messages, stream: false }
+    body: { messages, stream: false, userId }
   });
 
   if (error) {
