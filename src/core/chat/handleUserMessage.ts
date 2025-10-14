@@ -38,8 +38,9 @@ export async function handleUserMessage(
   const sessionId = context.sessionId || await ensureChatSession(context.userId);
   console.log('[handleUserMessage] Session ID:', sessionId);
 
-  // Load recent message history if not provided
-  const messageHistory = context.messageHistory || await loadRecentMessages(sessionId, 10);
+  // Load recent message history if not provided (increased to 20 for better context)
+  const messageHistory = context.messageHistory || await loadRecentMessages(sessionId, 20);
+  console.log('[handleUserMessage] Message history loaded:', messageHistory.length, 'messages');
 
   // Step 1: Store user message
   await storeMessage(sessionId, 'user', message);
@@ -111,6 +112,7 @@ async function callLLM(params: LLMCallParams): Promise<string> {
   console.log('[callLLM] Calling', getModelDisplayName(modelSelection));
   console.log('[callLLM] System prompt length:', system.length);
   console.log('[callLLM] Message history:', messageHistory.length, 'messages');
+  console.log('[callLLM] Last 3 messages:', messageHistory.slice(-3).map(m => `${m.role}: ${m.content.substring(0, 50)}...`));
   console.log('[callLLM] Role data:', roleData ? 'present' : 'none');
 
   // Build messages array for OpenAI
@@ -142,5 +144,8 @@ async function callLLM(params: LLMCallParams): Promise<string> {
   }
 
   console.log('[callLLM] Response received, length:', data.message.length);
+  if (data.tool_calls) {
+    console.log('[callLLM] Tools executed:', data.tool_calls);
+  }
   return data.message;
 }

@@ -456,28 +456,31 @@ export const ChatPat: React.FC = () => {
         return;
       }
 
-      // Check for "log" command to log previous macro discussion
-
-      // Detect "log" commands including subset logging like "log the prime rib and eggs"
-      const logPattern = /^log(?:\s+(?:the\s+)?(.+))?$/i;
+      // Check for "log" command variations
+      // STRATEGY: Let LLM handle it via tools first, this is just a safety fallback
+      // for when message.meta.macros exists (legacy/backup path)
+      const logPattern = /^(log|save|add)(?:\s+(?:it|that|this))?(?:\s+(?:the\s+)?(.+))?$/i;
       const logMatch = lowerInput.match(logPattern);
 
       if (logMatch) {
-        // Find the last UNCONSUMED Pat response with macro data
+        console.log('[ChatPat] Log command detected:', lowerInput);
+
+        // Check if we have macro data in a recent message (fallback path)
         const lastPatMessage = [...messages].reverse().find(m =>
           !m.isUser &&
           m.meta?.macros?.items &&
-          !m.meta?.consumed // Only use unconsumed payloads
+          !m.meta?.consumed
         );
 
         if (lastPatMessage) {
+          console.log('[ChatPat] Using client-side fallback - meta.macros found');
           const macroPayload = lastPatMessage.meta.macros;
 
           // Mark payload as consumed to prevent double-logging
           lastPatMessage.meta.consumed = true;
 
           // Check if subset logging (e.g., "log the prime rib and eggs")
-          const subset = logMatch[1];
+          const subset = logMatch[2];
 
           if (subset) {
             // Parse subset request - handle "X and Y", "X, Y", etc.
@@ -511,9 +514,10 @@ export const ChatPat: React.FC = () => {
             return;
           }
         }
-        // If no macro data found, let Pat know
-        toast.error('No recent macro discussion to log. Ask me about food first!');
-        return;
+
+        // No meta.macros found - let it fall through to LLM with tools
+        // The LLM will extract from conversation history and call log_meal tool
+        console.log('[ChatPat] No meta.macros - passing to LLM for tool-based logging');
       }
 
       // Check if Pat is expecting a food response
