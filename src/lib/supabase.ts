@@ -152,8 +152,21 @@ export async function getUserDayBoundaries(user_id: string, local_date?: string)
     p_local_date: local_date || null
   });
 
-  if (error) throw error;
-  return data?.[0] || null;
+  if (error) {
+    console.error('[getUserDayBoundaries] RPC error:', error);
+    throw error;
+  }
+
+  const result = data?.[0];
+
+  // Validate that we got proper boundaries
+  if (!result || !result.day_start || !result.day_end) {
+    console.error('[getUserDayBoundaries] Invalid boundaries returned:', result);
+    throw new Error('Failed to get valid day boundaries from database');
+  }
+
+  console.log('[getUserDayBoundaries] Got boundaries:', result);
+  return result;
 }
 
 // Get timezone-aware local date for user

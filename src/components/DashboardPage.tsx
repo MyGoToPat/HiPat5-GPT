@@ -110,9 +110,28 @@ export const DashboardPage: React.FC = () => {
       await updateDailyActivitySummary(user.data.user.id);
 
       // Get timezone-aware day boundaries (12:01 AM - 11:59:59 PM user local time)
-      const dayBoundaries = await getUserDayBoundaries(user.data.user.id);
+      let dayBoundaries;
+      try {
+        dayBoundaries = await getUserDayBoundaries(user.data.user.id);
+        console.log('[dashboard-load] Day boundaries:', dayBoundaries);
 
-      console.log('[dashboard-load] Day boundaries:', dayBoundaries);
+        // Double-check boundaries are valid
+        if (!dayBoundaries || !dayBoundaries.day_start || !dayBoundaries.day_end) {
+          throw new Error('Invalid day boundaries returned');
+        }
+      } catch (error) {
+        console.error('[dashboard-load] Failed to get day boundaries:', error);
+        toast.error('Failed to load timezone boundaries. Using default range.');
+        // Fallback: use today in UTC
+        const todayStart = new Date();
+        todayStart.setHours(0, 1, 0, 0); // 12:01 AM
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999); // 11:59:59 PM
+        dayBoundaries = {
+          day_start: todayStart.toISOString(),
+          day_end: todayEnd.toISOString()
+        };
+      }
 
         // Prepare date ranges for other queries
         const workoutStartDate = new Date();
@@ -136,7 +155,7 @@ export const DashboardPage: React.FC = () => {
 
           // Today's meals using timezone-aware boundaries + items for accurate macros
           // Query meal_items joined with meal_logs for fiber and other macros
-          dayBoundaries ? supabase
+          supabase
             .from('meal_items')
             .select(`
               *,
@@ -145,7 +164,7 @@ export const DashboardPage: React.FC = () => {
             .eq('meal_logs.user_id', user.data.user.id)
             .gte('meal_logs.ts', dayBoundaries.day_start)
             .lte('meal_logs.ts', dayBoundaries.day_end)
-            .order('id', { ascending: false }) : Promise.resolve({ data: [], error: null }),
+            .order('id', { ascending: false }),
 
           // Workout logs for dashboard
           supabase
