@@ -668,7 +668,7 @@ export const ChatPat: React.FC = () => {
             };
 
             // Remove thinking message and add Pat's response
-            setMessages(prev => prev.filter(m => !m.id.startsWith('thinking-')).concat(patMessage));
+            setMessages(prev => prev.filter(m => m.id && !m.id.startsWith('thinking-')).concat(patMessage));
             setIsSpeaking(false);
             setIsThinking(false);
             setIsSending(false);

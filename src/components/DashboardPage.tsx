@@ -96,11 +96,19 @@ export const DashboardPage: React.FC = () => {
       // Store user ID for meal history component
       setUserId(user.data.user.id);
 
+      // Clear any cached dashboard data
+      sessionStorage.removeItem('dashboard_cache');
+
+      // Log current date for debugging
+      console.log('[dashboard-load] Loading data for:', new Date().toLocaleString());
+
       // Update daily activity summary first (idempotent)
       await updateDailyActivitySummary(user.data.user.id);
 
       // Get timezone-aware day boundaries (12:01 AM - 11:59:59 PM user local time)
       const dayBoundaries = await getUserDayBoundaries(user.data.user.id);
+
+      console.log('[dashboard-load] Day boundaries:', dayBoundaries);
 
         // Prepare date ranges for other queries
         const workoutStartDate = new Date();
@@ -165,6 +173,17 @@ export const DashboardPage: React.FC = () => {
           { protein: 0, carbs: 0, fat: 0, fiber: 0 }
         );
 
+        console.log('[dashboard-load] Meal items loaded:', {
+          count: mealItems.length,
+          totalCalories,
+          totalMacros,
+          sampleItems: mealItems.slice(0, 3).map(i => ({
+            name: i.name,
+            kcal: i.energy_kcal,
+            meal_log_id: i.meal_log_id
+          }))
+        });
+
         // For meal history, group items by meal_log
         const mealLogs: FoodEntry[] = [];
         // Note: mealItems are joined with meal_logs, so we can access meal_logs fields
@@ -192,6 +211,26 @@ export const DashboardPage: React.FC = () => {
   // Load dashboard data on mount
   useEffect(() => {
     loadDashboardData();
+  }, []);
+
+  // Midnight refresh detection: Force reload dashboard at 12:01 AM user local time
+  useEffect(() => {
+    const checkMidnight = () => {
+      const now = new Date();
+      const hours = now.getHours();
+      const minutes = now.getMinutes();
+
+      // If it's 12:01 AM (0:01), force refresh
+      if (hours === 0 && minutes === 1) {
+        console.log('[midnight-refresh] Detected 12:01 AM, forcing dashboard reload');
+        loadDashboardData();
+      }
+    };
+
+    // Check every minute
+    const interval = setInterval(checkMidnight, 60000);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Mock user metrics for mood calculation
