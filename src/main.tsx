@@ -13,9 +13,15 @@ if (!rootElement) {
   throw new Error('Root element not found');
 }
 
-// Register service worker only in production
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+// DISABLED: Service worker was causing stale data caching issues
+// Unregister any existing service workers
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => {
+      console.log('[SW] Unregistering service worker to prevent stale data');
+      registration.unregister();
+    });
+  });
 }
 
 try {

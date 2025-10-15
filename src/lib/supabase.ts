@@ -25,7 +25,18 @@ const anon =
   (typeof process !== 'undefined' ? process.env.SUPABASE_ANON_KEY : undefined) ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkdG9naXRmcXB0ZHJ4a2N6ZGJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5NTU0NTQsImV4cCI6MjA3MDUzMTQ1NH0.V7KN9mE1YlPYQZmWz-UO2vUqpTnoX6ZvyDoytYlucF8';
 
-export const supabase = createClient(url, anon);
+export const supabase = createClient(url, anon, {
+  db: {
+    schema: 'public'
+  },
+  global: {
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
+  }
+});
 export default supabase;
 
 // ---- Back-compat helpers expected by existing code ----
