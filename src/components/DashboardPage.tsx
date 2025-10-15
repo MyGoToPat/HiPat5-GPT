@@ -96,8 +96,12 @@ export const DashboardPage: React.FC = () => {
       // Store user ID for meal history component
       setUserId(user.data.user.id);
 
-      // Clear any cached dashboard data
+      // CRITICAL: Clear any cached dashboard data
       sessionStorage.removeItem('dashboard_cache');
+
+      // Force cache bust by adding timestamp to prevent stale Supabase responses
+      const cacheBuster = `_cb=${Date.now()}`;
+      console.log('[dashboard-load] Cache buster:', cacheBuster);
 
       // Log current date for debugging
       console.log('[dashboard-load] Loading data for:', new Date().toLocaleString());
@@ -161,26 +165,27 @@ export const DashboardPage: React.FC = () => {
         ]);
 
         // Calculate totals from meal_items (accurate, canonical source)
+        // IMPORTANT: Round all values to integers (no decimals)
         const mealItems = mealLogsResult.data || [];
-        const totalCalories = mealItems.reduce((sum, item) => sum + (item.energy_kcal || 0), 0);
-        const totalMacros = mealItems.reduce(
-          (totals, item) => ({
-            protein: totals.protein + (item.protein_g || 0),
-            carbs: totals.carbs + (item.carbs_g || 0),
-            fat: totals.fat + (item.fat_g || 0),
-            fiber: totals.fiber + (item.fiber_g || 0)  // Fiber from meal_items
-          }),
-          { protein: 0, carbs: 0, fat: 0, fiber: 0 }
-        );
+        const totalCalories = Math.round(mealItems.reduce((sum, item) => sum + (item.energy_kcal || 0), 0));
+        const totalMacros = {
+          protein: Math.round(mealItems.reduce((sum, item) => sum + (item.protein_g || 0), 0)),
+          carbs: Math.round(mealItems.reduce((sum, item) => sum + (item.carbs_g || 0), 0)),
+          fat: Math.round(mealItems.reduce((sum, item) => sum + (item.fat_g || 0), 0)),
+          fiber: Math.round(mealItems.reduce((sum, item) => sum + (item.fiber_g || 0), 0))
+        };
 
         console.log('[dashboard-load] Meal items loaded:', {
           count: mealItems.length,
           totalCalories,
           totalMacros,
+          dayBoundaries,
           sampleItems: mealItems.slice(0, 3).map(i => ({
             name: i.name,
-            kcal: i.energy_kcal,
-            meal_log_id: i.meal_log_id
+            kcal: Math.round(i.energy_kcal || 0),
+            meal_log_id: i.meal_log_id,
+            meal_ts: i.meal_logs?.ts,
+            within_boundaries: i.meal_logs?.ts >= dayBoundaries.day_start && i.meal_logs?.ts <= dayBoundaries.day_end
           }))
         });
 
