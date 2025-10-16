@@ -15,8 +15,7 @@ export default function BetaHoldGuard({ children }: Props) {
     if (!isWelcome) {
       navigate("/welcome-beta", { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [HOLD, location.pathname]);
+  }, [HOLD]);
 
   return <>{children}</>;
 }
