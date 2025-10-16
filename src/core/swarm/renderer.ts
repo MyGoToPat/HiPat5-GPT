@@ -1,4 +1,5 @@
 import type { ResponseObject } from '../../types/swarm';
+import { useSwarmsStore } from '../../store/swarms';
 
 export interface PresenterFunction {
   (response: ResponseObject): string;
@@ -26,15 +27,31 @@ export interface RenderOptions {
   applyPersona?: boolean;
   personaTone?: 'empathetic' | 'motivational' | 'factual' | 'casual';
   protectedFields?: string[];
+  swarmId?: string;
+  userId?: string;
 }
 
 export class ResponseRenderer {
-  static compose(responses: ResponseObject[], options: RenderOptions = {}): string {
+  static async compose(responses: ResponseObject[], options: RenderOptions = {}): Promise<string> {
+    if (options.swarmId) {
+      const manifest = await useSwarmsStore.getState().getActiveManifest(options.swarmId);
+      if (manifest && options.protectedFields === undefined) {
+        options.protectedFields = manifest.protected_fields || [];
+      }
+    }
+
     const parts: string[] = [];
     const allIssues: ResponseObject['issues'] = [];
     const allFollowups: string[] = [];
 
     for (const response of responses) {
+      if (options.protectedFields && options.protectedFields.length > 0) {
+        const isValid = this.validateProtectedFields(response, response.payload);
+        if (!isValid) {
+          console.error('[renderer] Protected field validation failed');
+        }
+      }
+
       const presenter = presenterRegistry.get(response.type);
       if (!presenter) {
         console.warn(`[renderer] No presenter registered for type: ${response.type}`);
@@ -54,12 +71,16 @@ export class ResponseRenderer {
     if (allIssues.length > 0) {
       const errorIssues = allIssues.filter(i => i.severity === 'error');
       const warningIssues = allIssues.filter(i => i.severity === 'warning');
+      const infoIssues = allIssues.filter(i => i.severity === 'info');
 
       if (errorIssues.length > 0) {
         finalText += '\n\n⚠️ Issues:\n' + errorIssues.map(i => `- ${i.message}`).join('\n');
       }
       if (warningIssues.length > 0) {
         finalText += '\n\nℹ️ Notes:\n' + warningIssues.map(i => `- ${i.message}`).join('\n');
+      }
+      if (infoIssues.length > 0 && errorIssues.length === 0 && warningIssues.length === 0) {
+        finalText += '\n\n💡 Info:\n' + infoIssues.map(i => `- ${i.message}`).join('\n');
       }
     }
 
