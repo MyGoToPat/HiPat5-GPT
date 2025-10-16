@@ -105,8 +105,8 @@ export default function RootLayout() {
         userProfile={userProfile}
       />
 
-      {/* pt-[44px] to clear fixed 44px header */}
-      <main className="flex-1 overflow-y-auto pt-[44px]">
+      {/* Padding to clear fixed header: 56px (14 * 4) on mobile, 64px (16 * 4) on sm+ */}
+      <main className="flex-1 overflow-y-auto pt-14 sm:pt-16">
         <TDEEGuard>
           <Outlet />
         </TDEEGuard>

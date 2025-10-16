@@ -161,9 +161,9 @@ export default function SwarmsPage() {
           </p>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs - Horizontal scroll on mobile */}
         <div className="mb-6 border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -175,7 +175,7 @@ export default function SwarmsPage() {
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex-shrink-0`}
               >
                 {tab.label}
                 <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
@@ -197,12 +197,13 @@ export default function SwarmsPage() {
               <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                 <div className="p-4 border-b border-gray-200 bg-gray-50">
                   <h2 className="text-lg font-semibold text-gray-900">Agent Configuration</h2>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 mt-1 hidden sm:block">
                     Toggle enabled status, adjust order for execution priority, then click Save on any changed row to persist changes.
                   </p>
                 </div>
 
-                <div className="overflow-x-auto">
+                {/* Desktop: Table View */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-900 text-white text-xs uppercase">
                       <tr>
@@ -280,6 +281,57 @@ export default function SwarmsPage() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile: Card View */}
+                <div className="md:hidden divide-y divide-gray-200">
+                  {currentSwarm.agents.map((agent) => (
+                    <div
+                      key={agent.id}
+                      className={`p-4 ${
+                        selectedAgent?.id === agent.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-medium text-gray-900 truncate">
+                            {agent.name}
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-0.5">{agent.slug}</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <span className="text-xs text-gray-600">
+                              Order: <span className="font-medium">{agent.order}</span>
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleAgent(agent);
+                            }}
+                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                              agent.active ? 'bg-green-600' : 'bg-gray-200'
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                agent.active ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          onClick={() => loadAgentConfig(agent)}
+                          className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          Edit Config
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -288,12 +340,12 @@ export default function SwarmsPage() {
           <div className="lg:col-span-2">
             {selectedAgent ? (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                <div className="p-6 border-b border-gray-200">
+                <div className="p-4 sm:p-6 border-b border-gray-200">
                   <div className="flex items-start justify-between">
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900">{selectedAgent.name}</h2>
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{selectedAgent.name}</h2>
                       <p className="text-sm text-gray-600 mt-1">{selectedAgent.description}</p>
-                      <div className="flex items-center gap-4 mt-3">
+                      <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-3">
                         <span className="text-xs text-gray-500">
                           <span className="font-medium">Slug:</span> {selectedAgent.slug}
                         </span>
@@ -305,13 +357,13 @@ export default function SwarmsPage() {
                   </div>
                 </div>
 
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Configuration</h3>
                     {!isEditing ? (
                       <button
                         onClick={() => setIsEditing(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                        className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
                       >
                         <Edit2 className="h-4 w-4" />
                         Edit
@@ -323,14 +375,14 @@ export default function SwarmsPage() {
                             setIsEditing(false);
                             setEditingConfig(JSON.stringify(agentConfig, null, 2));
                           }}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
+                          className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-medium"
                         >
                           <X className="h-4 w-4" />
                           Cancel
                         </button>
                         <button
                           onClick={saveAgentConfig}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+                          className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
                         >
                           <Save className="h-4 w-4" />
                           Save
@@ -345,11 +397,11 @@ export default function SwarmsPage() {
                         <textarea
                           value={editingConfig}
                           onChange={(e) => setEditingConfig(e.target.value)}
-                          className="w-full h-96 px-4 py-3 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full h-64 sm:h-96 px-3 sm:px-4 py-3 border border-gray-300 rounded-lg font-mono text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           spellCheck={false}
                         />
                       ) : (
-                        <pre className="w-full h-96 overflow-auto px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg font-mono text-sm">
+                        <pre className="w-full h-64 sm:h-96 overflow-auto px-3 sm:px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg font-mono text-xs sm:text-sm">
                           {JSON.stringify(agentConfig, null, 2)}
                         </pre>
                       )}
@@ -357,7 +409,7 @@ export default function SwarmsPage() {
                   ) : (
                     <div className="text-center py-12 text-gray-500">
                       <Settings className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                      <p>No configuration available for this agent</p>
+                      <p className="text-sm">No configuration available for this agent</p>
                     </div>
                   )}
                 </div>
