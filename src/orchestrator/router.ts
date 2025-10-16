@@ -104,11 +104,37 @@ export function routeToSwarm(
   // ========================================================================
   // Default: Persona (general conversation)
   // ========================================================================
+  // CRITICAL: This is the BASELINE. Pat always answers via persona unless
+  // a domain swarm (macro/tmwya/mmb) has higher confidence.
+  // This ensures AMA (Ask Me Anything) is ALWAYS available.
   return {
     target: 'persona',
     confidence: 0.7,
-    reason: 'persona - general conversation'
+    reason: 'persona - general conversation (AMA baseline)'
   };
+}
+
+/**
+ * SAFETY: Wrap routing in try-catch to guarantee fallback to persona
+ * Use this in production to ensure AMA never fails
+ */
+export function safeRouteToSwarm(
+  userMessage: string,
+  context?: {
+    hasUnconsumedMacroPayload?: boolean;
+    sessionId?: string;
+  }
+): RouteResult {
+  try {
+    return routeToSwarm(userMessage, context);
+  } catch (error) {
+    console.error('[router] Error in routing, falling back to persona:', error);
+    return {
+      target: 'persona',
+      confidence: 1.0,
+      reason: 'error-fallback - routing failed, defaulting to AMA'
+    };
+  }
 }
 
 /**

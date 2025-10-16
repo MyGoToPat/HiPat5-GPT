@@ -12,6 +12,9 @@ export interface FeatureFlags {
   swarm_v2_enabled: boolean;
   swarm_v2_rollout_pct: number;
   swarmsV2Admin: boolean;
+  personaDefaultRouter: boolean; // Always default to persona (AMA) when no domain match
+  adminSwarmsLegacy: boolean; // Show legacy Agent Config page
+  adminSwarmsEnhanced: boolean; // Show enhanced Swarm Versions page
   source: 'user_override' | 'rollout_percentage' | 'default';
 }
 
@@ -42,6 +45,9 @@ export async function getFeatureFlags(userId: string): Promise<FeatureFlags> {
       swarm_v2_enabled: userPrefs.feature_flags.swarm_v2_enabled,
       swarm_v2_rollout_pct: 100,
       swarmsV2Admin: swarmsV2AdminEnabled,
+      personaDefaultRouter: true, // Always enabled - core AMA functionality
+      adminSwarmsLegacy: userIsAdmin, // Show legacy page to admins
+      adminSwarmsEnhanced: swarmsV2AdminEnabled, // Show enhanced page to admins
       source: 'user_override'
     };
   }
@@ -57,6 +63,9 @@ export async function getFeatureFlags(userId: string): Promise<FeatureFlags> {
     swarm_v2_enabled: isInRollout,
     swarm_v2_rollout_pct: rolloutPct,
     swarmsV2Admin: swarmsV2AdminEnabled,
+    personaDefaultRouter: true, // Always enabled - core AMA functionality
+    adminSwarmsLegacy: userIsAdmin, // Show legacy page to admins
+    adminSwarmsEnhanced: swarmsV2AdminEnabled, // Show enhanced page to admins
     source: 'rollout_percentage'
   };
 }
