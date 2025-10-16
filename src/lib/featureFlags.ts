@@ -6,6 +6,7 @@
  */
 
 import { getSupabase } from './supabase';
+import { isAdmin } from './auth/isAdmin';
 
 export interface FeatureFlags {
   swarm_v2_enabled: boolean;
@@ -20,6 +21,15 @@ export interface FeatureFlags {
 export async function getFeatureFlags(userId: string): Promise<FeatureFlags> {
   const supabase = getSupabase();
 
+  // Layer 0: Check admin status first
+  const userIsAdmin = await isAdmin();
+
+  // In dev mode, also check for VITE_SWARMS_V2_ADMIN override
+  const isDev = import.meta.env.MODE !== 'production';
+  const devOverride = isDev && import.meta.env.VITE_SWARMS_V2_ADMIN === 'true';
+
+  const swarmsV2AdminEnabled = userIsAdmin || devOverride;
+
   // Layer 1: Check user_preferences.feature_flags for per-user override
   const { data: userPrefs } = await supabase
     .from('user_preferences')
@@ -31,7 +41,7 @@ export async function getFeatureFlags(userId: string): Promise<FeatureFlags> {
     return {
       swarm_v2_enabled: userPrefs.feature_flags.swarm_v2_enabled,
       swarm_v2_rollout_pct: 100,
-      swarmsV2Admin: userPrefs.feature_flags.swarmsV2Admin ?? false,
+      swarmsV2Admin: swarmsV2AdminEnabled,
       source: 'user_override'
     };
   }
@@ -46,7 +56,7 @@ export async function getFeatureFlags(userId: string): Promise<FeatureFlags> {
   return {
     swarm_v2_enabled: isInRollout,
     swarm_v2_rollout_pct: rolloutPct,
-    swarmsV2Admin: false,
+    swarmsV2Admin: swarmsV2AdminEnabled,
     source: 'rollout_percentage'
   };
 }

@@ -21,6 +21,7 @@ export function TestRunnerModal({ isOpen, onClose, agentPromptId, swarmId }: Tes
   const [finalRender, setFinalRender] = useState('');
   const [metrics, setMetrics] = useState<any>(null);
   const [running, setRunning] = useState(false);
+  const [personaOverride, setPersonaOverride] = useState(false);
 
   const { createTestRun } = useSwarmsStore();
 
@@ -69,7 +70,7 @@ export function TestRunnerModal({ isOpen, onClose, agentPromptId, swarmId }: Tes
 
       const filterPipeline = await FilterPipeline.create('test-user-id');
       const filterRes = filterPipeline
-        ? await filterPipeline.applyAll(mockResponseObject.payload, false)
+        ? await filterPipeline.applyAll(mockResponseObject.payload, personaOverride)
         : { annotations: [], substitutions: [], warnings: [] };
 
       setFilterResult(filterRes);
@@ -163,6 +164,23 @@ export function TestRunnerModal({ isOpen, onClose, agentPromptId, swarmId }: Tes
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Test Input (meal description or query)
             </label>
+            <div className="flex items-center gap-3 mb-2">
+              <input
+                type="checkbox"
+                id="persona-override"
+                checked={personaOverride}
+                onChange={(e) => setPersonaOverride(e.target.checked)}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="persona-override" className="text-sm text-gray-700">
+                Bypass Persona Filters (Override)
+              </label>
+              {personaOverride && (
+                <span className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded">
+                  Override Active
+                </span>
+              )}
+            </div>
             <div className="flex gap-2">
               <textarea
                 value={input}

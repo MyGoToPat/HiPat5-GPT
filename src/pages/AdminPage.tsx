@@ -36,7 +36,7 @@ export default function AdminPage() {
           </Link>
           <Link
             to="/admin/swarms-enhanced"
-            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
           >
             Swarms (Enhanced)
           </Link>

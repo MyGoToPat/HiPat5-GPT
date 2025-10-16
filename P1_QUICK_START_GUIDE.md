@@ -31,35 +31,50 @@
 ## For Admin Users (Testing New Features)
 
 ### Access the Enhanced Swarms Page
-1. Login as admin
-2. Navigate to `/admin/swarms-enhanced`
-3. You'll see the new P1 interface
+1. Login as admin (or set `VITE_SWARMS_V2_ADMIN=true` in local dev .env)
+2. Navigate to **Admin Dashboard** → Click **"Swarms (Enhanced)"** button (gray, not purple)
+3. Or navigate directly to `/admin/swarms-enhanced`
+4. If not admin, you'll see: "Access Restricted - This feature is only available to administrators"
+5. Admin access is auto-enabled via `swarmsV2Admin` feature flag
 
 ### Test the System
 
-#### 1. View Swarms
+#### 1. View Swarms & Check API Health
 - Left panel shows all configured swarms
 - Click to select and view details
 - Right panel shows manifest and versions
+- **Top-right corner**: Click **"Check API Health"** button
+  - Shows spinner while checking
+  - Displays "API: OK" (green checkmark) or "API: Error" (red X)
+  - Confirms Edge Function `/functions/v1/swarm-admin-api` is reachable
+  - Uses service-role key on server (never exposed to browser)
 
 #### 2. Create a Draft Version
 1. Select a swarm
 2. Click "Create Draft"
-3. Edit JSON manifest
+3. Edit JSON manifest in textarea
+   - JSON validation on save
+   - Red border + error message if invalid JSON
+   - Example structure provided in placeholder
 4. Click "Save Draft"
-5. Verify: New version appears with "draft" badge
+5. Verify: New version appears with "draft" badge (blue background)
 
-#### 3. Run Test Runner
-1. Click "Test Runner" button
-2. Enter meal description: `grilled chicken with rice and broccoli`
-3. Click "Run Test"
-4. Observe 4-column output:
+#### 3. Run Test Runner with Persona Override
+1. Click "Test Runner" button (green, top-right of selected swarm)
+2. **NEW**: Check/uncheck **"Bypass Persona Filters (Override)"** checkbox
+   - When checked: Orange "Override Active" badge appears
+   - Filters will NOT generate annotations (test bypass behavior)
+3. Enter meal description: `grilled chicken with rice and broccoli`
+4. Click "Run Test"
+5. Observe 4-column output:
    - **Column 1**: Raw ResponseObject (JSON)
    - **Column 2**: Filter annotations (warnings, substitutions)
+     - Empty if persona_override is checked
+     - Shows dietary alerts if unchecked
    - **Column 3**: Presenter output (formatted text)
    - **Column 4**: Final render (with persona)
-5. Check metrics at bottom (latency, tokens)
-6. Click "Save" to persist test case
+6. Check metrics at bottom (latency per phase, tokens)
+7. Click "Save" to persist test case to `agent_test_runs` table
 
 #### 4. Publish Version at 0% Rollout
 1. Find draft version in versions list
@@ -68,12 +83,17 @@
 4. Verify: Status changes to "published", rollout shows 0%
 5. **Important**: 0% = no user impact
 
-#### 5. Adjust Rollout Percentage
+#### 5. Adjust Rollout Percentage with Cohort Targeting
 1. Find published version
-2. Move slider from 0% to desired value (e.g., 5%)
-3. Click "Update"
-4. Verify: Rollout percentage updated
-5. **Note**: Runtime wiring not implemented yet (P4)
+2. **Rollout Percentage**: Move slider from 0% to desired value (e.g., 5%)
+3. **Cohort Targeting**: Select from dropdown:
+   - Beta Users
+   - Paid Users
+   - All Users
+4. Blue banner displays: "Active rollout: X% to Y cohort"
+5. Click "Update" button next to slider
+6. Verify: Rollout percentage updated
+7. **Note**: Runtime wiring not implemented yet (P4)
 
 ### Test Dietary Filters
 
@@ -100,10 +120,12 @@ WHERE user_id = '<your-test-user-id>';
 3. Verify Column 2 shows: "🚨 Allergen Alert: may contain gluten, dairy"
 
 #### Test Persona Override
-1. Enter same meal
-2. Set `persona_override = true` (requires code modification in TestRunnerModal)
+1. Enter same meal (e.g., high-carb keto violation)
+2. **Check** the "Bypass Persona Filters (Override)" checkbox
 3. Run test
-4. Verify Column 2 shows: No dietary annotations
+4. Verify Column 2 shows: No dietary annotations (filters bypassed)
+5. **Uncheck** the checkbox and re-run
+6. Verify Column 2 shows: Dietary annotations reappear
 
 ---
 

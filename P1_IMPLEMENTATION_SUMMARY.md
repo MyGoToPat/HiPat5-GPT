@@ -47,22 +47,41 @@ Added 4 new columns to `user_preferences`:
 ### 2. Admin UI Components
 
 #### `SwarmsPageEnhanced.tsx`
-- Swarm list with selection
-- Manifest editor with JSON syntax highlighting
-- Version management (draft → publish)
-- Rollout percentage slider (0-100%)
-- Test Runner launcher
+- **Feature flag gating**: Auto-enabled for admin users via `swarmsV2Admin` flag
+  - Checks admin status on mount using `isAdmin()` + `getFeatureFlags()`
+  - Displays "Access Restricted" message for non-admins
+  - Dev override: Set `VITE_SWARMS_V2_ADMIN=true` in local .env
+- **API Health Check button**: Tests `/functions/v1/swarm-admin-api/health` endpoint
+  - Shows spinner while checking
+  - Displays OK/Error status with icons
+  - Confirms service-role connectivity
+- Swarm list with selection (left panel)
+- **Manifest editor** with:
+  - JSON validation on save
+  - Red border + inline error message if invalid
+  - Example structure in placeholder
+- Version management (draft → publish at 0%)
+- **Rollout controls**:
+  - Percentage slider (0-100%)
+  - Cohort selector (beta/paid/all)
+  - Active rollout banner showing current state
+- Test Runner launcher (green button)
 - All features default to 0% rollout (no user impact)
 
 #### `TestRunnerModal.tsx`
+- **"Bypass Persona Filters (Override)" checkbox**:
+  - Passes `personaOverride: boolean` to `FilterPipeline.applyAll()`
+  - When checked: Column 2 shows no annotations (filters bypassed)
+  - Orange "Override Active" badge when enabled
+  - Allows testing both filtered and unfiltered states
 - 4-column pipeline visualization:
   1. Raw ResponseObject (JSON)
-  2. Filter annotations (warnings, substitutions)
+  2. Filter annotations (warnings, substitutions) - suppressed if override active
   3. Presenter output (formatted text)
   4. Final render (with persona)
 - Metrics display: total/filter/presenter/render latency, token usage
-- Save test case to database
-- Supports persona_override flag testing
+- Save test case to `agent_test_runs` table with metadata
+- All list renders use stable keys (no React warnings)
 
 #### Enhanced Renderer (`renderer.ts`)
 - Consumes published manifests from `get_active_swarm_manifest()`
@@ -188,6 +207,53 @@ Execute queries in `VERIFICATION_QUERIES_P1.sql`:
 
 ### Modified Files
 - `src/core/swarm/renderer.ts` - Added manifest fetching, filter annotation rendering, async compose()
+- `src/lib/featureFlags.ts` - Auto-enable `swarmsV2Admin` for admin users, respect `VITE_SWARMS_V2_ADMIN` in dev
+- `src/store/swarmsEnhanced.ts` - Added `healthCheck()` method for API status verification
+- `src/pages/AdminPage.tsx` - Changed "Swarms (Enhanced)" nav link from purple to gray
+- All admin components - Fixed React key warnings (stable IDs in all `.map()` calls)
+
+---
+
+## P1 UI Wiring Completion (2025-10-16)
+
+The following enhancements were added to complete the P1 admin UI requirements:
+
+### Feature Flag Admin Gating
+- Extended `featureFlags.ts` to auto-enable `swarmsV2Admin` for admin users
+- Integrated `isAdmin()` check into `getFeatureFlags()`
+- Added dev override support via `VITE_SWARMS_V2_ADMIN=true` env variable
+- SwarmsPageEnhanced checks access on mount and shows "Access Restricted" for non-admins
+
+### API Health Check
+- Added "Check API Health" button to page header (top-right)
+- Tests `/functions/v1/swarm-admin-api/health` endpoint
+- Shows spinner → OK/Error status with visual feedback
+- Confirms service-role connectivity without exposing keys to browser
+
+### Persona Override Testing
+- Added checkbox to TestRunnerModal: "Bypass Persona Filters (Override)"
+- Orange "Override Active" badge when enabled
+- Passes `personaOverride: boolean` to `FilterPipeline.applyAll()`
+- Allows testing both filtered and unfiltered response states
+
+### JSON Validation
+- Manifest editor validates JSON on save
+- Red border + inline error message on parse failure
+- Error clears on user edit
+- Helpful placeholder with example structure
+
+### Cohort Targeting UI
+- Added cohort selector dropdown (beta/paid/all)
+- Blue banner displays "Active rollout: X% to Y cohort"
+- State persists during session
+
+### Console Warnings Fixed
+- All `.map()` calls use stable keys (swarm.id, version.id, etc.)
+- No React "unique key prop" warnings
+
+### UI Color Compliance
+- Changed "Swarms (Enhanced)" nav link from purple to gray
+- Matches admin UI color scheme (gray-600/700)
 
 ---
 

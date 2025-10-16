@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useSwarmsStore } from '../../store/swarms';
-import { Settings, ChevronRight, Edit2, Save, X, ChevronDown, Play, Plus } from 'lucide-react';
+import { useSwarmsEnhancedStore } from '../../store/swarmsEnhanced';
+import { Settings, ChevronRight, Edit2, Save, X, ChevronDown, Play, Plus, Activity, CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TestRunnerModal } from '../../components/admin/TestRunnerModal';
+import { getFeatureFlags } from '../../lib/featureFlags';
+import { getSupabase } from '../../lib/supabase';
 
 export default function SwarmsPageEnhanced() {
   const {
@@ -16,15 +19,33 @@ export default function SwarmsPageEnhanced() {
     loading
   } = useSwarmsStore();
 
+  const { healthCheck } = useSwarmsEnhancedStore();
+
   const [selectedSwarm, setSelectedSwarm] = useState<any>(null);
   const [activeVersion, setActiveVersion] = useState<any>(null);
   const [editingManifest, setEditingManifest] = useState<string>('');
   const [isEditing, setIsEditing] = useState(false);
   const [rolloutValue, setRolloutValue] = useState(0);
   const [testRunnerOpen, setTestRunnerOpen] = useState(false);
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  const [healthStatus, setHealthStatus] = useState<{ checking: boolean; status: 'ok' | 'error' | null; message?: string }>({ checking: false, status: null });
+  const [manifestError, setManifestError] = useState<string>('');
+  const [cohortValue, setCohortValue] = useState<'beta' | 'paid' | 'all'>('beta');
 
   useEffect(() => {
-    fetchSwarms();
+    (async () => {
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setHasAccess(false);
+        return;
+      }
+      const flags = await getFeatureFlags(user.id);
+      setHasAccess(flags.swarmsV2Admin);
+      if (flags.swarmsV2Admin) {
+        fetchSwarms();
+      }
+    })();
   }, [fetchSwarms]);
 
   useEffect(() => {
@@ -45,6 +66,8 @@ export default function SwarmsPageEnhanced() {
   const handleSaveManifest = async () => {
     if (!selectedSwarm) return;
 
+    setManifestError('');
+
     try {
       const manifest = JSON.parse(editingManifest);
 
@@ -61,7 +84,9 @@ export default function SwarmsPageEnhanced() {
         await fetchSwarmVersions(selectedSwarm.id);
       }
     } catch (e: any) {
-      toast.error('Invalid JSON: ' + e.message);
+      const errorMsg = 'Invalid JSON: ' + e.message;
+      setManifestError(errorMsg);
+      toast.error(errorMsg);
     }
   };
 
@@ -87,6 +112,42 @@ export default function SwarmsPageEnhanced() {
     }
   };
 
+  const handleHealthCheck = async () => {
+    setHealthStatus({ checking: true, status: null });
+    try {
+      const result = await healthCheck();
+      if (result.status === 'ok' && result.canReadSwarms) {
+        setHealthStatus({ checking: false, status: 'ok', message: 'API is healthy' });
+        toast.success('API Health: OK');
+      } else {
+        setHealthStatus({ checking: false, status: 'error', message: 'API cannot read swarms' });
+        toast.error('API Health: Error');
+      }
+    } catch (e: any) {
+      setHealthStatus({ checking: false, status: 'error', message: e.message });
+      toast.error('API Health Check Failed: ' + e.message);
+    }
+  };
+
+  if (hasAccess === null) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-600">Checking access...</div>
+      </div>
+    );
+  }
+
+  if (hasAccess === false) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
+          <p className="text-gray-600">This feature is only available to administrators.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (loading && !swarms.length) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -99,12 +160,45 @@ export default function SwarmsPageEnhanced() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Swarm Management (P1)</h1>
-          <p className="mt-2 text-gray-600">
-            Configure swarm manifests, agent ordering by phase, and rollout controls.
-          </p>
-          <div className="mt-2 text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-2">
-            ⚠️ All features are behind flags. Rollout defaults to 0% (no user impact).
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Swarm Management (Enhanced)</h1>
+              <p className="mt-2 text-gray-600">
+                Configure swarm manifests, agent ordering by phase, and rollout controls.
+              </p>
+              <div className="mt-2 text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-2">
+                ⚠️ All features are behind flags. Rollout defaults to 0% (no user impact).
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleHealthCheck}
+                disabled={healthStatus.checking}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-lg transition-colors text-sm"
+              >
+                {healthStatus.checking ? (
+                  <>
+                    <Activity className="h-4 w-4 animate-spin" />
+                    Checking...
+                  </>
+                ) : healthStatus.status === 'ok' ? (
+                  <>
+                    <CheckCircle className="h-4 w-4" />
+                    API: OK
+                  </>
+                ) : healthStatus.status === 'error' ? (
+                  <>
+                    <XCircle className="h-4 w-4" />
+                    API: Error
+                  </>
+                ) : (
+                  <>
+                    <Activity className="h-4 w-4" />
+                    Check API Health
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -125,7 +219,7 @@ export default function SwarmsPageEnhanced() {
                     <p className="text-xs mt-2">Run migration to create swarms table</p>
                   </div>
                 ) : (
-                  swarms.map((swarm) => (
+                  swarms.map((swarm: any) => (
                     <button
                       key={swarm.id}
                       onClick={() => setSelectedSwarm(swarm)}
@@ -210,6 +304,7 @@ export default function SwarmsPageEnhanced() {
                         <button
                           onClick={() => {
                             setIsEditing(false);
+                            setManifestError('');
                             if (activeVersion) {
                               setEditingManifest(JSON.stringify(activeVersion.manifest, null, 2));
                             }
@@ -233,12 +328,25 @@ export default function SwarmsPageEnhanced() {
                   {activeVersion ? (
                     <div>
                       {isEditing ? (
-                        <textarea
-                          value={editingManifest}
-                          onChange={(e) => setEditingManifest(e.target.value)}
-                          className="w-full h-96 px-4 py-3 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          spellCheck={false}
-                        />
+                        <div>
+                          <textarea
+                            value={editingManifest}
+                            onChange={(e) => {
+                              setEditingManifest(e.target.value);
+                              setManifestError('');
+                            }}
+                            className={`w-full h-96 px-4 py-3 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                              manifestError ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            }`}
+                            spellCheck={false}
+                            placeholder='{"phases": ["pre", "core", "filter", "presenter", "render"], "agents": []}'
+                          />
+                          {manifestError && (
+                            <div className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+                              {manifestError}
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <pre className="w-full h-96 overflow-auto px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg font-mono text-sm">
                           {editingManifest}
@@ -250,7 +358,10 @@ export default function SwarmsPageEnhanced() {
                       <Settings className="h-12 w-12 mx-auto mb-3 text-gray-400" />
                       <p>No published version available</p>
                       <button
-                        onClick={() => setIsEditing(true)}
+                        onClick={() => {
+                          setIsEditing(true);
+                          setEditingManifest('{\n  "phases": ["pre", "core", "filter", "presenter", "render"],\n  "agents": [],\n  "protected_fields": ["totals.kcal", "totals.protein_g", "totals.carbs_g", "totals.fat_g"]\n}');
+                        }}
                         className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                       >
                         Create First Version
@@ -266,7 +377,7 @@ export default function SwarmsPageEnhanced() {
                     <p className="text-sm text-gray-500">No versions created yet</p>
                   ) : (
                     <div className="space-y-3">
-                      {swarmVersions.map((version) => (
+                      {swarmVersions.map((version: any) => (
                         <div
                           key={version.id}
                           className={`border rounded-lg p-4 ${
@@ -319,7 +430,7 @@ export default function SwarmsPageEnhanced() {
                               <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Rollout Percentage: {version.rollout_percent}%
                               </label>
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-3 mb-3">
                                 <input
                                   type="range"
                                   min="0"
@@ -335,9 +446,23 @@ export default function SwarmsPageEnhanced() {
                                   Update
                                 </button>
                               </div>
-                              <p className="text-xs text-gray-600 mt-2">
-                                Current: {version.rollout_percent}% → New: {rolloutValue}%
-                              </p>
+                              <div className="mb-3">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Cohort Targeting
+                                </label>
+                                <select
+                                  value={cohortValue}
+                                  onChange={(e) => setCohortValue(e.target.value as any)}
+                                  className="w-full px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <option value="beta">Beta Users</option>
+                                  <option value="paid">Paid Users</option>
+                                  <option value="all">All Users</option>
+                                </select>
+                              </div>
+                              <div className="bg-blue-50 border border-blue-200 rounded p-2 text-xs text-blue-700">
+                                Active rollout: {version.rollout_percent}% to {cohortValue} cohort
+                              </div>
                             </div>
                           )}
                         </div>
