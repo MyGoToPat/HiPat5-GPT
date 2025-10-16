@@ -71,6 +71,7 @@ export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentC
       case 'Role Access': return Settings;
       case 'User Management': return Settings;
       case 'Swarms': return Network;
+      case 'Swarms (Enhanced)': return Network;
       case 'ShopLens': return Settings;
       case 'TDEE Calculator': return Zap;
       default: return undefined;
