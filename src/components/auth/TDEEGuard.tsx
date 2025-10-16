@@ -65,7 +65,7 @@ export default function TDEEGuard({ children }: { children: JSX.Element }) {
     return () => {
       mounted = false;
     };
-  }, [location.pathname]);
+  }, []);
 
   // Show loading state
   if (loading) {

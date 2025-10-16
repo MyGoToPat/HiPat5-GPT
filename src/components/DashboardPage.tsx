@@ -72,10 +72,13 @@ export const DashboardPage: React.FC = () => {
       });
 
       const timer = setTimeout(() => setShowSuccessBanner(false), 5000);
-      navigate(location.pathname, { replace: true, state: {} });
+
+      // Clear state without causing re-render loop
+      window.history.replaceState({}, document.title);
+
       return () => clearTimeout(timer);
     }
-  }, [location.state, navigate, location.pathname]);
+  }, [location.state]);
   
   const [alerts, setAlerts] = useState<MetricAlert[]>([
     // Alerts will be loaded from backend in future
