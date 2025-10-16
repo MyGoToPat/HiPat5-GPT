@@ -34,6 +34,12 @@ export default function AdminPage() {
           >
             Manage Users
           </Link>
+          <Link
+            to="/admin/swarms-enhanced"
+            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+          >
+            Swarms (Enhanced)
+          </Link>
         </div>
 
         <div style={{ marginBottom: 24 }}>

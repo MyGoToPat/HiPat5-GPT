@@ -10,6 +10,7 @@ import { getSupabase } from './supabase';
 export interface FeatureFlags {
   swarm_v2_enabled: boolean;
   swarm_v2_rollout_pct: number;
+  swarmsV2Admin: boolean;
   source: 'user_override' | 'rollout_percentage' | 'default';
 }
 
@@ -30,6 +31,7 @@ export async function getFeatureFlags(userId: string): Promise<FeatureFlags> {
     return {
       swarm_v2_enabled: userPrefs.feature_flags.swarm_v2_enabled,
       swarm_v2_rollout_pct: 100,
+      swarmsV2Admin: userPrefs.feature_flags.swarmsV2Admin ?? false,
       source: 'user_override'
     };
   }
@@ -44,6 +46,7 @@ export async function getFeatureFlags(userId: string): Promise<FeatureFlags> {
   return {
     swarm_v2_enabled: isInRollout,
     swarm_v2_rollout_pct: rolloutPct,
+    swarmsV2Admin: false,
     source: 'rollout_percentage'
   };
 }
