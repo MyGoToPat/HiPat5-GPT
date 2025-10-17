@@ -3,6 +3,7 @@ import { X, Edit, Mic, BarChart3, User, Users, Settings, Zap, AlertCircle, Netwo
 import { NAV_ITEMS } from '../config/navItems';
 import { useRole } from '../hooks/useRole';
 import { supabase } from '../lib/supabase';
+import { getFeatureFlags, type FeatureFlags } from '../lib/featureFlags';
 
 type ChatSummary = { id: string; title: string | null; updated_at: string | null; };
 type UserProfile = { role?: 'admin' | 'trainer' | 'user' | string } | null;
@@ -20,10 +21,12 @@ export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentC
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isLowBalance, setIsLowBalance] = useState(false);
   const [isUnlimited, setIsUnlimited] = useState(false);
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlags | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       loadCreditBalance();
+      loadFeatureFlags();
     }
   }, [isOpen]);
 
@@ -53,13 +56,46 @@ export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentC
     }
   }
 
+  async function loadFeatureFlags() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const flags = await getFeatureFlags(user.id);
+      setFeatureFlags(flags);
+    } catch (err) {
+      console.error('Failed to load feature flags:', err);
+    }
+  }
+
   if (!isOpen) return null;
 
   const role = (userProfile?.role ?? 'user') as 'admin' | 'trainer' | 'user';
 
-  const primary   = NAV_ITEMS.filter(i => i.section === 'primary' && (!i.roles || i.roles.includes(role)) && (!i.requirePrivilege || can(i.requirePrivilege)));
-  const admin     = NAV_ITEMS.filter(i => i.section === 'admin' && (!i.roles || i.roles.includes(role)) && (!i.requirePrivilege || can(i.requirePrivilege)));
-  const utilities = NAV_ITEMS.filter(i => i.section === 'utilities' && (!i.roles || i.roles.includes(role)) && (!i.requirePrivilege || can(i.requirePrivilege)));
+  // Filter function that checks roles, privileges, AND feature flags
+  const filterNavItems = (section: 'primary' | 'admin' | 'utilities') => {
+    return NAV_ITEMS.filter(i => {
+      // Section filter
+      if (i.section !== section) return false;
+
+      // Role filter
+      if (i.roles && !i.roles.includes(role)) return false;
+
+      // Privilege filter
+      if (i.requirePrivilege && !can(i.requirePrivilege)) return false;
+
+      // Feature flag filter (only if item has a flag AND flags are loaded)
+      if (i.featureFlag && featureFlags) {
+        return featureFlags[i.featureFlag] === true;
+      }
+
+      return true;
+    });
+  };
+
+  const primary   = filterNavItems('primary');
+  const admin     = filterNavItems('admin');
+  const utilities = filterNavItems('utilities');
 
   const iconFor = (label: string) => {
     switch (label) {
@@ -70,8 +106,8 @@ export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentC
       case 'Client Management': return Users;
       case 'Role Access': return Settings;
       case 'User Management': return Settings;
-      case 'Swarms': return Network;
-      case 'Swarms (Enhanced)': return Network;
+      case 'Agent Config (Legacy)': return Network;
+      case 'Swarm Versions (Enhanced)': return Network;
       case 'ShopLens': return Settings;
       case 'TDEE Calculator': return Zap;
       default: return undefined;

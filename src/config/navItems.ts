@@ -7,6 +7,7 @@ export type NavItem = {
   section: 'primary' | 'admin' | 'utilities';
   roles?: Array<'admin' | 'trainer' | 'user'>; // if omitted, show to all
   requirePrivilege?: Privilege;
+  featureFlag?: 'adminSwarmsLegacy' | 'adminSwarmsEnhanced'; // optional feature flag gate
 };
 
 export const NAV_ITEMS: NavItem[] = [
@@ -20,8 +21,8 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'client-mgmt', label: 'Client Management', path: '/trainer-dashboard', section: 'admin', roles: ['admin','trainer'], requirePrivilege: 'clients.read' },
   { key: 'role-access', label: 'Role Access',       path: '/admin/roles',       section: 'admin', roles: ['admin'], requirePrivilege: 'admin.panel' },
   { key: 'user-mgmt',   label: 'User Management',   path: '/admin/users',       section: 'admin', roles: ['admin'], requirePrivilege: 'admin.panel' },
-  { key: 'swarms',      label: 'Swarms',            path: '/admin/swarms',      section: 'admin', roles: ['admin'], requirePrivilege: 'admin.panel' },
-  { key: 'swarms-enhanced', label: 'Swarms (Enhanced)', path: '/admin/swarms-enhanced', section: 'admin', roles: ['admin'], requirePrivilege: 'admin.panel' },
+  { key: 'swarms',      label: 'Agent Config (Legacy)',            path: '/admin/swarms',      section: 'admin', roles: ['admin'], requirePrivilege: 'admin.panel', featureFlag: 'adminSwarmsLegacy' },
+  { key: 'swarms-enhanced', label: 'Swarm Versions (Enhanced)', path: '/admin/swarms-enhanced', section: 'admin', roles: ['admin'], requirePrivilege: 'admin.panel', featureFlag: 'adminSwarmsEnhanced' },
   // Optional
   { key: 'shoplens',    label: 'ShopLens',         path: '/admin/shoplens', section: 'admin', roles: ['admin'], requirePrivilege: 'agents.use.shoplens' },
 

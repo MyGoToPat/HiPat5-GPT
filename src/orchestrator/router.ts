@@ -126,14 +126,35 @@ export function safeRouteToSwarm(
   }
 ): RouteResult {
   try {
-    return routeToSwarm(userMessage, context);
+    const result = routeToSwarm(userMessage, context);
+
+    // Lightweight routing telemetry (console only)
+    console.log('[route]', JSON.stringify({
+      ts: new Date().toISOString(),
+      msgPreview: userMessage.slice(0, 120),
+      target: result.target,
+      confidence: result.confidence
+    }));
+
+    return result;
   } catch (error) {
     console.error('[router] Error in routing, falling back to persona:', error);
-    return {
-      target: 'persona',
+
+    const fallbackResult = {
+      target: 'persona' as SwarmTarget,
       confidence: 1.0,
       reason: 'error-fallback - routing failed, defaulting to AMA'
     };
+
+    // Log fallback route
+    console.log('[route]', JSON.stringify({
+      ts: new Date().toISOString(),
+      msgPreview: userMessage.slice(0, 120),
+      target: fallbackResult.target,
+      confidence: fallbackResult.confidence
+    }));
+
+    return fallbackResult;
   }
 }
 
