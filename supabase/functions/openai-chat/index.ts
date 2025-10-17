@@ -384,6 +384,36 @@ Deno.serve(async (req: Request) => {
       timestamp: new Date().toISOString()
     });
 
+    // ============================================================
+    // TELEMETRY: Log tool routing decision (Phase B evidence)
+    // Gated by LOG_TOOL_TELEMETRY env var
+    // ============================================================
+    const logTelemetry = Deno.env.get('LOG_TOOL_TELEMETRY') === 'true';
+    if (logTelemetry) {
+      const TOOL_TO_ROLE_MAP: Record<string, string> = {
+        'log_meal': 'tmwya',
+        'get_macros': 'macro',
+        'get_remaining_macros': 'macro',
+        'undo_last_meal': 'tmwya',
+      };
+
+      const userMessage = messages[messages.length - 1]?.content || '';
+      const toolName = assistantMessage.tool_calls?.[0]?.function?.name || null;
+      const roleTarget = toolName ? (TOOL_TO_ROLE_MAP[toolName] || 'unknown') : 'persona';
+      const personaFallback = toolName === null;
+      const correlationId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      console.log('[tool-route]', JSON.stringify({
+        ts: new Date().toISOString(),
+        id: correlationId,
+        msgPreview: userMessage.slice(0, 120),
+        toolName,
+        roleTarget,
+        personaFallback
+      }));
+    }
+    // ============================================================
+
     // CHECK FOR TOOL CALLS
     if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
       console.log('[openai-chat] Tool calls detected:', assistantMessage.tool_calls.length);
