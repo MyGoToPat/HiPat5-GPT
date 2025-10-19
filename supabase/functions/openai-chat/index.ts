@@ -386,31 +386,59 @@ Deno.serve(async (req: Request) => {
 
     // ============================================================
     // TELEMETRY: Log tool routing decision (Phase B evidence)
-    // Gated by LOG_TOOL_TELEMETRY env var
+    // Gated by DB feature flag 'log_tool_telemetry_db'
     // ============================================================
-    const logTelemetry = Deno.env.get('LOG_TOOL_TELEMETRY') === 'true';
-    if (logTelemetry) {
-      const TOOL_TO_ROLE_MAP: Record<string, string> = {
-        'log_meal': 'tmwya',
-        'get_macros': 'macro',
-        'get_remaining_macros': 'macro',
-        'undo_last_meal': 'tmwya',
-      };
+    try {
+      // Check DB feature flag
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-      const userMessage = messages[messages.length - 1]?.content || '';
-      const toolName = assistantMessage.tool_calls?.[0]?.function?.name || null;
-      const roleTarget = toolName ? (TOOL_TO_ROLE_MAP[toolName] || 'unknown') : 'persona';
-      const personaFallback = toolName === null;
-      const correlationId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const { data: flag } = await supabaseClient
+        .from('feature_flags')
+        .select('enabled')
+        .eq('key', 'log_tool_telemetry_db')
+        .maybeSingle();
 
-      console.log('[tool-route]', JSON.stringify({
-        ts: new Date().toISOString(),
-        id: correlationId,
-        msgPreview: userMessage.slice(0, 120),
-        toolName,
-        roleTarget,
-        personaFallback
-      }));
+      if (flag?.enabled) {
+        const TOOL_TO_ROLE_MAP: Record<string, string> = {
+          'log_meal': 'tmwya',
+          'get_macros': 'macro',
+          'get_remaining_macros': 'macro',
+          'undo_last_meal': 'tmwya',
+        };
+
+        const userMessage = messages[messages.length - 1]?.content || '';
+        const toolName = assistantMessage.tool_calls?.[0]?.function?.name || null;
+        const roleTarget = toolName ? (TOOL_TO_ROLE_MAP[toolName] || 'unknown') : 'persona';
+        const personaFallback = toolName === null;
+
+        // Log to console (legacy)
+        console.log('[tool-route]', JSON.stringify({
+          ts: new Date().toISOString(),
+          msgPreview: userMessage.slice(0, 120),
+          toolName,
+          roleTarget,
+          personaFallback
+        }));
+
+        // Log to DB (new - verifiable)
+        await supabaseClient.from('admin_action_logs').insert({
+          actor_uid: effectiveUserId || '00000000-0000-0000-0000-000000000000',
+          action: 'tool_route',
+          target: 'openai-chat',
+          payload: {
+            msgPreview: userMessage.slice(0, 120),
+            toolName,
+            roleTarget,
+            personaFallback,
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+    } catch (telemetryError) {
+      console.error('[telemetry] Failed to log tool route:', telemetryError);
+      // Don't fail the request if telemetry fails
     }
     // ============================================================
 
