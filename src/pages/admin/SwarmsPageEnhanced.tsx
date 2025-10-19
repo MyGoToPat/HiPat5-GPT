@@ -322,6 +322,8 @@ export default function SwarmsPageEnhanced() {
                           }
                         }}
                         disabled={!WRITE_ENABLED}
+                        aria-disabled={!WRITE_ENABLED}
+                        tabIndex={!WRITE_ENABLED ? -1 : 0}
                         className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
                         title={!WRITE_ENABLED ? "Disabled to prevent database writes in read-only phase" : ""}
                       >
@@ -349,6 +351,8 @@ export default function SwarmsPageEnhanced() {
                             }
                           }}
                           disabled={!WRITE_ENABLED}
+                          aria-disabled={!WRITE_ENABLED}
+                          tabIndex={!WRITE_ENABLED ? -1 : 0}
                           className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
                         >
                           <Edit2 className="h-4 w-4" />
@@ -379,6 +383,8 @@ export default function SwarmsPageEnhanced() {
                           <button
                             onClick={handleSaveManifest}
                             disabled={!WRITE_ENABLED}
+                            aria-disabled={!WRITE_ENABLED}
+                            tabIndex={!WRITE_ENABLED ? -1 : 0}
                             className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
                           >
                             <Save className="h-4 w-4" />
@@ -438,6 +444,8 @@ export default function SwarmsPageEnhanced() {
                             }
                           }}
                           disabled={!WRITE_ENABLED}
+                          aria-disabled={!WRITE_ENABLED}
+                          tabIndex={!WRITE_ENABLED ? -1 : 0}
                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                         >
                           Create First Version
@@ -502,6 +510,8 @@ export default function SwarmsPageEnhanced() {
                                 <button
                                   onClick={() => handlePublish(version.id)}
                                   disabled={!WRITE_ENABLED}
+                                  aria-disabled={!WRITE_ENABLED}
+                                  tabIndex={!WRITE_ENABLED ? -1 : 0}
                                   className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                                 >
                                   Publish @ 0%
@@ -532,12 +542,16 @@ export default function SwarmsPageEnhanced() {
                                     }
                                   }}
                                   disabled={!WRITE_ENABLED}
+                                  aria-disabled={!WRITE_ENABLED}
+                                  tabIndex={!WRITE_ENABLED ? -1 : 0}
                                   className="flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                                 <div className="relative group">
                                   <button
                                     onClick={() => handleRolloutChange(version.id, rolloutValue)}
                                     disabled={!WRITE_ENABLED}
+                                    aria-disabled={!WRITE_ENABLED}
+                                    tabIndex={!WRITE_ENABLED ? -1 : 0}
                                     className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                                   >
                                     Update
@@ -561,6 +575,8 @@ export default function SwarmsPageEnhanced() {
                                     }
                                   }}
                                   disabled={!WRITE_ENABLED}
+                                  aria-disabled={!WRITE_ENABLED}
+                                  tabIndex={!WRITE_ENABLED ? -1 : 0}
                                   className="w-full px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                                 >
                                   <option value="beta">Beta Users</option>

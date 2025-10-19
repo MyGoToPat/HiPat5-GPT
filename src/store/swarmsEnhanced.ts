@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
 
 const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/swarm-admin-api`;
 
@@ -117,11 +118,16 @@ interface SwarmsEnhancedState {
   healthCheck: () => Promise<{ status: string; canReadSwarms: boolean }>;
 }
 
-const getHeaders = () => ({
-  'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-  'Content-Type': 'application/json',
-  'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-});
+// Get auth headers with user JWT (not anon key) for Edge Function authentication
+async function getAuthHeaders() {
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token || '';
+  return {
+    ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
+    'Content-Type': 'application/json',
+    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+  };
+}
 
 export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => ({
   swarms: [],
@@ -134,7 +140,7 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
   error: null,
 
   healthCheck: async () => {
-    const res = await fetch(`${API_BASE}/health`, { headers: getHeaders() });
+    const res = await fetch(`${API_BASE}/health`, { headers: await getAuthHeaders() });
     if (!res.ok) throw new Error(`Health check failed: ${res.statusText}`);
     return res.json();
   },
@@ -142,7 +148,7 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
   fetchSwarms: async () => {
     set({ loading: true, error: null });
     try {
-      const res = await fetch(`${API_BASE}/swarms`, { headers: getHeaders() });
+      const res = await fetch(`${API_BASE}/swarms`, { headers: await getAuthHeaders() });
       if (!res.ok) throw new Error(`Failed to fetch swarms: ${res.statusText}`);
       const data = await res.json();
       set({ swarms: data, loading: false });
@@ -155,7 +161,7 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
     set({ loading: true, error: null });
     try {
       const url = agentId ? `${API_BASE}/agent-prompts?agent_id=${agentId}` : `${API_BASE}/agent-prompts`;
-      const res = await fetch(url, { headers: getHeaders() });
+      const res = await fetch(url, { headers: await getAuthHeaders() });
       if (!res.ok) throw new Error(`Failed to fetch agent prompts: ${res.statusText}`);
       const data = await res.json();
       set({ agentPrompts: data, loading: false });
@@ -168,7 +174,7 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
     set({ loading: true, error: null });
     try {
       const url = swarmId ? `${API_BASE}/swarm-agents?swarm_id=${swarmId}` : `${API_BASE}/swarm-agents`;
-      const res = await fetch(url, { headers: getHeaders() });
+      const res = await fetch(url, { headers: await getAuthHeaders() });
       if (!res.ok) throw new Error(`Failed to fetch swarm agents: ${res.statusText}`);
       const data = await res.json();
       set({ swarmAgents: data, loading: false });
@@ -181,7 +187,7 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
     set({ loading: true, error: null });
     try {
       const url = swarmId ? `${API_BASE}/swarm-versions?swarm_id=${swarmId}` : `${API_BASE}/swarm-versions`;
-      const res = await fetch(url, { headers: getHeaders() });
+      const res = await fetch(url, { headers: await getAuthHeaders() });
       if (!res.ok) throw new Error(`Failed to fetch swarm versions: ${res.statusText}`);
       const data = await res.json();
       set({ swarmVersions: data, loading: false });
@@ -216,11 +222,14 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
 
   createSwarm: async (swarm) => {
     if (!WRITE_ENABLED) {
+      if (import.meta.env.DEV) {
+        console.debug('[swarmsEnhanced] Write blocked in read-only mode');
+      }
       throw new Error('Writes disabled in this environment');
     }
     const res = await fetch(`${API_BASE}/swarms`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: await getAuthHeaders(),
       body: JSON.stringify(swarm),
     });
     if (!res.ok) throw new Error(`Failed to create swarm: ${res.statusText}`);
@@ -231,11 +240,14 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
 
   updateSwarm: async (id, updates) => {
     if (!WRITE_ENABLED) {
+      if (import.meta.env.DEV) {
+        console.debug('[swarmsEnhanced] Write blocked in read-only mode');
+      }
       throw new Error('Writes disabled in this environment');
     }
     const res = await fetch(`${API_BASE}/swarms/${id}`, {
       method: 'PUT',
-      headers: getHeaders(),
+      headers: await getAuthHeaders(),
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error(`Failed to update swarm: ${res.statusText}`);
@@ -246,11 +258,14 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
 
   deleteSwarm: async (id) => {
     if (!WRITE_ENABLED) {
+      if (import.meta.env.DEV) {
+        console.debug('[swarmsEnhanced] Write blocked in read-only mode');
+      }
       throw new Error('Writes disabled in this environment');
     }
     const res = await fetch(`${API_BASE}/swarms/${id}`, {
       method: 'DELETE',
-      headers: getHeaders(),
+      headers: await getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`Failed to delete swarm: ${res.statusText}`);
     set({ swarms: get().swarms.filter(s => s.id !== id) });
@@ -258,11 +273,14 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
 
   createAgentPrompt: async (prompt) => {
     if (!WRITE_ENABLED) {
+      if (import.meta.env.DEV) {
+        console.debug('[swarmsEnhanced] Write blocked in read-only mode');
+      }
       throw new Error('Writes disabled in this environment');
     }
     const res = await fetch(`${API_BASE}/agent-prompts`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: await getAuthHeaders(),
       body: JSON.stringify(prompt),
     });
     if (!res.ok) throw new Error(`Failed to create agent prompt: ${res.statusText}`);
@@ -273,11 +291,14 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
 
   updateAgentPrompt: async (id, updates) => {
     if (!WRITE_ENABLED) {
+      if (import.meta.env.DEV) {
+        console.debug('[swarmsEnhanced] Write blocked in read-only mode');
+      }
       throw new Error('Writes disabled in this environment');
     }
     const res = await fetch(`${API_BASE}/agent-prompts/${id}`, {
       method: 'PUT',
-      headers: getHeaders(),
+      headers: await getAuthHeaders(),
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error(`Failed to update agent prompt: ${res.statusText}`);
@@ -288,11 +309,14 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
 
   deleteAgentPrompt: async (id) => {
     if (!WRITE_ENABLED) {
+      if (import.meta.env.DEV) {
+        console.debug('[swarmsEnhanced] Write blocked in read-only mode');
+      }
       throw new Error('Writes disabled in this environment');
     }
     const res = await fetch(`${API_BASE}/agent-prompts/${id}`, {
       method: 'DELETE',
-      headers: getHeaders(),
+      headers: await getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`Failed to delete agent prompt: ${res.statusText}`);
     set({ agentPrompts: get().agentPrompts.filter(p => p.id !== id) });
@@ -300,11 +324,14 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
 
   publishAgentPrompt: async (id) => {
     if (!WRITE_ENABLED) {
+      if (import.meta.env.DEV) {
+        console.debug('[swarmsEnhanced] Write blocked in read-only mode');
+      }
       throw new Error('Writes disabled in this environment');
     }
     const res = await fetch(`${API_BASE}/agent-prompts/${id}/publish`, {
       method: 'PUT',
-      headers: getHeaders(),
+      headers: await getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`Failed to publish agent prompt: ${res.statusText}`);
     const data = await res.json();
@@ -314,11 +341,14 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
 
   createSwarmAgent: async (swarmAgent) => {
     if (!WRITE_ENABLED) {
+      if (import.meta.env.DEV) {
+        console.debug('[swarmsEnhanced] Write blocked in read-only mode');
+      }
       throw new Error('Writes disabled in this environment');
     }
     const res = await fetch(`${API_BASE}/swarm-agents`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: await getAuthHeaders(),
       body: JSON.stringify(swarmAgent),
     });
     if (!res.ok) throw new Error(`Failed to create swarm agent: ${res.statusText}`);
@@ -329,11 +359,14 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
 
   createSwarmVersion: async (version) => {
     if (!WRITE_ENABLED) {
+      if (import.meta.env.DEV) {
+        console.debug('[swarmsEnhanced] Write blocked in read-only mode');
+      }
       throw new Error('Writes disabled in this environment');
     }
     const res = await fetch(`${API_BASE}/swarm-versions`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: await getAuthHeaders(),
       body: JSON.stringify({ ...version, rollout_percent: 0 }),
     });
     if (!res.ok) throw new Error(`Failed to create swarm version: ${res.statusText}`);
@@ -344,11 +377,14 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
 
   updateSwarmVersion: async (id, updates) => {
     if (!WRITE_ENABLED) {
+      if (import.meta.env.DEV) {
+        console.debug('[swarmsEnhanced] Write blocked in read-only mode');
+      }
       throw new Error('Writes disabled in this environment');
     }
     const res = await fetch(`${API_BASE}/swarm-versions/${id}`, {
       method: 'PUT',
-      headers: getHeaders(),
+      headers: await getAuthHeaders(),
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error(`Failed to update swarm version: ${res.statusText}`);
@@ -359,11 +395,14 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
 
   publishSwarmVersion: async (id) => {
     if (!WRITE_ENABLED) {
+      if (import.meta.env.DEV) {
+        console.debug('[swarmsEnhanced] Write blocked in read-only mode');
+      }
       throw new Error('Writes disabled in this environment');
     }
     const res = await fetch(`${API_BASE}/swarm-versions/${id}/publish`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: await getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`Failed to publish swarm version: ${res.statusText}`);
     await get().fetchSwarmVersions();
@@ -371,11 +410,14 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
 
   createTestRun: async (testRun) => {
     if (!WRITE_ENABLED) {
+      if (import.meta.env.DEV) {
+        console.debug('[swarmsEnhanced] Write blocked in read-only mode');
+      }
       throw new Error('Writes disabled in this environment');
     }
     const res = await fetch(`${API_BASE}/agent-test-runs`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: await getAuthHeaders(),
       body: JSON.stringify(testRun),
     });
     if (!res.ok) throw new Error(`Failed to create test run: ${res.statusText}`);
