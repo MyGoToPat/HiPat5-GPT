@@ -7,8 +7,8 @@ import { TestRunnerModal } from '../../components/admin/TestRunnerModal';
 import { getFeatureFlags } from '../../lib/featureFlags';
 import { getSupabase } from '../../lib/supabase';
 
-// READ-ONLY MODE: Phase C enforcement
-const ADMIN_ENHANCED_WRITE_ENABLED = false; // Hardcoded to false per Phase C requirements
+// READ-ONLY MODE: Phase C enforcement - environment-driven gate
+const WRITE_ENABLED = import.meta.env.VITE_ADMIN_ENHANCED_WRITE_ENABLED === 'true'; // Defaults to false if undefined
 
 export default function SwarmsPageEnhanced() {
   const {
@@ -69,6 +69,10 @@ export default function SwarmsPageEnhanced() {
   }, [swarmVersions]);
 
   const handleSaveManifest = async () => {
+    if (!WRITE_ENABLED) {
+      console.debug('[SwarmsPageEnhanced] Write operation blocked: WRITE_ENABLED=false');
+      return;
+    }
     if (!selectedSwarm) return;
 
     setManifestError('');
@@ -96,6 +100,10 @@ export default function SwarmsPageEnhanced() {
   };
 
   const handlePublish = async (versionId: string) => {
+    if (!WRITE_ENABLED) {
+      console.debug('[SwarmsPageEnhanced] Write operation blocked: WRITE_ENABLED=false');
+      return;
+    }
     if (!window.confirm('Publish this version? It will be set to 0% rollout.')) return;
 
     try {
@@ -108,6 +116,10 @@ export default function SwarmsPageEnhanced() {
   };
 
   const handleRolloutChange = async (versionId: string, percent: number) => {
+    if (!WRITE_ENABLED) {
+      console.debug('[SwarmsPageEnhanced] Write operation blocked: WRITE_ENABLED=false');
+      return;
+    }
     try {
       await updateRolloutPercent(versionId, percent);
       setRolloutValue(percent);
@@ -180,12 +192,12 @@ export default function SwarmsPageEnhanced() {
                   <Lock className="h-3 w-3 text-gray-600" />
                   <span className="text-gray-700">
                     <strong>Debug:</strong> adminSwarmsEnhanced={adminFlags?.adminSwarmsEnhanced ? 'true' : 'false'} |
-                    WRITE_ENABLED={ADMIN_ENHANCED_WRITE_ENABLED ? 'true' : 'false'} |
+                    WRITE_ENABLED={WRITE_ENABLED ? 'true' : 'false'} |
                     dataSource=edge-function
                   </span>
                 </div>
               </div>
-              {!ADMIN_ENHANCED_WRITE_ENABLED && (
+              {!WRITE_ENABLED && (
                 <div className="mt-3 flex items-center gap-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded p-3">
                   <Lock className="h-4 w-4" />
                   <span>
@@ -304,17 +316,21 @@ export default function SwarmsPageEnhanced() {
                     </div>
                     <div className="relative group">
                       <button
-                        onClick={() => !ADMIN_ENHANCED_WRITE_ENABLED && setTestRunnerOpen(true)}
-                        disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                        onClick={() => {
+                          if (WRITE_ENABLED) {
+                            setTestRunnerOpen(true);
+                          }
+                        }}
+                        disabled={!WRITE_ENABLED}
                         className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
-                        title={!ADMIN_ENHANCED_WRITE_ENABLED ? "Writes disabled in this environment" : ""}
+                        title={!WRITE_ENABLED ? "Disabled to prevent database writes in read-only phase" : ""}
                       >
                         <Play className="h-4 w-4" />
                         Test Runner
                       </button>
-                      {!ADMIN_ENHANCED_WRITE_ENABLED && (
+                      {!WRITE_ENABLED && (
                         <div className="hidden group-hover:block absolute top-full mt-1 right-0 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
-                          Writes disabled in this environment
+                          Disabled to prevent database writes in read-only phase
                         </div>
                       )}
                     </div>
@@ -327,14 +343,18 @@ export default function SwarmsPageEnhanced() {
                     {!isEditing ? (
                       <div className="relative group">
                         <button
-                          onClick={() => ADMIN_ENHANCED_WRITE_ENABLED && setIsEditing(true)}
-                          disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                          onClick={() => {
+                            if (WRITE_ENABLED) {
+                              setIsEditing(true);
+                            }
+                          }}
+                          disabled={!WRITE_ENABLED}
                           className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
                         >
                           <Edit2 className="h-4 w-4" />
                           Create Draft
                         </button>
-                        {!ADMIN_ENHANCED_WRITE_ENABLED && (
+                        {!WRITE_ENABLED && (
                           <div className="hidden group-hover:block absolute top-full mt-1 right-0 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
                             Writes disabled in this environment
                           </div>
@@ -357,14 +377,14 @@ export default function SwarmsPageEnhanced() {
                         </button>
                         <div className="relative group">
                           <button
-                            onClick={() => ADMIN_ENHANCED_WRITE_ENABLED && handleSaveManifest()}
-                            disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                            onClick={handleSaveManifest}
+                            disabled={!WRITE_ENABLED}
                             className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
                           >
                             <Save className="h-4 w-4" />
                             Save Draft
                           </button>
-                          {!ADMIN_ENHANCED_WRITE_ENABLED && (
+                          {!WRITE_ENABLED && (
                             <div className="hidden group-hover:block absolute top-full mt-1 right-0 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
                               Writes disabled in this environment
                             </div>
@@ -381,15 +401,15 @@ export default function SwarmsPageEnhanced() {
                           <textarea
                             value={editingManifest}
                             onChange={(e) => {
-                              if (ADMIN_ENHANCED_WRITE_ENABLED) {
+                              if (WRITE_ENABLED) {
                                 setEditingManifest(e.target.value);
                                 setManifestError('');
                               }
                             }}
-                            readOnly={!ADMIN_ENHANCED_WRITE_ENABLED}
+                            readOnly={!WRITE_ENABLED}
                             className={`w-full h-96 px-4 py-3 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                               manifestError ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                            } ${!ADMIN_ENHANCED_WRITE_ENABLED ? 'bg-gray-50 cursor-not-allowed' : ''}`}
+                            } ${!WRITE_ENABLED ? 'bg-gray-50 cursor-not-allowed' : ''}`}
                             spellCheck={false}
                             placeholder='{"phases": ["pre", "core", "filter", "presenter", "render"], "agents": []}'
                           />
@@ -412,17 +432,17 @@ export default function SwarmsPageEnhanced() {
                       <div className="relative group inline-block mt-4">
                         <button
                           onClick={() => {
-                            if (ADMIN_ENHANCED_WRITE_ENABLED) {
+                            if (WRITE_ENABLED) {
                               setIsEditing(true);
                               setEditingManifest('{\n  "phases": ["pre", "core", "filter", "presenter", "render"],\n  "agents": [],\n  "protected_fields": ["totals.kcal", "totals.protein_g", "totals.carbs_g", "totals.fat_g"]\n}');
                             }
                           }}
-                          disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                          disabled={!WRITE_ENABLED}
                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                         >
                           Create First Version
                         </button>
-                        {!ADMIN_ENHANCED_WRITE_ENABLED && (
+                        {!WRITE_ENABLED && (
                           <div className="hidden group-hover:block absolute top-full mt-1 left-1/2 transform -translate-x-1/2 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
                             Writes disabled in this environment
                           </div>
@@ -480,13 +500,13 @@ export default function SwarmsPageEnhanced() {
                             {version.status === 'draft' && (
                               <div className="relative group">
                                 <button
-                                  onClick={() => ADMIN_ENHANCED_WRITE_ENABLED && handlePublish(version.id)}
-                                  disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                                  onClick={() => handlePublish(version.id)}
+                                  disabled={!WRITE_ENABLED}
                                   className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                                 >
                                   Publish @ 0%
                                 </button>
-                                {!ADMIN_ENHANCED_WRITE_ENABLED && (
+                                {!WRITE_ENABLED && (
                                   <div className="hidden group-hover:block absolute top-full mt-1 right-0 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
                                     Writes disabled in this environment
                                   </div>
@@ -506,19 +526,23 @@ export default function SwarmsPageEnhanced() {
                                   min="0"
                                   max="100"
                                   value={rolloutValue}
-                                  onChange={(e) => ADMIN_ENHANCED_WRITE_ENABLED && setRolloutValue(Number(e.target.value))}
-                                  disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                                  onChange={(e) => {
+                                    if (WRITE_ENABLED) {
+                                      setRolloutValue(Number(e.target.value));
+                                    }
+                                  }}
+                                  disabled={!WRITE_ENABLED}
                                   className="flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                                 <div className="relative group">
                                   <button
-                                    onClick={() => ADMIN_ENHANCED_WRITE_ENABLED && handleRolloutChange(version.id, rolloutValue)}
-                                    disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                                    onClick={() => handleRolloutChange(version.id, rolloutValue)}
+                                    disabled={!WRITE_ENABLED}
                                     className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                                   >
                                     Update
                                   </button>
-                                  {!ADMIN_ENHANCED_WRITE_ENABLED && (
+                                  {!WRITE_ENABLED && (
                                     <div className="hidden group-hover:block absolute top-full mt-1 right-0 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
                                       Writes disabled in this environment
                                     </div>
@@ -531,8 +555,12 @@ export default function SwarmsPageEnhanced() {
                                 </label>
                                 <select
                                   value={cohortValue}
-                                  onChange={(e) => ADMIN_ENHANCED_WRITE_ENABLED && setCohortValue(e.target.value as any)}
-                                  disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                                  onChange={(e) => {
+                                    if (WRITE_ENABLED) {
+                                      setCohortValue(e.target.value as any);
+                                    }
+                                  }}
+                                  disabled={!WRITE_ENABLED}
                                   className="w-full px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                                 >
                                   <option value="beta">Beta Users</option>

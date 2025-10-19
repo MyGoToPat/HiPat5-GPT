@@ -2,6 +2,13 @@ import { create } from 'zustand';
 
 const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/swarm-admin-api`;
 
+// Environment-driven write gate for defense-in-depth
+const WRITE_ENABLED = import.meta.env.VITE_ADMIN_ENHANCED_WRITE_ENABLED === 'true';
+
+// Security model: Client sends requests with user JWT + anon apikey.
+// Edge Function (swarm-admin-api) uses service role key server-side.
+// No service role key is exposed to the client.
+
 interface Swarm {
   id: string;
   name: string;
@@ -208,6 +215,9 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
   },
 
   createSwarm: async (swarm) => {
+    if (!WRITE_ENABLED) {
+      throw new Error('Writes disabled in this environment');
+    }
     const res = await fetch(`${API_BASE}/swarms`, {
       method: 'POST',
       headers: getHeaders(),
@@ -220,6 +230,9 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
   },
 
   updateSwarm: async (id, updates) => {
+    if (!WRITE_ENABLED) {
+      throw new Error('Writes disabled in this environment');
+    }
     const res = await fetch(`${API_BASE}/swarms/${id}`, {
       method: 'PUT',
       headers: getHeaders(),
@@ -232,6 +245,9 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
   },
 
   deleteSwarm: async (id) => {
+    if (!WRITE_ENABLED) {
+      throw new Error('Writes disabled in this environment');
+    }
     const res = await fetch(`${API_BASE}/swarms/${id}`, {
       method: 'DELETE',
       headers: getHeaders(),
@@ -241,6 +257,9 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
   },
 
   createAgentPrompt: async (prompt) => {
+    if (!WRITE_ENABLED) {
+      throw new Error('Writes disabled in this environment');
+    }
     const res = await fetch(`${API_BASE}/agent-prompts`, {
       method: 'POST',
       headers: getHeaders(),
@@ -253,6 +272,9 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
   },
 
   updateAgentPrompt: async (id, updates) => {
+    if (!WRITE_ENABLED) {
+      throw new Error('Writes disabled in this environment');
+    }
     const res = await fetch(`${API_BASE}/agent-prompts/${id}`, {
       method: 'PUT',
       headers: getHeaders(),
@@ -265,6 +287,9 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
   },
 
   deleteAgentPrompt: async (id) => {
+    if (!WRITE_ENABLED) {
+      throw new Error('Writes disabled in this environment');
+    }
     const res = await fetch(`${API_BASE}/agent-prompts/${id}`, {
       method: 'DELETE',
       headers: getHeaders(),
@@ -274,6 +299,9 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
   },
 
   publishAgentPrompt: async (id) => {
+    if (!WRITE_ENABLED) {
+      throw new Error('Writes disabled in this environment');
+    }
     const res = await fetch(`${API_BASE}/agent-prompts/${id}/publish`, {
       method: 'PUT',
       headers: getHeaders(),
@@ -285,6 +313,9 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
   },
 
   createSwarmAgent: async (swarmAgent) => {
+    if (!WRITE_ENABLED) {
+      throw new Error('Writes disabled in this environment');
+    }
     const res = await fetch(`${API_BASE}/swarm-agents`, {
       method: 'POST',
       headers: getHeaders(),
@@ -297,6 +328,9 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
   },
 
   createSwarmVersion: async (version) => {
+    if (!WRITE_ENABLED) {
+      throw new Error('Writes disabled in this environment');
+    }
     const res = await fetch(`${API_BASE}/swarm-versions`, {
       method: 'POST',
       headers: getHeaders(),
@@ -309,6 +343,9 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
   },
 
   updateSwarmVersion: async (id, updates) => {
+    if (!WRITE_ENABLED) {
+      throw new Error('Writes disabled in this environment');
+    }
     const res = await fetch(`${API_BASE}/swarm-versions/${id}`, {
       method: 'PUT',
       headers: getHeaders(),
@@ -321,6 +358,9 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
   },
 
   publishSwarmVersion: async (id) => {
+    if (!WRITE_ENABLED) {
+      throw new Error('Writes disabled in this environment');
+    }
     const res = await fetch(`${API_BASE}/swarm-versions/${id}/publish`, {
       method: 'POST',
       headers: getHeaders(),
@@ -330,6 +370,9 @@ export const useSwarmsEnhancedStore = create<SwarmsEnhancedState>((set, get) => 
   },
 
   createTestRun: async (testRun) => {
+    if (!WRITE_ENABLED) {
+      throw new Error('Writes disabled in this environment');
+    }
     const res = await fetch(`${API_BASE}/agent-test-runs`, {
       method: 'POST',
       headers: getHeaders(),
