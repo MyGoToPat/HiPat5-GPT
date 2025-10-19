@@ -188,9 +188,14 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Insert prompt with draft status
+        // Map API fields to database schema
         const promptData = {
-          ...body,
+          agent_id: body.agent_key,
+          title: body.title || `${body.agent_key} prompt`,
+          content: body.prompt,
+          model: body.model,
+          phase: body.phase || 'core',
+          exec_order: body.exec_order || 50,
           status: 'draft',
           created_by: user.id,
         };
@@ -233,10 +238,10 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Get the prompt to find its agent_key
+        // Get the prompt to find its agent_id
         const { data: prompt } = await supabase
           .from('agent_prompts')
-          .select('agent_key')
+          .select('agent_id')
           .eq('id', id)
           .single();
 
@@ -247,11 +252,11 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Archive any existing published prompts for this agent_key
+        // Archive any existing published prompts for this agent_id
         await supabase
           .from('agent_prompts')
           .update({ status: 'archived' })
-          .eq('agent_key', prompt.agent_key)
+          .eq('agent_id', prompt.agent_id)
           .eq('status', 'published');
 
         // Publish this prompt
@@ -266,7 +271,7 @@ Deno.serve(async (req) => {
 
         // Audit log
         await logAdminAction(supabase, user.id, 'publish_prompt', `agent_prompts:${id}`, {
-          agent_key: prompt.agent_key,
+          agent_id: prompt.agent_id,
         });
 
         return new Response(JSON.stringify({ ok: true, data }), {

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useSwarmsStore } from '../../store/swarms';
 import { useSwarmsEnhancedStore } from '../../store/swarmsEnhanced';
-import { Settings, ChevronRight, Edit2, Save, X, ChevronDown, Play, Plus, Activity, CheckCircle, XCircle, Lock } from 'lucide-react';
+import { Settings, ChevronRight, Edit2, Save, X, ChevronDown, Play, Plus, Activity, CheckCircle, XCircle, Lock, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TestRunnerModal } from '../../components/admin/TestRunnerModal';
 import { getFeatureFlags } from '../../lib/featureFlags';
 import { getSupabase } from '../../lib/supabase';
+import * as swarmsAPI from '../../lib/api/swarmsEnhanced';
 
 // READ-ONLY MODE: Phase C enforcement - environment-driven gate
 const WRITE_ENABLED = import.meta.env.VITE_ADMIN_ENHANCED_WRITE_ENABLED === 'true'; // Defaults to false if undefined
@@ -14,8 +15,10 @@ export default function SwarmsPageEnhanced() {
   const {
     swarms,
     swarmVersions,
+    agentPrompts,
     fetchSwarms,
     fetchSwarmVersions,
+    fetchAgentPrompts,
     createSwarmVersion,
     publishSwarmVersion,
     updateRolloutPercent,
@@ -35,6 +38,9 @@ export default function SwarmsPageEnhanced() {
   const [manifestError, setManifestError] = useState<string>('');
   const [cohortValue, setCohortValue] = useState<'beta' | 'paid' | 'all'>('beta');
   const [adminFlags, setAdminFlags] = useState<{ adminSwarmsEnhanced: boolean } | null>(null);
+  const [activeTab, setActiveTab] = useState<'manifest' | 'prompts'>('manifest');
+  const [editingPrompt, setEditingPrompt] = useState<{ agent_key: string; model: string; prompt: string; title: string } | null>(null);
+  const [promptError, setPromptError] = useState<string>('');
 
   useEffect(() => {
     (async () => {
@@ -56,8 +62,9 @@ export default function SwarmsPageEnhanced() {
   useEffect(() => {
     if (selectedSwarm) {
       fetchSwarmVersions(selectedSwarm.id);
+      fetchAgentPrompts();
     }
-  }, [selectedSwarm, fetchSwarmVersions]);
+  }, [selectedSwarm, fetchSwarmVersions, fetchAgentPrompts]);
 
   useEffect(() => {
     const published = swarmVersions.find(v => v.status === 'published');
@@ -70,7 +77,7 @@ export default function SwarmsPageEnhanced() {
 
   const handleSaveManifest = async () => {
     if (!WRITE_ENABLED) {
-      console.debug('[SwarmsPageEnhanced] Write operation blocked: WRITE_ENABLED=false');
+      console.debug('[enhanced-swarms] Write blocked: WRITE_ENABLED=false');
       return;
     }
     if (!selectedSwarm) return;
@@ -79,53 +86,62 @@ export default function SwarmsPageEnhanced() {
 
     try {
       const manifest = JSON.parse(editingManifest);
-
-      const newVersion = await createSwarmVersion({
-        swarm_id: selectedSwarm.id,
-        manifest,
-        status: 'draft',
-        rollout_percent: 0
-      });
-
-      if (newVersion) {
-        toast.success('Draft version created');
-        setIsEditing(false);
-        await fetchSwarmVersions(selectedSwarm.id);
+      const MAX_JSON_SIZE = 50000;
+      const jsonStr = JSON.stringify(manifest);
+      if (jsonStr.length > MAX_JSON_SIZE) {
+        throw new Error(`Manifest too large (${jsonStr.length} chars, max ${MAX_JSON_SIZE})`);
       }
+
+      const result = await swarmsAPI.createSwarmDraftVersion(selectedSwarm.id, manifest);
+
+      console.debug('[enhanced-swarms] manifest: createDraft ok', { id: result.data?.id });
+      toast.success('Draft version created');
+      setIsEditing(false);
+      await fetchSwarmVersions(selectedSwarm.id);
     } catch (e: any) {
-      const errorMsg = 'Invalid JSON: ' + e.message;
+      const errorMsg = e.message.includes('JSON') ? `Invalid JSON: ${e.message}` : e.message;
       setManifestError(errorMsg);
       toast.error(errorMsg);
+      console.debug('[enhanced-swarms] manifest: createDraft error', { error: errorMsg });
     }
   };
 
   const handlePublish = async (versionId: string) => {
     if (!WRITE_ENABLED) {
-      console.debug('[SwarmsPageEnhanced] Write operation blocked: WRITE_ENABLED=false');
+      console.debug('[enhanced-swarms] Write blocked: WRITE_ENABLED=false');
       return;
     }
     if (!window.confirm('Publish this version? It will be set to 0% rollout.')) return;
 
     try {
-      await publishSwarmVersion(versionId);
+      const result = await swarmsAPI.publishSwarmVersion(versionId);
+      console.debug('[enhanced-swarms] manifest: publish ok', { id: versionId });
       toast.success('Version published at 0% rollout');
       await fetchSwarmVersions(selectedSwarm.id);
     } catch (e: any) {
       toast.error('Publish failed: ' + e.message);
+      console.debug('[enhanced-swarms] manifest: publish error', { id: versionId, error: e.message });
     }
   };
 
   const handleRolloutChange = async (versionId: string, percent: number) => {
     if (!WRITE_ENABLED) {
-      console.debug('[SwarmsPageEnhanced] Write operation blocked: WRITE_ENABLED=false');
+      console.debug('[enhanced-swarms] Write blocked: WRITE_ENABLED=false');
+      return;
+    }
+    if (percent < 0 || percent > 100) {
+      toast.error('Rollout percent must be between 0 and 100');
       return;
     }
     try {
-      await updateRolloutPercent(versionId, percent);
+      const result = await swarmsAPI.updateRollout(versionId, { rollout_percent: percent, cohort: cohortValue });
+      console.debug('[enhanced-swarms] rollout: update ok', { id: versionId, percent, cohort: cohortValue });
       setRolloutValue(percent);
-      toast.success(`Rollout updated to ${percent}%`);
+      toast.success(`Rollout updated to ${percent}% for ${cohortValue} cohort`);
+      await fetchSwarmVersions(selectedSwarm.id);
     } catch (e: any) {
       toast.error('Rollout update failed: ' + e.message);
+      console.debug('[enhanced-swarms] rollout: update error', { id: versionId, error: e.message });
     }
   };
 
@@ -143,6 +159,69 @@ export default function SwarmsPageEnhanced() {
     } catch (e: any) {
       setHealthStatus({ checking: false, status: 'error', message: e.message });
       toast.error('API Health Check Failed: ' + e.message);
+    }
+  };
+
+  const handleSavePromptDraft = async () => {
+    if (!WRITE_ENABLED) {
+      console.debug('[enhanced-swarms] Write blocked: WRITE_ENABLED=false');
+      return;
+    }
+    if (!editingPrompt) return;
+
+    setPromptError('');
+
+    const { agent_key, model, prompt, title } = editingPrompt;
+
+    if (!agent_key?.trim() || !prompt?.trim()) {
+      setPromptError('Agent key and prompt content are required');
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const MAX_PROMPT_SIZE = 50000;
+    if (prompt.length > MAX_PROMPT_SIZE) {
+      setPromptError(`Prompt too large (${prompt.length} chars, max ${MAX_PROMPT_SIZE})`);
+      toast.error('Prompt content is too long');
+      return;
+    }
+
+    try {
+      const result = await swarmsAPI.createPromptDraft({
+        agent_key: agent_key.trim(),
+        model: model || 'gpt-4o-mini',
+        prompt: prompt.trim(),
+        title: title?.trim() || `${agent_key} prompt`,
+      });
+
+      console.debug('[enhanced-swarms] prompts: createDraft ok', { id: result.data?.id, agent_key });
+      toast.success('Prompt draft created');
+      setEditingPrompt(null);
+      await fetchAgentPrompts();
+    } catch (e: any) {
+      const errorMsg = e.message;
+      setPromptError(errorMsg);
+      toast.error(`Failed to save: ${errorMsg}`);
+      console.debug('[enhanced-swarms] prompts: createDraft error', { error: errorMsg });
+    }
+  };
+
+  const handlePublishPrompt = async (id: string) => {
+    if (!WRITE_ENABLED) {
+      console.debug('[enhanced-swarms] Write blocked: WRITE_ENABLED=false');
+      return;
+    }
+
+    if (!window.confirm('Publish this prompt? It will replace the current published version.')) return;
+
+    try {
+      const result = await swarmsAPI.publishPrompt(id);
+      console.debug('[enhanced-swarms] prompts: publish ok', { id });
+      toast.success('Prompt published');
+      await fetchAgentPrompts();
+    } catch (e: any) {
+      toast.error(`Failed to publish: ${e.message}`);
+      console.debug('[enhanced-swarms] prompts: publish error', { id, error: e.message });
     }
   };
 
@@ -339,9 +418,43 @@ export default function SwarmsPageEnhanced() {
                   </div>
                 </div>
 
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Manifest Configuration</h3>
+                {/* Tab Navigation */}
+                <div className="border-b border-gray-200">
+                  <div className="flex">
+                    <button
+                      onClick={() => setActiveTab('manifest')}
+                      className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'manifest'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        Manifest
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('prompts')}
+                      className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'prompts'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Prompts
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Manifest Tab */}
+                {activeTab === 'manifest' && (
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Manifest Configuration</h3>
                     {!isEditing ? (
                       <div className="relative group">
                         <button
@@ -458,7 +571,6 @@ export default function SwarmsPageEnhanced() {
                       </div>
                     </div>
                   )}
-                </div>
 
                 <div className="p-6 border-t border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Versions & Rollout</h3>
@@ -594,6 +706,225 @@ export default function SwarmsPageEnhanced() {
                     </div>
                   )}
                 </div>
+                </div>
+                )}
+
+                {/* Prompts Tab */}
+                {activeTab === 'prompts' && (
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Agent Prompts</h3>
+                      {!editingPrompt ? (
+                        <div className="relative group">
+                          <button
+                            onClick={() => {
+                              if (WRITE_ENABLED) {
+                                setEditingPrompt({ agent_key: '', model: 'gpt-4o-mini', prompt: '', title: '' });
+                              }
+                            }}
+                            disabled={!WRITE_ENABLED}
+                            aria-disabled={!WRITE_ENABLED}
+                            tabIndex={!WRITE_ENABLED ? -1 : 0}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Create Prompt
+                          </button>
+                          {!WRITE_ENABLED && (
+                            <div className="hidden group-hover:block absolute top-full mt-1 right-0 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
+                              Writes disabled in this environment
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingPrompt(null);
+                              setPromptError('');
+                            }}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
+                          >
+                            <X className="h-4 w-4" />
+                            Cancel
+                          </button>
+                          <div className="relative group">
+                            <button
+                              onClick={handleSavePromptDraft}
+                              disabled={!WRITE_ENABLED}
+                              aria-disabled={!WRITE_ENABLED}
+                              tabIndex={!WRITE_ENABLED ? -1 : 0}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
+                            >
+                              <Save className="h-4 w-4" />
+                              Save Draft
+                            </button>
+                            {!WRITE_ENABLED && (
+                              <div className="hidden group-hover:block absolute top-full mt-1 right-0 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
+                                Writes disabled in this environment
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {editingPrompt ? (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Agent Key <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={editingPrompt.agent_key}
+                            onChange={(e) => {
+                              if (WRITE_ENABLED) {
+                                setEditingPrompt({ ...editingPrompt, agent_key: e.target.value });
+                                setPromptError('');
+                              }
+                            }}
+                            readOnly={!WRITE_ENABLED}
+                            placeholder="e.g., intent, normalize, validate"
+                            className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                              !WRITE_ENABLED ? 'bg-gray-50 cursor-not-allowed' : ''
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Model
+                          </label>
+                          <select
+                            value={editingPrompt.model}
+                            onChange={(e) => {
+                              if (WRITE_ENABLED) {
+                                setEditingPrompt({ ...editingPrompt, model: e.target.value });
+                              }
+                            }}
+                            disabled={!WRITE_ENABLED}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-50 disabled:cursor-not-allowed"
+                          >
+                            <option value="gpt-4o-mini">gpt-4o-mini</option>
+                            <option value="gpt-4o">gpt-4o</option>
+                            <option value="gpt-4-turbo">gpt-4-turbo</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Title (optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingPrompt.title}
+                            onChange={(e) => {
+                              if (WRITE_ENABLED) {
+                                setEditingPrompt({ ...editingPrompt, title: e.target.value });
+                              }
+                            }}
+                            readOnly={!WRITE_ENABLED}
+                            placeholder="Descriptive title for this prompt"
+                            className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                              !WRITE_ENABLED ? 'bg-gray-50 cursor-not-allowed' : ''
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Prompt Content <span className="text-red-500">*</span>
+                          </label>
+                          <textarea
+                            value={editingPrompt.prompt}
+                            onChange={(e) => {
+                              if (WRITE_ENABLED) {
+                                setEditingPrompt({ ...editingPrompt, prompt: e.target.value });
+                                setPromptError('');
+                              }
+                            }}
+                            readOnly={!WRITE_ENABLED}
+                            rows={12}
+                            placeholder="Enter the system prompt content..."
+                            className={`w-full px-3 py-2 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                              promptError ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            } ${!WRITE_ENABLED ? 'bg-gray-50 cursor-not-allowed' : ''}`}
+                            spellCheck={false}
+                          />
+                          {promptError && (
+                            <div className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+                              {promptError}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {agentPrompts.length === 0 ? (
+                          <p className="text-sm text-gray-500 text-center py-8">No prompts created yet</p>
+                        ) : (
+                          agentPrompts.map((prompt: any) => (
+                            <div
+                              key={prompt.id}
+                              className={`border rounded-lg p-4 ${
+                                prompt.status === 'published'
+                                  ? 'border-green-300 bg-green-50'
+                                  : 'border-blue-300 bg-blue-50'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-gray-900">{prompt.title}</span>
+                                    <span
+                                      className={`text-xs px-2 py-1 rounded ${
+                                        prompt.status === 'published'
+                                          ? 'bg-green-200 text-green-800'
+                                          : 'bg-blue-200 text-blue-800'
+                                      }`}
+                                    >
+                                      {prompt.status}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-600">
+                                    <span className="font-medium">Agent:</span> {prompt.agent_id} | <span className="font-medium">Model:</span> {prompt.model}
+                                  </p>
+                                  <p className="text-xs text-gray-600 mt-1">
+                                    Created: {new Date(prompt.created_at).toLocaleString()}
+                                  </p>
+                                </div>
+                                {prompt.status === 'draft' && (
+                                  <div className="relative group">
+                                    <button
+                                      onClick={() => handlePublishPrompt(prompt.id)}
+                                      disabled={!WRITE_ENABLED}
+                                      aria-disabled={!WRITE_ENABLED}
+                                      tabIndex={!WRITE_ENABLED ? -1 : 0}
+                                      className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                    >
+                                      Publish
+                                    </button>
+                                    {!WRITE_ENABLED && (
+                                      <div className="hidden group-hover:block absolute top-full mt-1 right-0 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
+                                        Writes disabled in this environment
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              <details className="mt-2">
+                                <summary className="text-xs text-gray-600 cursor-pointer hover:text-gray-900">
+                                  View prompt content
+                                </summary>
+                                <pre className="mt-2 text-xs bg-white border border-gray-200 rounded p-2 overflow-auto max-h-48">
+                                  {prompt.content}
+                                </pre>
+                              </details>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
