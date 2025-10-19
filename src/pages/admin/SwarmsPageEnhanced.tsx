@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useSwarmsStore } from '../../store/swarms';
 import { useSwarmsEnhancedStore } from '../../store/swarmsEnhanced';
-import { Settings, ChevronRight, Edit2, Save, X, ChevronDown, Play, Plus, Activity, CheckCircle, XCircle } from 'lucide-react';
+import { Settings, ChevronRight, Edit2, Save, X, ChevronDown, Play, Plus, Activity, CheckCircle, XCircle, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TestRunnerModal } from '../../components/admin/TestRunnerModal';
 import { getFeatureFlags } from '../../lib/featureFlags';
 import { getSupabase } from '../../lib/supabase';
+
+// READ-ONLY MODE: Phase C enforcement
+const ADMIN_ENHANCED_WRITE_ENABLED = false; // Hardcoded to false per Phase C requirements
 
 export default function SwarmsPageEnhanced() {
   const {
@@ -31,6 +34,7 @@ export default function SwarmsPageEnhanced() {
   const [healthStatus, setHealthStatus] = useState<{ checking: boolean; status: 'ok' | 'error' | null; message?: string }>({ checking: false, status: null });
   const [manifestError, setManifestError] = useState<string>('');
   const [cohortValue, setCohortValue] = useState<'beta' | 'paid' | 'all'>('beta');
+  const [adminFlags, setAdminFlags] = useState<{ adminSwarmsEnhanced: boolean } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -42,6 +46,7 @@ export default function SwarmsPageEnhanced() {
       }
       const flags = await getFeatureFlags(user.id);
       setHasAccess(flags.swarmsV2Admin);
+      setAdminFlags({ adminSwarmsEnhanced: flags.adminSwarmsEnhanced });
       if (flags.swarmsV2Admin) {
         fetchSwarms();
       }
@@ -161,14 +166,33 @@ export default function SwarmsPageEnhanced() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <div className="flex items-start justify-between">
-            <div>
+            <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900">Swarm Management (Enhanced)</h1>
               <p className="mt-2 text-gray-600">
                 Configure swarm manifests, agent ordering by phase, and rollout controls.
               </p>
-              <div className="mt-2 text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-2">
-                ⚠️ All features are behind flags. Rollout defaults to 0% (no user impact).
+              <div className="mt-3 flex items-center gap-3">
+                <div className="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-2">
+                  ⚠️ All features are behind flags. Rollout defaults to 0% (no user impact).
+                </div>
+                {/* Debug Pill - Phase C */}
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 border border-gray-300 rounded text-xs font-mono">
+                  <Lock className="h-3 w-3 text-gray-600" />
+                  <span className="text-gray-700">
+                    <strong>Debug:</strong> adminSwarmsEnhanced={adminFlags?.adminSwarmsEnhanced ? 'true' : 'false'} |
+                    WRITE_ENABLED={ADMIN_ENHANCED_WRITE_ENABLED ? 'true' : 'false'} |
+                    dataSource=edge-function
+                  </span>
+                </div>
               </div>
+              {!ADMIN_ENHANCED_WRITE_ENABLED && (
+                <div className="mt-3 flex items-center gap-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded p-3">
+                  <Lock className="h-4 w-4" />
+                  <span>
+                    <strong>Read-Only Mode:</strong> All write controls are disabled in this environment. Data is fetched via Edge Function (swarm-admin-api).
+                  </span>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -278,13 +302,22 @@ export default function SwarmsPageEnhanced() {
                         </span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => setTestRunnerOpen(true)}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-                    >
-                      <Play className="h-4 w-4" />
-                      Test Runner
-                    </button>
+                    <div className="relative group">
+                      <button
+                        onClick={() => !ADMIN_ENHANCED_WRITE_ENABLED && setTestRunnerOpen(true)}
+                        disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        title={!ADMIN_ENHANCED_WRITE_ENABLED ? "Writes disabled in this environment" : ""}
+                      >
+                        <Play className="h-4 w-4" />
+                        Test Runner
+                      </button>
+                      {!ADMIN_ENHANCED_WRITE_ENABLED && (
+                        <div className="hidden group-hover:block absolute top-full mt-1 right-0 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
+                          Writes disabled in this environment
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -292,13 +325,21 @@ export default function SwarmsPageEnhanced() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Manifest Configuration</h3>
                     {!isEditing ? (
-                      <button
-                        onClick={() => setIsEditing(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                        Create Draft
-                      </button>
+                      <div className="relative group">
+                        <button
+                          onClick={() => ADMIN_ENHANCED_WRITE_ENABLED && setIsEditing(true)}
+                          disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                          Create Draft
+                        </button>
+                        {!ADMIN_ENHANCED_WRITE_ENABLED && (
+                          <div className="hidden group-hover:block absolute top-full mt-1 right-0 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
+                            Writes disabled in this environment
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <div className="flex gap-2">
                         <button
@@ -314,13 +355,21 @@ export default function SwarmsPageEnhanced() {
                           <X className="h-4 w-4" />
                           Cancel
                         </button>
-                        <button
-                          onClick={handleSaveManifest}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-                        >
-                          <Save className="h-4 w-4" />
-                          Save Draft
-                        </button>
+                        <div className="relative group">
+                          <button
+                            onClick={() => ADMIN_ENHANCED_WRITE_ENABLED && handleSaveManifest()}
+                            disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
+                          >
+                            <Save className="h-4 w-4" />
+                            Save Draft
+                          </button>
+                          {!ADMIN_ENHANCED_WRITE_ENABLED && (
+                            <div className="hidden group-hover:block absolute top-full mt-1 right-0 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
+                              Writes disabled in this environment
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -332,12 +381,15 @@ export default function SwarmsPageEnhanced() {
                           <textarea
                             value={editingManifest}
                             onChange={(e) => {
-                              setEditingManifest(e.target.value);
-                              setManifestError('');
+                              if (ADMIN_ENHANCED_WRITE_ENABLED) {
+                                setEditingManifest(e.target.value);
+                                setManifestError('');
+                              }
                             }}
+                            readOnly={!ADMIN_ENHANCED_WRITE_ENABLED}
                             className={`w-full h-96 px-4 py-3 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                               manifestError ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                            }`}
+                            } ${!ADMIN_ENHANCED_WRITE_ENABLED ? 'bg-gray-50 cursor-not-allowed' : ''}`}
                             spellCheck={false}
                             placeholder='{"phases": ["pre", "core", "filter", "presenter", "render"], "agents": []}'
                           />
@@ -357,15 +409,25 @@ export default function SwarmsPageEnhanced() {
                     <div className="text-center py-12 text-gray-500">
                       <Settings className="h-12 w-12 mx-auto mb-3 text-gray-400" />
                       <p>No published version available</p>
-                      <button
-                        onClick={() => {
-                          setIsEditing(true);
-                          setEditingManifest('{\n  "phases": ["pre", "core", "filter", "presenter", "render"],\n  "agents": [],\n  "protected_fields": ["totals.kcal", "totals.protein_g", "totals.carbs_g", "totals.fat_g"]\n}');
-                        }}
-                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                      >
-                        Create First Version
-                      </button>
+                      <div className="relative group inline-block mt-4">
+                        <button
+                          onClick={() => {
+                            if (ADMIN_ENHANCED_WRITE_ENABLED) {
+                              setIsEditing(true);
+                              setEditingManifest('{\n  "phases": ["pre", "core", "filter", "presenter", "render"],\n  "agents": [],\n  "protected_fields": ["totals.kcal", "totals.protein_g", "totals.carbs_g", "totals.fat_g"]\n}');
+                            }
+                          }}
+                          disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                          Create First Version
+                        </button>
+                        {!ADMIN_ENHANCED_WRITE_ENABLED && (
+                          <div className="hidden group-hover:block absolute top-full mt-1 left-1/2 transform -translate-x-1/2 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
+                            Writes disabled in this environment
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -416,12 +478,20 @@ export default function SwarmsPageEnhanced() {
                               )}
                             </div>
                             {version.status === 'draft' && (
-                              <button
-                                onClick={() => handlePublish(version.id)}
-                                className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
-                              >
-                                Publish @ 0%
-                              </button>
+                              <div className="relative group">
+                                <button
+                                  onClick={() => ADMIN_ENHANCED_WRITE_ENABLED && handlePublish(version.id)}
+                                  disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                                  className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                >
+                                  Publish @ 0%
+                                </button>
+                                {!ADMIN_ENHANCED_WRITE_ENABLED && (
+                                  <div className="hidden group-hover:block absolute top-full mt-1 right-0 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
+                                    Writes disabled in this environment
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
 
@@ -436,15 +506,24 @@ export default function SwarmsPageEnhanced() {
                                   min="0"
                                   max="100"
                                   value={rolloutValue}
-                                  onChange={(e) => setRolloutValue(Number(e.target.value))}
-                                  className="flex-1"
+                                  onChange={(e) => ADMIN_ENHANCED_WRITE_ENABLED && setRolloutValue(Number(e.target.value))}
+                                  disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                                  className="flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
-                                <button
-                                  onClick={() => handleRolloutChange(version.id, rolloutValue)}
-                                  className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                                >
-                                  Update
-                                </button>
+                                <div className="relative group">
+                                  <button
+                                    onClick={() => ADMIN_ENHANCED_WRITE_ENABLED && handleRolloutChange(version.id, rolloutValue)}
+                                    disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                  >
+                                    Update
+                                  </button>
+                                  {!ADMIN_ENHANCED_WRITE_ENABLED && (
+                                    <div className="hidden group-hover:block absolute top-full mt-1 right-0 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap">
+                                      Writes disabled in this environment
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                               <div className="mb-3">
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -452,8 +531,9 @@ export default function SwarmsPageEnhanced() {
                                 </label>
                                 <select
                                   value={cohortValue}
-                                  onChange={(e) => setCohortValue(e.target.value as any)}
-                                  className="w-full px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  onChange={(e) => ADMIN_ENHANCED_WRITE_ENABLED && setCohortValue(e.target.value as any)}
+                                  disabled={!ADMIN_ENHANCED_WRITE_ENABLED}
+                                  className="w-full px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                                 >
                                   <option value="beta">Beta Users</option>
                                   <option value="paid">Paid Users</option>
