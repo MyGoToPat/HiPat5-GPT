@@ -4,6 +4,61 @@ import { corsHeaders } from '../_shared/cors.ts';
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 
+// Admin validation helper
+async function validateAdmin(req: Request, supabase: any): Promise<{ user: any; error?: string }> {
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader) {
+    return { user: null, error: 'Missing authorization header' };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+  if (authError || !user) {
+    return { user: null, error: 'Invalid or expired token' };
+  }
+
+  // Check admin status (try multiple methods)
+  // Method 1: app_metadata.role
+  if (user.app_metadata?.role === 'admin') {
+    return { user };
+  }
+
+  // Method 2: profiles table
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (profile?.role === 'admin') {
+    return { user };
+  }
+
+  return { user: null, error: 'Forbidden: Admin access required' };
+}
+
+// Audit logging helper
+async function logAdminAction(
+  supabase: any,
+  actor_uid: string,
+  action: string,
+  target: string,
+  payload: any
+) {
+  try {
+    await supabase.from('admin_action_logs').insert({
+      actor_uid,
+      action,
+      target,
+      payload: payload || null,
+    });
+  } catch (error) {
+    console.error('[audit-log] Failed to log action:', error);
+    // Don't fail the request if audit logging fails
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -41,17 +96,65 @@ Deno.serve(async (req) => {
     }
 
     if (path.startsWith('/swarms/')) {
-      const id = path.split('/')[2];
-      if (method === 'PUT') {
+      const pathParts = path.split('/').filter(p => p);
+      const swarmId = pathParts[1];
+
+      // Handle /swarms/:swarm_id/versions POST
+      if (pathParts[2] === 'versions' && method === 'POST') {
+        // Validate admin
+        const { user, error: authError } = await validateAdmin(req, supabase);
+        if (authError) {
+          return new Response(JSON.stringify({ error: authError }), {
+            status: user ? 403 : 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
         const body = await req.json();
-        const { data, error } = await supabase.from('swarms').update(body).eq('id', id).select().single();
+
+        // Validate required fields
+        if (!body.manifest) {
+          return new Response(JSON.stringify({ error: 'Missing required field: manifest' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Create draft version
+        const versionData = {
+          swarm_id: swarmId,
+          manifest: body.manifest,
+          status: 'draft',
+          rollout_percent: 0,
+          created_by: user.id,
+        };
+
+        const { data, error } = await supabase.from('swarm_versions').insert(versionData).select().single();
         if (error) throw error;
-        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+        // Audit log
+        await logAdminAction(supabase, user.id, 'create_swarm_draft', `swarm_versions:${data.id}`, {
+          swarm_id: swarmId,
+        });
+
+        return new Response(JSON.stringify({ ok: true, data }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
-      if (method === 'DELETE') {
-        const { error } = await supabase.from('swarms').delete().eq('id', id);
-        if (error) throw error;
-        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+      // Handle /swarms/:id PUT/DELETE
+      if (pathParts.length === 2) {
+        if (method === 'PUT') {
+          const body = await req.json();
+          const { data, error } = await supabase.from('swarms').update(body).eq('id', swarmId).select().single();
+          if (error) throw error;
+          return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        if (method === 'DELETE') {
+          const { error } = await supabase.from('swarms').delete().eq('id', swarmId);
+          if (error) throw error;
+          return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
       }
     }
 
@@ -66,10 +169,44 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       if (method === 'POST') {
+        // Validate admin
+        const { user, error: authError } = await validateAdmin(req, supabase);
+        if (authError) {
+          return new Response(JSON.stringify({ error: authError }), {
+            status: user ? 403 : 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
         const body = await req.json();
-        const { data, error } = await supabase.from('agent_prompts').insert(body).select().single();
+
+        // Validate required fields
+        if (!body.agent_key || !body.model || !body.prompt) {
+          return new Response(JSON.stringify({ error: 'Missing required fields: agent_key, model, prompt' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Insert prompt with draft status
+        const promptData = {
+          ...body,
+          status: 'draft',
+          created_by: user.id,
+        };
+
+        const { data, error } = await supabase.from('agent_prompts').insert(promptData).select().single();
         if (error) throw error;
-        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+        // Audit log
+        await logAdminAction(supabase, user.id, 'create_prompt_draft', `agent_prompts:${data.id}`, {
+          agent_key: body.agent_key,
+          model: body.model,
+        });
+
+        return new Response(JSON.stringify({ ok: true, data }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
     }
 
@@ -87,9 +224,54 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       if (path.endsWith('/publish')) {
-        const { data, error } = await supabase.from('agent_prompts').update({ status: 'published' }).eq('id', id).select().single();
+        // Validate admin
+        const { user, error: authError } = await validateAdmin(req, supabase);
+        if (authError) {
+          return new Response(JSON.stringify({ error: authError }), {
+            status: user ? 403 : 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Get the prompt to find its agent_key
+        const { data: prompt } = await supabase
+          .from('agent_prompts')
+          .select('agent_key')
+          .eq('id', id)
+          .single();
+
+        if (!prompt) {
+          return new Response(JSON.stringify({ error: 'Prompt not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Archive any existing published prompts for this agent_key
+        await supabase
+          .from('agent_prompts')
+          .update({ status: 'archived' })
+          .eq('agent_key', prompt.agent_key)
+          .eq('status', 'published');
+
+        // Publish this prompt
+        const { data, error } = await supabase
+          .from('agent_prompts')
+          .update({ status: 'published' })
+          .eq('id', id)
+          .select()
+          .single();
+
         if (error) throw error;
-        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+        // Audit log
+        await logAdminAction(supabase, user.id, 'publish_prompt', `agent_prompts:${id}`, {
+          agent_key: prompt.agent_key,
+        });
+
+        return new Response(JSON.stringify({ ok: true, data }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
     }
 
@@ -130,17 +312,123 @@ Deno.serve(async (req) => {
     }
 
     if (path.startsWith('/swarm-versions/')) {
-      const id = path.split('/')[2];
-      if (method === 'PUT') {
+      const pathParts = path.split('/').filter(p => p);
+      const id = pathParts[1];
+      const action = pathParts[2]; // 'publish' or 'rollout'
+
+      if (action === 'publish' && method === 'PUT') {
+        // Validate admin
+        const { user, error: authError } = await validateAdmin(req, supabase);
+        if (authError) {
+          return new Response(JSON.stringify({ error: authError }), {
+            status: user ? 403 : 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Get the version to find its swarm_id
+        const { data: version } = await supabase
+          .from('swarm_versions')
+          .select('swarm_id')
+          .eq('id', id)
+          .single();
+
+        if (!version) {
+          return new Response(JSON.stringify({ error: 'Version not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Archive any existing published versions for this swarm
+        await supabase
+          .from('swarm_versions')
+          .update({ status: 'archived' })
+          .eq('swarm_id', version.swarm_id)
+          .eq('status', 'published');
+
+        // Publish this version
+        const { data, error } = await supabase
+          .from('swarm_versions')
+          .update({
+            status: 'published',
+            published_at: new Date().toISOString()
+          })
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Audit log
+        await logAdminAction(supabase, user.id, 'publish_swarm', `swarm_versions:${id}`, {
+          swarm_id: version.swarm_id,
+        });
+
+        return new Response(JSON.stringify({ ok: true, data }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      if (action === 'rollout' && method === 'PUT') {
+        // Validate admin
+        const { user, error: authError } = await validateAdmin(req, supabase);
+        if (authError) {
+          return new Response(JSON.stringify({ error: authError }), {
+            status: user ? 403 : 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const body = await req.json();
+
+        // Validate rollout_percent
+        if (body.rollout_percent !== undefined) {
+          const percent = Number(body.rollout_percent);
+          if (isNaN(percent) || percent < 0 || percent > 100) {
+            return new Response(JSON.stringify({ error: 'rollout_percent must be between 0 and 100' }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+        }
+
+        // Validate cohort
+        if (body.cohort && !['beta', 'paid', 'all'].includes(body.cohort)) {
+          return new Response(JSON.stringify({ error: 'cohort must be one of: beta, paid, all' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Update rollout
+        const updateData: any = {};
+        if (body.rollout_percent !== undefined) updateData.rollout_percent = body.rollout_percent;
+        if (body.cohort) updateData.cohort = body.cohort;
+
+        const { data, error } = await supabase
+          .from('swarm_versions')
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Audit log
+        await logAdminAction(supabase, user.id, 'update_rollout', `swarm_versions:${id}`, updateData);
+
+        return new Response(JSON.stringify({ ok: true, data }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Generic PUT for other updates
+      if (method === 'PUT' && !action) {
         const body = await req.json();
         const { data, error} = await supabase.from('swarm_versions').update(body).eq('id', id).select().single();
         if (error) throw error;
         return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-      if (path.endsWith('/publish')) {
-        const { error } = await supabase.rpc('publish_swarm_version', { p_version_id: id });
-        if (error) throw error;
-        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 
