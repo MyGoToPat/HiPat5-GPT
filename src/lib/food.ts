@@ -1,14 +1,15 @@
 import { getSupabase } from './supabase';
 import type { AnalysisResult } from '../types/food';
+import type { FoodLogResponse } from '../types/foodlog';
 
 /**
  * Process meal text through unified openai-chat function
- * Routes meal logging through the tool-calling architecture
+ * Routes meal logging through the V1 meal logging system
  */
 export async function processMealWithUnifiedChat(
   userMessage: string,
   userId: string
-): Promise<{ ok: boolean; message?: string; error?: string }> {
+): Promise<FoodLogResponse> {
   const supabase = getSupabase();
 
   try {
@@ -23,13 +24,40 @@ export async function processMealWithUnifiedChat(
 
     if (error) {
       console.error('[processMealWithUnifiedChat] Error:', error);
-      return { ok: false, error: error.message ?? 'Failed to process meal' };
+      return {
+        ok: false,
+        kind: 'food_log',
+        step: 'open_verify',
+        message: 'Failed to process meal',
+        logged: false,
+        needsClarification: false,
+        analysisResult: {
+          confidence: 0,
+          items: [],
+          totals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+        },
+        error: error.message ?? 'Failed to process meal',
+      };
     }
 
-    return { ok: true, message: data?.message };
+    // Return the structured FoodLogResponse from edge function
+    return data as FoodLogResponse;
   } catch (err) {
     console.error('[processMealWithUnifiedChat] Exception:', err);
-    return { ok: false, error: 'Failed to process meal' };
+    return {
+      ok: false,
+      kind: 'food_log',
+      step: 'open_verify',
+      message: 'Failed to process meal',
+      logged: false,
+      needsClarification: false,
+      analysisResult: {
+        confidence: 0,
+        items: [],
+        totals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+      },
+      error: 'Failed to process meal',
+    };
   }
 }
 
@@ -96,36 +124,15 @@ export async function fetchFoodMacros(
 
 /**
  * Process meal text through unified openai-chat function
- * Routes meal logging through tool-calling architecture
- *
- * DEPRECATED: This function now routes through processMealWithUnifiedChat
+ * Routes meal logging through V1 meal logging system
  */
 export async function processMealWithTMWYA(
   userMessage: string,
   userId: string,
   source: 'text' | 'voice' | 'photo' | 'barcode' = 'text'
-): Promise<{
-  ok: boolean;
-  analysisResult?: AnalysisResult;
-  error?: string;
-  step?: string;
-  needsClarification?: boolean;
-  clarificationPrompt?: string;
-}> {
-  console.log('[TMWYA → Unified] Routing through openai-chat:', { userMessage, userId, source });
+): Promise<FoodLogResponse> {
+  console.log('[TMWYA → Unified V1] Routing through openai-chat:', { userMessage, userId, source });
 
-  // Route through unified chat with tool calling
-  const result = await processMealWithUnifiedChat(userMessage, userId);
-
-  if (!result.ok) {
-    return { ok: false, error: result.error, step: 'unified_chat' };
-  }
-
-  // For now, return simplified response
-  // Tool execution happens in openai-chat, response comes back as text
-  return {
-    ok: true,
-    needsClarification: false,
-    step: 'unified_complete'
-  };
+  // Route through V1 meal logging system
+  return await processMealWithUnifiedChat(userMessage, userId);
 }

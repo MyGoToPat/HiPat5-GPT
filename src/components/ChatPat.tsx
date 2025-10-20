@@ -923,15 +923,52 @@ export const ChatPat: React.FC = () => {
       const result = await processMealWithTMWYA(input, userId, 'text');
       console.log('[ChatPat] TMWYA result:', result);
 
-      // Check if Pat needs clarification
-      if (result.ok && result.needsClarification && result.clarificationPrompt) {
+      // V1 MEAL LOGGING RESPONSE HANDLING
+      if (result.ok && result.logged && result.undo_token) {
+        // AUTOSAVED - show success toast with undo
         setStatusText('');
-        console.log('[ChatPat] Needs clarification:', result.clarificationPrompt);
+        console.log('[ChatPat] Meal autosaved:', result.message);
 
-        // Add Pat's clarification question as a message
+        toast.success(
+          (t) => (
+            <div className="flex items-center gap-2">
+              <span>{result.message}</span>
+              <button
+                onClick={() => {
+                  handleUndoMeal(result.undo_token!);
+                  toast.dismiss(t.id);
+                }}
+                className="text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Undo
+              </button>
+            </div>
+          ),
+          { duration: 8000 }
+        );
+
+        // Add confirmation message to chat
+        const confirmMsg: ChatMessage = {
+          id: Date.now().toString(),
+          text: result.message,
+          timestamp: new Date(),
+          isUser: false
+        };
+        setMessages(prev => [...prev, confirmMsg]);
+        setIsSending(false);
+        return;
+      }
+
+      // Check if Pat needs clarification
+      if (result.ok && result.needsClarification && result.clarificationPlan) {
+        setStatusText('');
+        console.log('[ChatPat] Needs clarification:', result.clarificationPlan.questions);
+
+        // Add Pat's clarification questions as a message
+        const questionsText = result.clarificationPlan.questions.join(' ');
         const clarificationMessage: ChatMessage = {
           id: Date.now().toString(),
-          text: result.clarificationPrompt,
+          text: questionsText,
           timestamp: new Date(),
           isUser: false
         };
@@ -942,16 +979,39 @@ export const ChatPat: React.FC = () => {
         return; // Wait for user's clarification response
       }
 
-      if (result.ok && result.analysisResult && result.analysisResult.items.length > 0) {
-        // Show verification screen with results
+      // Check if we should open verification screen
+      if (result.ok && result.step === 'open_verify' && result.analysisResult) {
         setStatusText('');
-        console.log('[ChatPat] Showing verification screen');
-        setCurrentAnalysisResult(result.analysisResult);
+        console.log('[ChatPat] Opening verification screen');
+        // Convert V1FoodItem to AnalysisResult format for verification screen
+        const analysisResult = {
+          items: result.analysisResult.items.map(item => ({
+            name: item.name,
+            brand: item.brand,
+            qty: item.quantity,
+            unit: item.unit,
+            grams: 100,
+            macros: {
+              kcal: item.macros?.calories || 0,
+              protein_g: item.macros?.protein || 0,
+              carbs_g: item.macros?.carbs || 0,
+              fat_g: item.macros?.fat || 0,
+            },
+            confidence: item.confidence || 0.5,
+          })),
+          source: 'text' as const,
+          originalInput: input,
+        };
+        setCurrentAnalysisResult(analysisResult);
         setShowFoodVerificationScreen(true);
-      } else {
-        // Fallback to normal chat if processing fails
+        setIsSending(false);
+        return;
+      }
+
+      // Fallback if something went wrong
+      if (!result.ok) {
         const errorMsg = result.error || 'Could not process meal input';
-        console.error('[ChatPat] TMWYA failed:', errorMsg, result);
+        console.error('[ChatPat] Meal logging failed:', errorMsg, result);
         toast.error(errorMsg);
 
         // Continue with normal chat processing
@@ -984,6 +1044,34 @@ export const ChatPat: React.FC = () => {
     } finally {
       setIsAnalyzingFood(false);
       setStatusText('');
+    }
+  };
+
+  // Handle undo meal
+  const handleUndoMeal = async (undoToken: string) => {
+    try {
+      const user = await getSupabase().auth.getUser();
+      if (!user.data.user) {
+        toast.error('Please log in');
+        return;
+      }
+
+      // Call undo RPC
+      const { error } = await getSupabase().rpc('undo_meal', {
+        p_undo_token: undoToken,
+        p_user_id: user.data.user.id,
+      });
+
+      if (error) {
+        console.error('[undo] Error:', error);
+        toast.error('Could not undo meal');
+        return;
+      }
+
+      toast.success('Meal removed');
+    } catch (error) {
+      console.error('[undo] Exception:', error);
+      toast.error('Error undoing meal');
     }
   };
 
