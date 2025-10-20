@@ -2,6 +2,38 @@ import { getSupabase } from './supabase';
 import type { AnalysisResult } from '../types/food';
 
 /**
+ * Process meal text through unified openai-chat function
+ * Routes meal logging through the tool-calling architecture
+ */
+export async function processMealWithUnifiedChat(
+  userMessage: string,
+  userId: string
+): Promise<{ ok: boolean; message?: string; error?: string }> {
+  const supabase = getSupabase();
+
+  try {
+    const { data, error } = await supabase.functions.invoke('openai-chat', {
+      body: {
+        messages: [
+          { role: 'user', content: userMessage }
+        ],
+        userId
+      }
+    });
+
+    if (error) {
+      console.error('[processMealWithUnifiedChat] Error:', error);
+      return { ok: false, error: error.message ?? 'Failed to process meal' };
+    }
+
+    return { ok: true, message: data?.message };
+  } catch (err) {
+    console.error('[processMealWithUnifiedChat] Exception:', err);
+    return { ok: false, error: 'Failed to process meal' };
+  }
+}
+
+/**
  * Save user's food terminology preference after clarification
  * This teaches Pat the user's personal food vocabulary
  */
@@ -63,8 +95,10 @@ export async function fetchFoodMacros(
 }
 
 /**
- * Process meal text using TMWYA agents through personality orchestrator
- * This integrates with Pat's personality system for consistent UX
+ * Process meal text through unified openai-chat function
+ * Routes meal logging through tool-calling architecture
+ *
+ * DEPRECATED: This function now routes through processMealWithUnifiedChat
  */
 export async function processMealWithTMWYA(
   userMessage: string,
@@ -78,60 +112,20 @@ export async function processMealWithTMWYA(
   needsClarification?: boolean;
   clarificationPrompt?: string;
 }> {
-  const supabase = getSupabase();
+  console.log('[TMWYA → Unified] Routing through openai-chat:', { userMessage, userId, source });
 
-  try {
-    console.log('[TMWYA Client] Invoking edge function:', { userMessage, userId, source });
+  // Route through unified chat with tool calling
+  const result = await processMealWithUnifiedChat(userMessage, userId);
 
-    const { data, error } = await supabase.functions.invoke('tmwya-process-meal', {
-      body: { userMessage, userId, source },
-    });
-
-    console.log('[TMWYA Client] Edge function response:', { data, error });
-
-    if (error) {
-      console.error('[TMWYA Client] Edge function error:', error);
-      return { ok: false, error: error.message || 'Failed to process meal', step: 'edge_function' };
-    }
-
-    if (!data || !data.ok) {
-      console.error('[TMWYA Client] Invalid response:', data);
-      return { ok: false, error: data?.error || 'Unknown error', step: data?.step || 'unknown' };
-    }
-
-    // Check if clarification is needed
-    if (data.needsClarification) {
-      console.log('[TMWYA Client] Clarification needed:', data.clarificationPrompt);
-      return {
-        ok: true,
-        needsClarification: true,
-        clarificationPrompt: data.clarificationPrompt,
-        step: 'needs_clarification'
-      };
-    }
-
-    // Transform response to AnalysisResult format
-    const analysisResult: AnalysisResult = {
-      source,
-      meal_slot: data.meal_slot || 'unknown',
-      items: data.items.map((item: any) => ({
-        name: item.name,
-        originalText: item.originalText,
-        grams: item.grams,
-        macros: item.macros,
-        confidence: item.confidence,
-        candidates: [{
-          name: item.name,
-          macros: item.macros,
-          confidence: item.confidence
-        }]
-      })),
-      originalInput: userMessage
-    };
-
-    return { ok: true, analysisResult, needsClarification: false };
-  } catch (error: any) {
-    console.error('[TMWYA] Client error:', error);
-    return { ok: false, error: error.message || 'Unknown error', step: 'client' };
+  if (!result.ok) {
+    return { ok: false, error: result.error, step: 'unified_chat' };
   }
+
+  // For now, return simplified response
+  // Tool execution happens in openai-chat, response comes back as text
+  return {
+    ok: true,
+    needsClarification: false,
+    step: 'unified_complete'
+  };
 }

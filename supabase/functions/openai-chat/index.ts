@@ -1,4 +1,4 @@
-import { corsHeaders } from './cors.ts';
+import { corsHeaders } from '../_shared/cors.ts';
 import { PAT_TOOLS, executeTool } from './tools.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.53.0';
 
