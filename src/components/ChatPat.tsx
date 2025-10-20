@@ -808,7 +808,7 @@ export const ChatPat: React.FC = () => {
             // Save AI response to database
             try {
               if (!userId) {
-                console.error('CRITICAL: userId is undefined, cannot save AI response');
+                console.warn('[chat-save] Skipping save: no userId');
                 return;
               }
 
