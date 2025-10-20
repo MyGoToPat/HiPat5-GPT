@@ -565,8 +565,7 @@ export const ChatPat: React.FC = () => {
       const saveUserMessage = async () => {
         try {
           if (!userId) {
-            console.error('CRITICAL: userId is undefined, cannot save chat message');
-            toast.error('Chat history not saving - please refresh');
+            console.warn('[chat-save] Skipping save: no userId');
             return;
           }
 

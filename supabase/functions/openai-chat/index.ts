@@ -183,12 +183,10 @@ Deno.serve(async (req: Request) => {
   try {
     const { messages, stream = false, userId }: ChatRequest = await req.json();
 
-    // Extract user ID from Authorization header if not provided
     let effectiveUserId = userId;
     if (!effectiveUserId) {
       const authHeader = req.headers.get('Authorization');
       if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
         const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -220,7 +218,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Use the system prompt from messages if provided, otherwise fallback
     const hasSystemPrompt = messages.length > 0 && messages[0].role === 'system';
     const messagesWithSystem: ChatMessage[] = hasSystemPrompt
       ? messages
@@ -229,12 +226,9 @@ Deno.serve(async (req: Request) => {
     console.log('[openai-chat] System prompt source:', hasSystemPrompt ? 'from-client' : 'fallback');
     console.log('[openai-chat] Total messages:', messagesWithSystem.length);
 
-    // Tool calling is only supported in non-streaming mode
     if (stream) {
       console.log('[openai-chat] Streaming mode - tools disabled');
-    }
 
-    if (stream) {
       const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -384,12 +378,7 @@ Deno.serve(async (req: Request) => {
       timestamp: new Date().toISOString()
     });
 
-    // ============================================================
-    // TELEMETRY: Log tool routing decision (Phase B evidence)
-    // Gated by DB feature flag 'log_tool_telemetry_db'
-    // ============================================================
     try {
-      // Check DB feature flag
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const supabaseClient = createClient(supabaseUrl, supabaseKey);
@@ -413,7 +402,6 @@ Deno.serve(async (req: Request) => {
         const roleTarget = toolName ? (TOOL_TO_ROLE_MAP[toolName] || 'unknown') : 'persona';
         const personaFallback = toolName === null;
 
-        // Log to console (legacy)
         console.log('[tool-route]', JSON.stringify({
           ts: new Date().toISOString(),
           msgPreview: userMessage.slice(0, 120),
@@ -422,7 +410,6 @@ Deno.serve(async (req: Request) => {
           personaFallback
         }));
 
-        // Log to DB (new - verifiable)
         await supabaseClient.from('admin_action_logs').insert({
           actor_uid: effectiveUserId || '00000000-0000-0000-0000-000000000000',
           action: 'tool_route',
@@ -438,11 +425,8 @@ Deno.serve(async (req: Request) => {
       }
     } catch (telemetryError) {
       console.error('[telemetry] Failed to log tool route:', telemetryError);
-      // Don't fail the request if telemetry fails
     }
-    // ============================================================
 
-    // CHECK FOR TOOL CALLS
     if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
       console.log('[openai-chat] Tool calls detected:', assistantMessage.tool_calls.length);
 
@@ -456,7 +440,6 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      // Execute all tool calls
       const toolResults = [];
       for (const toolCall of assistantMessage.tool_calls) {
         const toolName = toolCall.function.name;
@@ -478,7 +461,6 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // Call OpenAI again with tool results
       const followUpMessages = [
         ...messagesWithSystem,
         assistantMessage,
@@ -530,7 +512,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // No tool calls - return normal text response
     return new Response(
       JSON.stringify({
         message: assistantMessage.content,
