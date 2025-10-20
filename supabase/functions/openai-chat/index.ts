@@ -1,4 +1,8 @@
-import { corsHeaders } from '../_shared/cors.ts';
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, cache-control, pragma, expires, accept",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+};
 import { PAT_TOOLS, executeTool } from './tools.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.53.0';
 
