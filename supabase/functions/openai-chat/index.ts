@@ -25,8 +25,11 @@ Deno.serve(async (req: Request) => {
     // 2) Health probe to verify secrets at runtime (no external calls)
     if (url.searchParams.get("health") === "1") {
       const hasOpenAI = !!Deno.env.get("OPENAI_API_KEY");
-      const hasGemini =
-        !!(Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_GENERATIVE_AI_API_KEY"));
+      const GEMINI_KEY =
+        Deno.env.get('GEMINI_API_KEY') ??
+        Deno.env.get('GOOGLE_GENERATIVE_AI_API_KEY') ?? // alias only
+        null;
+      const hasGemini = !!GEMINI_KEY;
       return json({ ok: true, hasOpenAI, hasGemini });
     }
 
@@ -45,8 +48,11 @@ Deno.serve(async (req: Request) => {
         : "ping";
 
     const hasOpenAI = !!Deno.env.get("OPENAI_API_KEY");
-    const hasGemini =
-      !!(Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_GENERATIVE_AI_API_KEY"));
+    const GEMINI_KEY =
+      Deno.env.get('GEMINI_API_KEY') ??
+      Deno.env.get('GOOGLE_GENERATIVE_AI_API_KEY') ?? // alias only
+      null;
+    const hasGemini = !!GEMINI_KEY;
 
     return json({
       ok: true,
