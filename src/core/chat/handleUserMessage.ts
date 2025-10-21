@@ -79,7 +79,7 @@ export async function handleUserMessage(
 
     if (swarm) {
       console.log(`[handleUserMessage] Using swarm: ${swarm.swarm_name}`);
-      systemPrompt = buildSwarmPrompt(swarm, context.userContext);
+      systemPrompt = await buildSwarmPrompt(swarm, context.userContext);
     } else {
       console.log('[handleUserMessage] No swarm found, using static prompt');
       systemPrompt = buildSystemPrompt(context.userContext || {});

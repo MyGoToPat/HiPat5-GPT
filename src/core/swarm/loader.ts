@@ -89,8 +89,11 @@ export async function loadSwarm(swarmName: string): Promise<SwarmConfig | null> 
  * Build system prompt from swarm agents
  * Combines all enabled pre-phase and main agents' prompts
  */
-export function buildSwarmPrompt(swarm: SwarmConfig, userContext?: Record<string, any>): string {
+export async function buildSwarmPrompt(swarm: SwarmConfig, userContext?: Record<string, any>): Promise<string> {
   const sections: string[] = [];
+
+  // Import prompt library
+  const { resolvePromptRef } = await import('./prompts');
 
   // Get all enabled agents sorted by phase and order
   const enabledAgents = swarm.agents
@@ -132,14 +135,6 @@ export function buildSwarmPrompt(swarm: SwarmConfig, userContext?: Record<string
   }
 
   return sections.join('\n\n');
-}
-
-/**
- * Resolve prompt reference to actual prompt text
- */
-function resolvePromptRef(promptRef: string): string | null {
-  const { resolvePromptRef: resolve } = require('./prompts');
-  return resolve(promptRef);
 }
 
 /**
