@@ -53,6 +53,7 @@ export interface ModelRouterContext {
   requiresStructuredOutput?: boolean;
   userRequestedExpert?: boolean;
   previousFailures?: number;
+  forceOpenAI?: boolean;
 }
 
 /**
@@ -65,7 +66,18 @@ export function selectModel(context: ModelRouterContext): ModelSelection {
     requiresStructuredOutput = false,
     userRequestedExpert = false,
     previousFailures = 0,
+    forceOpenAI = false,
   } = context;
+
+  // Force OpenAI for greetings and personality-driven interactions
+  if (forceOpenAI) {
+    return {
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      tokensEst: 400,
+      reason: 'personality_interaction',
+    };
+  }
 
   // Escalate if user explicitly requests expert mode
   if (userRequestedExpert) {

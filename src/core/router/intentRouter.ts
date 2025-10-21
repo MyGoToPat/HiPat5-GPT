@@ -43,7 +43,16 @@ async function classifyIntent(message: string): Promise<IntentResult> {
   // For now, return general intent with low confidence
 
   // Placeholder logic - will be replaced with actual LLM call
-  const lowerMessage = message.toLowerCase();
+  const lowerMessage = message.toLowerCase().trim();
+
+  // Greetings should use general chat (which routes to OpenAI for personality)
+  if (/^(hey|hi|hello|sup|yo|howdy)$/i.test(lowerMessage)) {
+    return {
+      intent: 'general',
+      confidence: 0.95,
+      metadata: { method: 'greeting', use_openai: true }
+    };
+  }
 
   if (lowerMessage.includes('macro') || lowerMessage.includes('nutrition') || lowerMessage.includes('calories')) {
     return {

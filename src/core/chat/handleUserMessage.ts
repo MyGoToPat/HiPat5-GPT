@@ -54,6 +54,7 @@ export async function handleUserMessage(
     intentConfidence: intentResult.confidence,
     messageLength: message.length,
     requiresStructuredOutput: shouldTriggerRole(intentResult.intent),
+    forceOpenAI: intentResult.metadata?.use_openai === true,
   });
 
   const cost = estimateCost(modelSelection);

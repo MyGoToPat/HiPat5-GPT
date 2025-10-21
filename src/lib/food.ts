@@ -40,8 +40,51 @@ export async function processMealWithUnifiedChat(
       };
     }
 
-    // Return the structured FoodLogResponse from edge function
-    return data as FoodLogResponse;
+    // openai-chat returns {message, tool_calls, usage}
+    // We need to transform this to FoodLogResponse
+    console.log('[processMealWithUnifiedChat] Raw response:', data);
+
+    // If the response has tool_calls, check what was executed
+    if (data.tool_calls && Array.isArray(data.tool_calls)) {
+      const hasLogMeal = data.tool_calls.includes('log_meal');
+
+      if (hasLogMeal) {
+        // Meal was logged successfully
+        return {
+          ok: true,
+          kind: 'food_log',
+          step: 'complete',
+          message: data.message || 'Meal logged successfully',
+          logged: true,
+          undo_token: data.undo_token, // Edge function should provide this
+          needsClarification: false,
+        };
+      }
+
+      // Tool was called but not log_meal (like get_macros for questions)
+      return {
+        ok: true,
+        kind: 'food_question',
+        step: 'complete',
+        message: data.message,
+        logged: false,
+        needsClarification: false,
+      };
+    }
+
+    // No tool calls - just a conversational response
+    // Check if the message asks for confirmation
+    const needsConfirmation = /would you like me to log/i.test(data.message);
+
+    return {
+      ok: true,
+      kind: 'food_log',
+      step: needsConfirmation ? 'confirm' : 'complete',
+      message: data.message,
+      logged: false,
+      needsClarification: needsConfirmation,
+    };
+
   } catch (err) {
     console.error('[processMealWithUnifiedChat] Exception:', err);
     return {
