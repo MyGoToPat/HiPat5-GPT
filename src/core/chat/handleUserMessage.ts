@@ -70,7 +70,24 @@ export async function handleUserMessage(
   }
 
   // Step 5: Build system prompt with user context
-  const systemPrompt = buildSystemPrompt(context.userContext || {});
+  // Try loading from swarm system first, fallback to static prompt
+  let systemPrompt: string;
+
+  try {
+    const { getSwarmForIntent, buildSwarmPrompt } = await import('../swarm/loader');
+    const swarm = await getSwarmForIntent(intentResult.intent);
+
+    if (swarm) {
+      console.log(`[handleUserMessage] Using swarm: ${swarm.swarm_name}`);
+      systemPrompt = buildSwarmPrompt(swarm, context.userContext);
+    } else {
+      console.log('[handleUserMessage] No swarm found, using static prompt');
+      systemPrompt = buildSystemPrompt(context.userContext || {});
+    }
+  } catch (err) {
+    console.warn('[handleUserMessage] Swarm load failed, using static prompt:', err);
+    systemPrompt = buildSystemPrompt(context.userContext || {});
+  }
 
   // Step 6: Call LLM (placeholder - will be implemented with actual API calls)
   const llmResponse = await callLLM({

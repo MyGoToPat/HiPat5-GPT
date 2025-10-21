@@ -136,54 +136,50 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
   const { getSupabase } = await import('../../lib/supabase');
   const supabase = getSupabase();
 
-  // Load user profile
+  // Load user profile (CORRECT COLUMNS)
   const { data: profile } = await supabase
     .from('profiles')
-    .select('name, tdee_completed_at')
+    .select('name, has_completed_tdee, chat_count')
     .eq('user_id', userId)
     .maybeSingle();
 
-  // Load user metrics (for goals)
+  // Load user metrics (CORRECT COLUMNS)
   const { data: metrics } = await supabase
     .from('user_metrics')
-    .select('caloric_goal_type, tdee_kcal, height_cm, weight_kg, age, gender')
+    .select('caloric_goal, tdee, height_cm, weight_kg, age, gender, dietary_preference, tdee_completed')
     .eq('user_id', userId)
     .maybeSingle();
 
-  // Load user preferences
+  // Load user preferences (CORRECT COLUMNS)
   const { data: prefs } = await supabase
     .from('user_preferences')
-    .select('learning_style, dietary_preference')
+    .select('learning_style, diet_type')
     .eq('user_id', userId)
     .maybeSingle();
 
-  // Count chat sessions for isFirstTimeChat
-  const { count } = await supabase
-    .from('chat_sessions')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('session_type', 'general');
-
   const firstName = profile?.name?.split(' ')[0];
-  const isFirstChat = (count || 0) === 0;
-  const hasTDEE = !!profile?.tdee_completed_at;
+  const chatCount = profile?.chat_count || 0;
+  const isFirstChat = chatCount === 0;
+  const hasTDEE = profile?.has_completed_tdee || metrics?.tdee_completed || false;
 
-  // Map caloric_goal_type to human-readable fitness goal
+  // Map caloric_goal to human-readable fitness goal
   const goalMap: Record<string, string> = {
     'maintain': 'maintaining current weight',
     'cut': 'losing weight',
     'bulk': 'gaining muscle',
-    'recomp': 'body recomposition'
+    'recomp': 'body recomposition',
+    'maintenance': 'maintaining current weight'
   };
-  const fitnessGoal = metrics?.caloric_goal_type ? goalMap[metrics.caloric_goal_type] : undefined;
+  const fitnessGoal = metrics?.caloric_goal ? goalMap[metrics.caloric_goal] : undefined;
 
-  // Parse dietary preferences
+  // Parse dietary preferences (check both sources)
   const dietaryPreferences: string[] = [];
-  if (prefs?.dietary_preference) {
-    if (prefs.dietary_preference === 'vegetarian') dietaryPreferences.push('vegetarian');
-    if (prefs.dietary_preference === 'vegan') dietaryPreferences.push('vegan');
-    if (prefs.dietary_preference === 'keto') dietaryPreferences.push('keto');
-    if (prefs.dietary_preference === 'paleo') dietaryPreferences.push('paleo');
+  const dietPref = metrics?.dietary_preference || prefs?.diet_type;
+  if (dietPref) {
+    if (dietPref === 'vegetarian') dietaryPreferences.push('vegetarian');
+    if (dietPref === 'vegan') dietaryPreferences.push('vegan');
+    if (dietPref === 'keto') dietaryPreferences.push('keto');
+    if (dietPref === 'paleo') dietaryPreferences.push('paleo');
   }
 
   return {
@@ -193,7 +189,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
     learningStyle: prefs?.learning_style || 'unknown',
     fitnessGoal,
     dietaryPreferences,
-    chatCount: count || 0,
+    chatCount,
   };
 }
 
