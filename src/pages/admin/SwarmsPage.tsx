@@ -26,6 +26,170 @@ type SwarmCategory = {
   agents: Agent[];
 };
 
+function ConfigViewer({ config }: { config: any }) {
+  const displayConfig = {
+    model: config.model || 'Not specified',
+    temperature: config.temperature ?? 'Not specified',
+    max_tokens: config.max_tokens || 'Not specified',
+    system_prompt: config.system_prompt || config.systemPrompt || 'Not specified',
+    ...config
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-4">
+        <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Configuration</h4>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+          <div>
+            <label className="text-xs font-medium text-gray-500">Model</label>
+            <div className="mt-1 text-sm font-mono text-gray-900">{displayConfig.model}</div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500">Temperature</label>
+            <div className="mt-1 text-sm font-mono text-gray-900">{displayConfig.temperature}</div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500">Max Tokens</label>
+            <div className="mt-1 text-sm font-mono text-gray-900">{displayConfig.max_tokens}</div>
+          </div>
+        </div>
+      </div>
+      <div className="space-y-4">
+        <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">System Prompt</h4>
+        <div className="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-xs overflow-auto max-h-[300px]">
+          {displayConfig.system_prompt}
+        </div>
+      </div>
+      <div className="lg:col-span-2 space-y-4">
+        <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Full Configuration (JSON)</h4>
+        <pre className="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-xs overflow-x-auto max-h-[400px]">
+          {JSON.stringify(config, null, 2)}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+function ConfigEditor({ config, editingConfig, onChange }: { config: any; editingConfig: string; onChange: (value: string) => void }) {
+  const [viewMode, setViewMode] = React.useState<'form' | 'json'>('form');
+  const [formValues, setFormValues] = React.useState({
+    model: config.model || '',
+    temperature: config.temperature ?? 0.7,
+    max_tokens: config.max_tokens || 2000,
+    system_prompt: config.system_prompt || config.systemPrompt || ''
+  });
+
+  React.useEffect(() => {
+    if (viewMode === 'form') {
+      try {
+        const parsed = JSON.parse(editingConfig);
+        const updated = {
+          ...parsed,
+          model: formValues.model,
+          temperature: formValues.temperature,
+          max_tokens: formValues.max_tokens,
+          system_prompt: formValues.system_prompt
+        };
+        onChange(JSON.stringify(updated, null, 2));
+      } catch (e) {
+        // Invalid JSON, keep as is
+      }
+    }
+  }, [formValues, viewMode]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2 border-b border-gray-200">
+        <button
+          onClick={() => setViewMode('form')}
+          className={`px-4 py-2 text-sm font-medium transition-colors ${
+            viewMode === 'form'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Form Editor
+        </button>
+        <button
+          onClick={() => setViewMode('json')}
+          className={`px-4 py-2 text-sm font-medium transition-colors ${
+            viewMode === 'json'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          JSON Editor
+        </button>
+      </div>
+
+      {viewMode === 'form' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Model
+              </label>
+              <input
+                type="text"
+                value={formValues.model}
+                onChange={(e) => setFormValues(prev => ({ ...prev, model: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="gpt-4o, gpt-4o-mini, etc."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Temperature: {formValues.temperature}
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.1"
+                value={formValues.temperature}
+                onChange={(e) => setFormValues(prev => ({ ...prev, temperature: parseFloat(e.target.value) }))}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Max Tokens
+              </label>
+              <input
+                type="number"
+                value={formValues.max_tokens}
+                onChange={(e) => setFormValues(prev => ({ ...prev, max_tokens: parseInt(e.target.value) || 0 }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          <div className="space-y-4 lg:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              System Prompt
+            </label>
+            <textarea
+              value={formValues.system_prompt}
+              onChange={(e) => setFormValues(prev => ({ ...prev, system_prompt: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+              rows={12}
+              placeholder="Enter system prompt..."
+            />
+          </div>
+        </div>
+      ) : (
+        <textarea
+          value={editingConfig}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full px-4 py-3 font-mono text-sm bg-gray-900 text-green-400 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
+          style={{ minHeight: '500px' }}
+          spellCheck={false}
+          placeholder="Enter JSON configuration..."
+        />
+      )}
+    </div>
+  );
+}
+
 export default function SwarmsPage() {
   const [swarms, setSwarms] = useState<SwarmCategory[]>([]);
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
@@ -355,22 +519,15 @@ export default function SwarmsPage() {
                               </div>
 
                               {agentConfigs[agent.id] ? (
-                                <div className="border border-gray-300 rounded-lg overflow-hidden">
-                                  {editingAgentIds.has(agent.id) ? (
-                                    <textarea
-                                      value={editingConfigs[agent.id] || ''}
-                                      onChange={(e) => setEditingConfigs(prev => ({ ...prev, [agent.id]: e.target.value }))}
-                                      className="w-full px-4 py-3 font-mono text-sm bg-gray-900 text-green-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      style={{ height: 'auto', minHeight: '400px', maxHeight: '800px' }}
-                                      spellCheck={false}
-                                      placeholder="Enter JSON configuration..."
-                                    />
-                                  ) : (
-                                    <pre className="w-full px-4 py-3 bg-gray-900 text-green-400 font-mono text-sm overflow-x-auto" style={{ minHeight: '400px', maxHeight: '800px' }}>
-                                      {JSON.stringify(agentConfigs[agent.id], null, 2)}
-                                    </pre>
-                                  )}
-                                </div>
+                                editingAgentIds.has(agent.id) ? (
+                                  <ConfigEditor
+                                    config={agentConfigs[agent.id]}
+                                    editingConfig={editingConfigs[agent.id]}
+                                    onChange={(newValue) => setEditingConfigs(prev => ({ ...prev, [agent.id]: newValue }))}
+                                  />
+                                ) : (
+                                  <ConfigViewer config={agentConfigs[agent.id]} />
+                                )
                               ) : agentConfigs[agent.id] === null ? (
                                 <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
                                   <Settings className="h-12 w-12 mx-auto mb-3 text-gray-400" />

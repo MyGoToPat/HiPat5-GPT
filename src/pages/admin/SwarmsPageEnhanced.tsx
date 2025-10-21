@@ -7,7 +7,6 @@ import { TestRunnerModal } from '../../components/admin/TestRunnerModal';
 import { getFeatureFlags } from '../../lib/featureFlags';
 import { getSupabase } from '../../lib/supabase';
 import * as swarmsAPI from '../../lib/api/swarmsEnhanced';
-import SwarmAgentsList from '../../components/admin/SwarmAgentsList';
 
 // READ-ONLY MODE: Phase C enforcement - environment-driven gate
 const WRITE_ENABLED = import.meta.env.VITE_ADMIN_ENHANCED_WRITE_ENABLED === 'true';
@@ -526,7 +525,10 @@ export default function SwarmsPageEnhanced() {
                 {/* Agents Tab */}
                 {activeTab === 'agents' && (
                   <div className="p-6">
-                    <SwarmAgentsList swarmId={selectedSwarm.id} writeEnabled={WRITE_ENABLED} />
+                    <div className="text-center py-12 text-gray-500">
+                      <p className="text-lg mb-2">Agent management coming soon</p>
+                      <p className="text-sm">Use the "Agent Config (Legacy)" page to edit individual agents</p>
+                    </div>
                   </div>
                 )}
 
