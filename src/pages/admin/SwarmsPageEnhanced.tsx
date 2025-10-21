@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSwarmsStore } from '../../store/swarms';
 import { useSwarmsEnhancedStore } from '../../store/swarmsEnhanced';
-import { Settings, ChevronRight, Edit2, Save, X, Play, Plus, Activity, CheckCircle, XCircle, Lock, FileText } from 'lucide-react';
+import { Settings, ChevronRight, Edit2, Save, X, Play, Plus, Activity, CheckCircle, XCircle, Lock, FileText, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TestRunnerModal } from '../../components/admin/TestRunnerModal';
 import { getFeatureFlags } from '../../lib/featureFlags';
 import { getSupabase } from '../../lib/supabase';
 import * as swarmsAPI from '../../lib/api/swarmsEnhanced';
+import SwarmAgentsList from '../../components/admin/SwarmAgentsList';
 
 // READ-ONLY MODE: Phase C enforcement - environment-driven gate
 const WRITE_ENABLED = import.meta.env.VITE_ADMIN_ENHANCED_WRITE_ENABLED === 'true';
@@ -61,7 +62,7 @@ export default function SwarmsPageEnhanced() {
   const [manifestError, setManifestError] = useState<string>('');
   const [cohortValue, setCohortValue] = useState<'beta' | 'paid' | 'all'>('beta');
   const [adminFlags, setAdminFlags] = useState<{ adminSwarmsEnhanced: boolean } | null>(null);
-  const [activeTab, setActiveTab] = useState<'manifest' | 'prompts'>('manifest');
+  const [activeTab, setActiveTab] = useState<'agents' | 'manifest' | 'prompts'>('agents');
   const [editingPrompt, setEditingPrompt] = useState<{ agentKeyOrId: string; model: string; text: string; title: string } | null>(null);
   const [promptError, setPromptError] = useState<string>('');
   const [promptsShape, setPromptsShape] = useState<PromptsShape>('unknown');
@@ -481,6 +482,19 @@ export default function SwarmsPageEnhanced() {
                 <div className="border-b border-gray-200">
                   <div className="flex">
                     <button
+                      onClick={() => setActiveTab('agents')}
+                      className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'agents'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Agents
+                      </div>
+                    </button>
+                    <button
                       onClick={() => setActiveTab('manifest')}
                       className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                         activeTab === 'manifest'
@@ -508,6 +522,13 @@ export default function SwarmsPageEnhanced() {
                     </button>
                   </div>
                 </div>
+
+                {/* Agents Tab */}
+                {activeTab === 'agents' && (
+                  <div className="p-6">
+                    <SwarmAgentsList swarmId={selectedSwarm.id} writeEnabled={WRITE_ENABLED} />
+                  </div>
+                )}
 
                 {/* Manifest Tab */}
                 {activeTab === 'manifest' && (

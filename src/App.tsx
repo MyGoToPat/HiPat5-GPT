@@ -35,6 +35,7 @@ import DiagnosticsPage from './pages/admin/DiagnosticsPage';
 import ShopLensPage from './pages/agents/ShopLensPage';
 import WelcomeBetaPage from './pages/WelcomeBetaPage';
 import { TMWYATestPage } from './pages/TMWYATestPage';
+import AgentConfigPage from './pages/admin/AgentConfigPage';
 
 
 function App() {
@@ -83,6 +84,8 @@ function App() {
             <Route path="users" element={<AdminGuard><AdminUsersPage /></AdminGuard>} />
             <Route path="swarms" element={<AdminGuard><SwarmsPage /></AdminGuard>} />
             <Route path="swarms-enhanced" element={<AdminGuard><SwarmsPageEnhanced /></AdminGuard>} />
+            <Route path="agents/:agentId" element={<AdminGuard><AgentConfigPage /></AdminGuard>} />
+            <Route path="agents/:agentId/:tab" element={<AdminGuard><AgentConfigPage /></AdminGuard>} />
           </Route>
         </Route>
 
