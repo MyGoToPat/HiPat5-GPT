@@ -633,28 +633,15 @@ export const ChatPat: React.FC = () => {
             console.log('[ChatPat] Using P3 unified handler');
 
             const { handleUserMessage } = await import('../core/chat/handleUserMessage');
-            const { getUserProfile } = await import('../lib/supabase');
+            const { loadUserContext } = await import('../core/personality/patSystem');
 
-            const userProfile = await getUserProfile(user.data.user.id);
-
-            if (!userProfile) {
-              throw new Error('User profile not found');
-            }
-
-            // Get user preferences for context
-            const { data: prefs } = await getSupabase()
-              .from('user_preferences')
-              .select('timezone, learning_style')
-              .eq('user_id', user.data.user.id)
-              .maybeSingle();
+            // Load full user context for personality injection
+            const userContext = await loadUserContext(user.data.user.id);
+            console.log('[ChatPat] User context loaded:', userContext);
 
             const result = await handleUserMessage(newMessage.text, {
               userId: user.data.user.id,
-              userContext: {
-                firstName: userProfile.name?.split(' ')[0],
-                learningStyle: prefs?.learning_style || 'unknown',
-                hasTDEE: true, // TODO: Check actual TDEE status
-              },
+              userContext,
               mode: 'text',
             });
 

@@ -129,6 +129,74 @@ export interface UserContext {
   pendingQuestion?: string;
 }
 
+/**
+ * Load full user context from database for personality injection
+ */
+export async function loadUserContext(userId: string): Promise<UserContext> {
+  const { getSupabase } = await import('../../lib/supabase');
+  const supabase = getSupabase();
+
+  // Load user profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('name, tdee_completed_at')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  // Load user metrics (for goals)
+  const { data: metrics } = await supabase
+    .from('user_metrics')
+    .select('caloric_goal_type, tdee_kcal, height_cm, weight_kg, age, gender')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  // Load user preferences
+  const { data: prefs } = await supabase
+    .from('user_preferences')
+    .select('learning_style, dietary_preference')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  // Count chat sessions for isFirstTimeChat
+  const { count } = await supabase
+    .from('chat_sessions')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('session_type', 'general');
+
+  const firstName = profile?.name?.split(' ')[0];
+  const isFirstChat = (count || 0) === 0;
+  const hasTDEE = !!profile?.tdee_completed_at;
+
+  // Map caloric_goal_type to human-readable fitness goal
+  const goalMap: Record<string, string> = {
+    'maintain': 'maintaining current weight',
+    'cut': 'losing weight',
+    'bulk': 'gaining muscle',
+    'recomp': 'body recomposition'
+  };
+  const fitnessGoal = metrics?.caloric_goal_type ? goalMap[metrics.caloric_goal_type] : undefined;
+
+  // Parse dietary preferences
+  const dietaryPreferences: string[] = [];
+  if (prefs?.dietary_preference) {
+    if (prefs.dietary_preference === 'vegetarian') dietaryPreferences.push('vegetarian');
+    if (prefs.dietary_preference === 'vegan') dietaryPreferences.push('vegan');
+    if (prefs.dietary_preference === 'keto') dietaryPreferences.push('keto');
+    if (prefs.dietary_preference === 'paleo') dietaryPreferences.push('paleo');
+  }
+
+  return {
+    firstName,
+    isFirstTimeChat: isFirstChat,
+    hasTDEE,
+    learningStyle: prefs?.learning_style || 'unknown',
+    fitnessGoal,
+    dietaryPreferences,
+    chatCount: count || 0,
+  };
+}
+
 export function buildSystemPrompt(context: UserContext = {}): string {
   let prompt = PAT_SYSTEM_PROMPT;
 
@@ -137,30 +205,37 @@ export function buildSystemPrompt(context: UserContext = {}): string {
 
   if (context.firstName) {
     contextNotes.push(`User's first name: ${context.firstName}`);
+    contextNotes.push(`IMPORTANT: Address the user by their first name (${context.firstName}) when greeting them or when it feels natural in conversation. Be warm and personal.`);
   }
 
   if (context.isFirstTimeChat) {
-    contextNotes.push('This is the user\'s first chat session');
+    contextNotes.push('This is the user\'s first chat session - give a warm welcome!');
+  }
+
+  if (context.chatCount !== undefined) {
+    contextNotes.push(`Chat history: This is chat session #${context.chatCount + 1}`);
   }
 
   if (context.learningStyle && context.learningStyle !== 'unknown') {
-    contextNotes.push(`Detected learning style: ${context.learningStyle} (confidence: ${context.learningStyleConfidence || 0})`);
+    contextNotes.push(`Detected learning style: ${context.learningStyle} - adapt your explanations accordingly`);
   }
 
   if (context.hasTDEE === false) {
-    contextNotes.push('User has NOT completed TDEE onboarding');
+    contextNotes.push('User has NOT completed TDEE onboarding - gently encourage this if relevant to their question');
+  } else if (context.hasTDEE === true) {
+    contextNotes.push('User has completed TDEE onboarding - you have their full metabolic profile');
   }
 
   if (context.fitnessGoal) {
-    contextNotes.push(`User's fitness goal: ${context.fitnessGoal}`);
+    contextNotes.push(`User's fitness goal: ${context.fitnessGoal} - tailor advice to support this goal`);
   }
 
   if (context.dietaryPreferences && context.dietaryPreferences.length > 0) {
-    contextNotes.push(`Dietary preferences: ${context.dietaryPreferences.join(', ')}`);
+    contextNotes.push(`Dietary preferences: ${context.dietaryPreferences.join(', ')} - respect these in food suggestions`);
   }
 
   if (contextNotes.length > 0) {
-    prompt += '\n\n' + '=== USER CONTEXT ===\n' + contextNotes.join('\n');
+    prompt += '\n\n' + '=== USER CONTEXT (USE THIS TO PERSONALIZE YOUR RESPONSES) ===\n' + contextNotes.join('\n');
   }
 
   return prompt;
