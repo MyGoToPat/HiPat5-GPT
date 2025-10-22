@@ -1,11 +1,57 @@
 [
-  {"id":"persona.master","name":"Master Prompt","enabled":true,"phase":"pre","order":0,"model":"gpt-4o-mini","promptRef":"PERSONA_MASTER","io":{"in":"Draft","out":"Draft"}},
-  {"id":"persona.empathy","name":"Empathy Detector","enabled":true,"phase":"pre","order":5,"model":"gpt-4o-mini","promptRef":"PERSONA_EMPATHY","io":{"in":"Draft","out":"Draft"}},
-  {"id":"persona.audience","name":"Audience Switcher","enabled":true,"phase":"pre","order":6,"model":"gpt-4o-mini","promptRef":"PERSONA_AUDIENCE","io":{"in":"Draft","out":"Draft"}},
-  {"id":"persona.safety","name":"Safety Gate","enabled":true,"phase":"pre","order":7,"model":"rule","rulesRef":"SAFETY_RULES","io":{"in":"Draft","out":"Draft"}},
-  {"id":"persona.evidence","name":"Evidence Validator","enabled":true,"phase":"post","order":20,"model":"gpt-4o-mini","promptRef":"POST_EVIDENCE","io":{"in":"Draft","out":"Draft"}},
-  {"id":"persona.clarity","name":"Clarity Enforcer","enabled":true,"phase":"post","order":21,"model":"gpt-4o-mini","promptRef":"POST_CLARITY","io":{"in":"Draft","out":"Draft"}},
-  {"id":"persona.conciseness","name":"Conciseness Filter","enabled":true,"phase":"post","order":22,"model":"gpt-4o-mini","promptRef":"POST_CONCISENESS","io":{"in":"Draft","out":"Draft"}},
-  {"id":"persona.actionizer","name":"Actionizer","enabled":true,"phase":"post","order":23,"model":"rule","rulesRef":"ACTIONIZER_RULES","io":{"in":"Draft","out":"Draft"}},
-  {"id":"persona.macroSentinel","name":"Macro Sentinel (read-only)","enabled":true,"phase":"post","order":90,"model":"calc","rulesRef":"MACRO_SENTINEL_RO","io":{"in":"Draft","out":"Draft"}}
+  {
+    "id": "persona.master",
+    "name": "Master Personality (V3)",
+    "enabled": true,
+    "phase": "pre",
+    "order": 0,
+    "model": "gpt-4o-mini",
+    "promptRef": "PERSONA_MASTER",
+    "io": {"in": "UserMessage", "out": "Draft"},
+    "description": "Pat's core identity and communication style. Domain-agnostic, human-like, JARVIS-esque."
+  },
+  {
+    "id": "persona.empathy",
+    "name": "Empathy Detector",
+    "enabled": true,
+    "phase": "pre",
+    "order": 5,
+    "model": "gpt-4o-mini",
+    "promptRef": "PERSONA_EMPATHY",
+    "io": {"in": "UserMessage", "out": "EmotionMetadata"},
+    "description": "Detects emotional state and provides style hints (pace, directness, encouragement). JSON output only."
+  },
+  {
+    "id": "persona.audience",
+    "name": "Audience Detector",
+    "enabled": true,
+    "phase": "pre",
+    "order": 6,
+    "model": "gpt-4o-mini",
+    "promptRef": "PERSONA_AUDIENCE",
+    "io": {"in": "UserMessage", "out": "AudienceMetadata"},
+    "description": "Detects expertise level and format preferences (verbosity, jargon policy, math detail). JSON output only."
+  },
+  {
+    "id": "persona.clarity",
+    "name": "Clarity Enforcer",
+    "enabled": true,
+    "phase": "post",
+    "order": 20,
+    "model": "gpt-4o-mini",
+    "promptRef": "POST_CLARITY",
+    "io": {"in": "Draft", "out": "Draft"},
+    "description": "Polishes for clarity: breaks long sentences, defines jargon, preserves protected blocks."
+  },
+  {
+    "id": "persona.protectedSentinel",
+    "name": "Protected Blocks Sentinel",
+    "enabled": true,
+    "phase": "post",
+    "order": 90,
+    "model": "rule",
+    "promptRef": "PROTECTED_BLOCKS_SENTINEL",
+    "io": {"in": "Draft", "out": "ValidationResult"},
+    "description": "Validates that protected blocks [[PROTECT_*]] remain unchanged. Domain-agnostic safety check."
+  }
 ]
