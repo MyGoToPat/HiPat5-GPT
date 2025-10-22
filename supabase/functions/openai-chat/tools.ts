@@ -10,7 +10,7 @@ export const PAT_TOOLS = [
     type: "function",
     function: {
       name: "log_meal",
-      description: "Log food items to the user's meal log. Use this when the user wants to record what they ate. You can extract food items from conversation history.",
+      description: "Log food items to the user's meal log. Use this when: (1) user says 'I ate/had/consumed X', (2) user says 'log it/that/this', (3) user wants to record food. You must first use get_macros to calculate macros, then immediately call this to log.",
       parameters: {
         type: "object",
         properties: {
@@ -65,7 +65,7 @@ export const PAT_TOOLS = [
     type: "function",
     function: {
       name: "get_macros",
-      description: "Calculate nutritional macros for food items WITHOUT logging them. Use this when user asks 'what are the macros for...' or 'tell me the nutrition of...'",
+      description: "Calculate nutritional macros for food items WITHOUT logging them. Use ONLY when user asks questions like 'what are the macros for...' or 'tell me about...' or 'how many calories in...'. Do NOT use if user says 'I ate' - that requires logging.",
       parameters: {
         type: "object",
         properties: {
@@ -200,13 +200,35 @@ async function logMealTool(args: any, userId: string, supabase: any) {
 async function getMacrosTool(args: any) {
   const { food_description } = args;
 
-  return {
-    success: true,
-    result: {
-      message: "Use your nutritional knowledge to provide macro estimates based on USDA values.",
-      food_description
+  try {
+    // Call nutrition-resolver edge function
+    const nutritionResolverUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/nutrition-resolver`;
+    const response = await fetch(nutritionResolverUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`
+      },
+      body: JSON.stringify({ food_description })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Nutrition resolver failed: ${response.statusText}`);
     }
-  };
+
+    const data = await response.json();
+
+    return {
+      success: true,
+      result: data // Should include items with kcal, protein_g, carbs_g, fat_g, fiber_g
+    };
+  } catch (error) {
+    console.error('[getMacrosTool] Error:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
 }
 
 async function getRemainingMacrosTool(userId: string, supabase: any) {

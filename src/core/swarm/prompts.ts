@@ -68,7 +68,7 @@ Rules:
   POST_CLARITY: `Task: Polish for clarity while preserving meaning and protected blocks.
 
 Rules:
-- Break sentences >16 words (split at natural break points)
+- Use natural, conversational sentence lengths (no arbitrary word limits)
 - Define technical terms on first use: "term (short definition)"
 - Use parallel structure in lists
 - Keep persona tone from PAT_SYSTEM_PROMPT

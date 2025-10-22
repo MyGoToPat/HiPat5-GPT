@@ -79,6 +79,7 @@ export const ChatPat: React.FC = () => {
   const [silentMode, setSilentMode] = useState(false);
   const [statusText, setStatusText] = useState<string>('');
   const [showTDEEBubble, setShowTDEEBubble] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Swarm 2.1: Ephemeral cache for "log" follow-up with TTL
   const [lastQuestionItems, setLastQuestionItems] = useState<any[] | null>(null);
@@ -90,6 +91,11 @@ export const ChatPat: React.FC = () => {
     lastQuestionItems && Date.now() - lastSetRef.current < TTL_MS
       ? lastQuestionItems
       : null;
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isThinking, isSending, statusText]);
 
   // Inline confirmation banner for food logging
   const [inlineConfirmation, setInlineConfirmation] = useState<{
@@ -1661,6 +1667,8 @@ export const ChatPat: React.FC = () => {
                 </div>
               </div>
             )}
+            {/* Scroll anchor */}
+            <div ref={messagesEndRef} />
           </div>
         </div>
         
