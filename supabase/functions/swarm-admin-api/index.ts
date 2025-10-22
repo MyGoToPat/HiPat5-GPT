@@ -461,6 +461,136 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Agent Configs CRUD
+    if (path === '/agent-configs') {
+      if (method === 'GET') {
+        const { data, error } = await supabase.from('agent_configs').select('*').order('updated_at', { ascending: false });
+        if (error) throw error;
+        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      if (method === 'POST') {
+        // Validate admin
+        const { user, error: authError } = await validateAdmin(req, supabase);
+        if (authError) {
+          return new Response(JSON.stringify({ error: authError }), {
+            status: user ? 403 : 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const body = await req.json();
+        if (!body.agent_key || !body.config) {
+          return new Response(JSON.stringify({ error: 'Missing required fields: agent_key, config' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const { data, error } = await supabase.from('agent_configs').insert(body).select().single();
+        if (error) throw error;
+
+        await logAdminAction(supabase, user.id, 'create_agent_config', `agent_configs:${data.id}`, { agent_key: body.agent_key });
+
+        return new Response(JSON.stringify({ ok: true, data }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    if (path.startsWith('/agent-configs/')) {
+      const pathParts = path.split('/').filter(p => p);
+      const agentKey = pathParts[1];
+
+      if (method === 'GET') {
+        const { data, error } = await supabase.from('agent_configs').select('*').eq('agent_key', agentKey).maybeSingle();
+        if (error) throw error;
+        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      if (method === 'PUT') {
+        // Validate admin
+        const { user, error: authError } = await validateAdmin(req, supabase);
+        if (authError) {
+          return new Response(JSON.stringify({ error: authError }), {
+            status: user ? 403 : 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const body = await req.json();
+        const { data, error } = await supabase.from('agent_configs')
+          .update({ config: body.config, updated_at: new Date().toISOString() })
+          .eq('agent_key', agentKey)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        await logAdminAction(supabase, user.id, 'update_agent_config', `agent_configs:${agentKey}`, body);
+
+        return new Response(JSON.stringify({ ok: true, data }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      if (method === 'DELETE') {
+        // Validate admin
+        const { user, error: authError } = await validateAdmin(req, supabase);
+        if (authError) {
+          return new Response(JSON.stringify({ error: authError }), {
+            status: user ? 403 : 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const { error } = await supabase.from('agent_configs').delete().eq('agent_key', agentKey);
+        if (error) throw error;
+
+        await logAdminAction(supabase, user.id, 'delete_agent_config', `agent_configs:${agentKey}`, null);
+
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Agent Config Validation
+    if (path === '/agent-configs/validate') {
+      if (method === 'POST') {
+        const body = await req.json();
+        const { agent_key, config } = body;
+
+        // Role-specific terms that should NOT appear in personality agents
+        const roleTerms = [
+          'fitness', 'nutrition', 'exercise', 'physiology', 'health', 'performance',
+          'TDEE', 'macros', 'biochemistry', 'sports medicine', 'workout', 'training',
+          'meal', 'diet', 'calories', 'protein', 'carbs', 'fat', 'fiber'
+        ];
+
+        const personalityAgents = ['persona', 'PERSONA_MASTER', 'PERSONA_EMPATHY', 'PERSONA_AUDIENCE', 'POST_CLARITY'];
+        const isPersonalityAgent = personalityAgents.some(pa => agent_key.includes(pa));
+
+        const violations: string[] = [];
+        if (isPersonalityAgent && config) {
+          const configStr = JSON.stringify(config).toLowerCase();
+          roleTerms.forEach(term => {
+            if (configStr.includes(term.toLowerCase())) {
+              violations.push(`Found role-specific term "${term}" in personality agent`);
+            }
+          });
+        }
+
+        return new Response(JSON.stringify({
+          valid: violations.length === 0,
+          violations,
+          isPersonalityAgent,
+          checkedTerms: roleTerms.length
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     return new Response(JSON.stringify({ error: 'Not found' }), {
       status: 404,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
