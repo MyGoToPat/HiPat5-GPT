@@ -109,8 +109,8 @@ export async function buildSwarmPrompt(swarm: SwarmConfig, userContext?: Record<
       sections.push(`[${agent.name}]`);
       sections.push(agent.prompt);
     } else if (agent.promptRef) {
-      // Reference to prompt library
-      const prompt = resolvePromptRef(agent.promptRef);
+      // Reference to prompt library (database-first, then fallback)
+      const prompt = await resolvePromptRef(agent.promptRef);
       if (prompt) {
         sections.push(`[${agent.name}]`);
         sections.push(prompt);

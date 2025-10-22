@@ -198,8 +198,36 @@ Ask at most 1 clarifying question if critical details are missing.`,
 
 /**
  * Resolve a prompt reference to actual prompt text
+ * PRIORITY: Database > Hardcoded library
  */
-export function resolvePromptRef(promptRef: string): string | null {
+export async function resolvePromptRef(promptRef: string): Promise<string | null> {
+  // Try loading from database first
+  try {
+    const { getSupabase } = await import('../../lib/supabase');
+    const supabase = getSupabase();
+
+    const { data: dbPrompt, error } = await supabase
+      .from('agent_prompts')
+      .select('content')
+      .eq('agent_id', promptRef)
+      .eq('status', 'published')
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (dbPrompt?.content) {
+      console.log(`[prompts] ✓ Loaded ${promptRef} from database`);
+      return dbPrompt.content;
+    }
+
+    if (error) {
+      console.warn(`[prompts] Database lookup failed for ${promptRef}:`, error.message);
+    }
+  } catch (err) {
+    console.warn(`[prompts] Failed to load ${promptRef} from database:`, err);
+  }
+
+  // Fallback to hardcoded library
   const prompt = PROMPT_LIBRARY[promptRef];
 
   if (!prompt) {
@@ -207,6 +235,7 @@ export function resolvePromptRef(promptRef: string): string | null {
     return null;
   }
 
+  console.log(`[prompts] ⚠ Using fallback hardcoded prompt for ${promptRef}`);
   return prompt;
 }
 
