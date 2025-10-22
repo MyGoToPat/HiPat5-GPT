@@ -10,13 +10,14 @@ export interface IntentResult {
 }
 
 const QUICK_HIT_PATTERNS = [
+  // CRITICAL: Order matters - more specific patterns first
+  { pattern: /\b(what are the macros?|what are macros?|macros for|nutrition for)\b/i, intent: 'food_question' },
+  { pattern: /\bi ate\b/i, intent: 'food_log' },
+  { pattern: /\bi had\b/i, intent: 'food_log' },
   { pattern: /\b(log|save|record)\b/i, intent: 'food_log' },
   { pattern: /\b(undo|delete|remove)\s+(last|that)/i, intent: 'food_undo' },
   { pattern: /\b(how much|remaining|left)\b.*\b(calories|protein|carbs|fat|fiber)\b/i, intent: 'kpi_remaining' },
   { pattern: /\b(today'?s?|daily)\s+(summary|kpis?|totals?|macros?)\b/i, intent: 'kpi_today' },
-  { pattern: /\b(what|macros?|nutrition)\b.*\b(ate|ate|eat|eating|food|meal)\b/i, intent: 'food_question' },
-  { pattern: /\bi ate\b/i, intent: 'food_mention' },
-  { pattern: /\bi had\b/i, intent: 'food_mention' },
 ] as const;
 
 /**
@@ -108,12 +109,10 @@ export async function detectIntent(message: string): Promise<IntentResult> {
 export function shouldTriggerRole(intent: string): boolean {
   const roleIntents = [
     'food_question',
-    'food_mention',
     'food_log',
     'food_undo',
     'kpi_today',
     'kpi_remaining',
-    'undiet_analysis',
   ];
 
   return roleIntents.includes(intent);

@@ -57,9 +57,13 @@ export async function addChatMessage(
   role: 'user' | 'assistant' | 'system',
   content: string
 ): Promise<ChatMessage> {
+  // Generate client-side UUID to prevent conflicts
+  const messageId = crypto.randomUUID();
+
   const { data, error } = await supabase
     .from('chat_messages')
     .insert({
+      id: messageId,
       session_id: sessionId,
       role,
       content,
@@ -69,6 +73,15 @@ export async function addChatMessage(
     .single();
 
   if (error) {
+    // Enhanced error logging for debugging 409s
+    console.error('[chatHistory] Failed to add message:', {
+      error: error.message,
+      code: error.code,
+      details: error.details,
+      sessionId,
+      role,
+      messageId
+    });
     throw new Error(`Failed to add message: ${error.message}`);
   }
 

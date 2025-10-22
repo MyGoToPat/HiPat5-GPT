@@ -64,24 +64,19 @@ export async function loadSwarmFromFile(swarmName: string): Promise<SwarmConfig 
 }
 
 /**
- * Load swarm config (tries DB first, falls back to file)
+ * Load swarm config (database only - no filesystem fallback)
  */
 export async function loadSwarm(swarmName: string): Promise<SwarmConfig | null> {
-  // Try database first
+  // Database is the single source of truth
   const dbConfig = await loadSwarmFromDB(swarmName);
   if (dbConfig) {
-    console.log(`[swarm-loader] Loaded ${swarmName} from database`);
+    console.log(`[swarm-loader] ✓ Loaded ${swarmName} from database`);
     return dbConfig;
   }
 
-  // Fallback to filesystem
-  const fileConfig = await loadSwarmFromFile(swarmName);
-  if (fileConfig) {
-    console.log(`[swarm-loader] Loaded ${swarmName} from filesystem`);
-    return fileConfig;
-  }
-
-  console.error(`[swarm-loader] Failed to load swarm: ${swarmName}`);
+  // No fallback - if not in DB, it's an error
+  console.error(`[swarm-loader] ✗ CRITICAL: Swarm "${swarmName}" not found in database. No filesystem fallback.`);
+  console.error(`[swarm-loader] → Ensure agent_configs table has entry for "${swarmName}"`);
   return null;
 }
 

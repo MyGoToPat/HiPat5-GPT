@@ -71,61 +71,73 @@ export function selectModel(context: ModelRouterContext): ModelSelection {
 
   // Force OpenAI for greetings and personality-driven interactions
   if (forceOpenAI) {
-    return {
-      provider: 'openai',
+    const selection = {
+      provider: 'openai' as ModelProvider,
       model: 'gpt-4o-mini',
       tokensEst: 400,
       reason: 'personality_interaction',
     };
+    console.log('[modelRouter] Selected:', JSON.stringify(selection));
+    return selection;
   }
 
   // Escalate if user explicitly requests expert mode
   if (userRequestedExpert) {
-    return {
-      provider: 'openai',
+    const selection = {
+      provider: 'openai' as ModelProvider,
       model: 'gpt-4o',
       tokensEst: 1000,
       reason: 'user_requested_expert',
     };
+    console.log('[modelRouter] Selected:', JSON.stringify(selection));
+    return selection;
   }
 
   // Escalate if previous attempts failed
   if (previousFailures > 0) {
-    return {
-      provider: 'openai',
+    const selection = {
+      provider: 'openai' as ModelProvider,
       model: 'gpt-4o',
       tokensEst: 1000,
       reason: 'retry_with_stronger_model',
     };
+    console.log('[modelRouter] Selected:', JSON.stringify(selection));
+    return selection;
   }
 
   // Escalate if intent confidence is low (ambiguous request)
   if (intentConfidence < 0.6) {
-    return {
-      provider: 'openai',
+    const selection = {
+      provider: 'openai' as ModelProvider,
       model: 'gpt-4o-mini',
       tokensEst: 600,
       reason: 'low_confidence_needs_better_understanding',
     };
+    console.log('[modelRouter] Selected:', JSON.stringify(selection));
+    return selection;
   }
 
   // For structured output (JSON), prefer OpenAI for reliability
   if (requiresStructuredOutput) {
-    return {
-      provider: 'openai',
+    const selection = {
+      provider: 'openai' as ModelProvider,
       model: 'gpt-4o-mini',
       tokensEst: 500,
       reason: 'structured_output_required',
     };
+    console.log('[modelRouter] Selected:', JSON.stringify(selection));
+    return selection;
   }
 
   // Default: use cheapest model for routine queries
-  return {
-    provider: 'gemini',
+  const selection = {
+    provider: 'gemini' as ModelProvider,
     model: 'gemini-1.5-flash',
     tokensEst: messageLength + 300, // Estimate based on message length
     reason: 'default_cost_optimized',
   };
+  console.log('[modelRouter] Selected:', JSON.stringify(selection));
+  return selection;
 }
 
 /**
