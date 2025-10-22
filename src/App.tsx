@@ -32,6 +32,7 @@ import AdminGuard from './components/guards/AdminGuard';
 import RoleAccessPage from './pages/admin/RoleAccessPage';
 import DiagnosticsPage from './pages/admin/DiagnosticsPage';
 import ShopLensPage from './pages/agents/ShopLensPage';
+import AgentConfigsPage from './pages/admin/AgentConfigsPage';
 import WelcomeBetaPage from './pages/WelcomeBetaPage';
 import { TMWYATestPage } from './pages/TMWYATestPage';
 
@@ -81,6 +82,7 @@ function App() {
             <Route path="shoplens" element={<AdminGuard><ShopLensPage /></AdminGuard>} />
             <Route path="users" element={<AdminGuard><AdminUsersPage /></AdminGuard>} />
             <Route path="swarms" element={<AdminGuard><SwarmsPage /></AdminGuard>} />
+            <Route path="agent-configs" element={<AdminGuard><AgentConfigsPage /></AdminGuard>} />
           </Route>
         </Route>
 
