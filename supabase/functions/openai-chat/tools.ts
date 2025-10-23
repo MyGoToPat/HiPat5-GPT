@@ -175,7 +175,15 @@ async function logMealTool(args: any, userId: string, supabase: any) {
 
   if (error) {
     console.error('[logMealTool] RPC error:', error);
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error.message,
+      result: {
+        kind: 'food_log',
+        logged: false,
+        errors: [error.message]
+      }
+    };
   }
 
   const totals = items.reduce((acc: any, item: any) => ({
@@ -186,9 +194,13 @@ async function logMealTool(args: any, userId: string, supabase: any) {
     fiber_g: acc.fiber_g + (item.macros.fiber_g || 0)
   }), { kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, fiber_g: 0 });
 
+  console.log(`[logMealTool] Success: logged meal_id=${mealLogId}, items=${items.length}, kcal=${totals.kcal}`);
+
   return {
     success: true,
     result: {
+      kind: 'food_log',
+      logged: true,
       meal_log_id: mealLogId,
       items_logged: items.length,
       totals
@@ -202,6 +214,8 @@ async function getMacrosTool(args: any) {
   return {
     success: true,
     result: {
+      kind: 'food_question',
+      logged: false,
       message: "Use your nutritional knowledge to provide macro estimates based on USDA values.",
       food_description
     }
