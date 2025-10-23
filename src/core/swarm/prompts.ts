@@ -1,26 +1,56 @@
 /**
- * SWARM PROMPT LIBRARY V3
+ * SWARM PROMPT LIBRARY V4
  * Central repository for all agent prompts
  *
  * ARCHITECTURE:
- * - PERSONA_MASTER: Imports from patSystem.ts (single source of truth)
+ * - PERSONA_MASTER: Loaded from database personality_config table (single source of truth)
  * - Quality gates: Lightweight, focused agents
  * - Domain-agnostic: No fitness/nutrition bias
  *
  * Each prompt can be:
- * 1. Edited directly here (requires code deploy)
+ * 1. Edited via admin UI at /admin/personality (database-driven)
  * 2. Overridden in database (agent_configs table)
- * 3. Edited via admin UI (future Phase 2)
+ * 3. Hardcoded here as EMERGENCY fallback only (should never be used in production)
  */
 
-import { PAT_SYSTEM_PROMPT } from '../personality/patSystem';
+/**
+ * Build AMA-specific directives (domain-agnostic chat)
+ * This is NOT the master personality - it's added ON TOP of the DB master
+ */
+export function buildAMADirectives(opts?: { audience?: 'novice'|'intermediate'|'advanced' }): string {
+  const audienceLevel = opts?.audience ?? 'intermediate';
+
+  const audienceDirective = {
+    'novice': 'Audience: novice. Explain simply; 1-2 sentence definitions; concrete examples.',
+    'intermediate': 'Audience: intermediate. Define non-obvious terms; keep examples short.',
+    'advanced': 'Audience: advanced. Use precise terms, minimal definitions, concise bullets.'
+  }[audienceLevel];
+
+  return [
+    '# AMA Role',
+    'You are Pat: domain-agnostic, conversational, Spartan & informative.',
+    '',
+    '# Communication',
+    'Prefer bullets for multi-step answers. Cite numbers/examples. Avoid hedging.',
+    'Offer next steps when helpful. Ask 1 clarifying question only if strictly needed.',
+    '',
+    '# Style',
+    'Active voice. Short sentences. No clichés, no filler.',
+    '',
+    '# Empathy',
+    'Mirror user mood briefly. Acknowledge feelings. Avoid platitudes.',
+    'Tone: practical, direct, human. No fluff.',
+    '',
+    '# Audience',
+    audienceDirective
+  ].join('\n');
+}
 
 export const PROMPT_LIBRARY: Record<string, string> = {
   // ========================================================================
   // PERSONA SWARM - Pat's Core Personality (Domain-Agnostic)
+  // NOTE: PERSONA_MASTER is now loaded from DB via loadPersonaFromDb() in loader.ts
   // ========================================================================
-
-  PERSONA_MASTER: PAT_SYSTEM_PROMPT,
 
   PERSONA_EMPATHY: `Task: Detect emotional state and provide style guidance.
 
@@ -235,7 +265,13 @@ export async function resolvePromptRef(promptRef: string): Promise<string | null
     return null;
   }
 
-  console.log(`[prompts] ⚠ Using fallback hardcoded prompt for ${promptRef}`);
+  // Only log critical warning for PERSONA_* refs - these should come from DB
+  if (promptRef.startsWith('PERSONA_')) {
+    console.error(`[prompts] ✗ CRITICAL: ${promptRef} not in DB. This should never happen in production.`);
+    console.error(`[prompts] → Check personality_config table and ensure master personality is active`);
+  } else {
+    console.log(`[prompts] Using library prompt for ${promptRef}`);
+  }
   return prompt;
 }
 

@@ -70,23 +70,33 @@ export async function handleUserMessage(
   }
 
   // Step 5: Build system prompt with user context
-  // Try loading from swarm system first, fallback to static prompt
+  // Try loading from swarm system first, fallback to DB master + AMA directives
   let systemPrompt: string;
 
   try {
-    const { getSwarmForIntent, buildSwarmPrompt } = await import('../swarm/loader');
+    const { getSwarmForIntent, buildSwarmPrompt, loadPersonaFromDb } = await import('../swarm/loader');
     const swarm = await getSwarmForIntent(intentResult.intent);
 
     if (swarm) {
       console.log(`[handleUserMessage] Using swarm: ${swarm.swarm_name}`);
       systemPrompt = await buildSwarmPrompt(swarm, context.userContext);
     } else {
-      console.log('[handleUserMessage] No swarm found, using static prompt');
-      systemPrompt = buildSystemPrompt(context.userContext || {});
+      // AMA/General path: load DB master + merge with AMA directives
+      console.log('[handleUserMessage] No swarm found, using AMA (DB personality + directives)');
+      const { master } = await loadPersonaFromDb();
+      const { buildAMADirectives } = await import('../swarm/prompts');
+      const { withMaster } = await import('../../lib/personality/promptMerger');
+
+      const directives = buildAMADirectives({
+        audience: context.userContext?.audienceLevel ?? 'intermediate'
+      });
+
+      systemPrompt = withMaster(master, directives);
+      console.log(`[AMA] systemPrompt: source=db, length=${systemPrompt.length}`);
     }
   } catch (err) {
-    console.warn('[handleUserMessage] Swarm load failed, using static prompt:', err);
-    systemPrompt = buildSystemPrompt(context.userContext || {});
+    console.warn('[handleUserMessage] Swarm/DB load failed, using minimal emergency prompt:', err);
+    systemPrompt = 'You are Pat. Speak clearly and concisely.';
   }
 
   // Step 6: Call LLM (placeholder - will be implemented with actual API calls)

@@ -3,6 +3,41 @@
  * Loads agent configs from database and builds dynamic system prompts
  */
 
+/**
+ * Load master personality from database (single source of truth)
+ * Returns the DB-driven Pat personality that all swarms inherit
+ */
+export async function loadPersonaFromDb(): Promise<{ master: string }> {
+  try {
+    const { getSupabase } = await import('../../lib/supabase');
+    const supabase = getSupabase();
+
+    const { data, error } = await supabase
+      .from('personality_config')
+      .select('prompt, is_active')
+      .eq('name', 'master')
+      .single();
+
+    if (error || !data) {
+      console.error('[swarm-loader] Failed to load master personality from DB:', error?.message);
+      console.error('[swarm-loader] → Falling back to emergency minimal prompt');
+      return { master: 'You are Pat. Speak clearly and concisely.' };
+    }
+
+    if (!data.is_active) {
+      console.warn('[swarm-loader] Master personality exists but is_active=false. Using minimal prompt.');
+      return { master: 'You are Pat. Speak clearly and concisely.' };
+    }
+
+    const master = (data.prompt || '').trim();
+    console.log(`[swarm-loader] ✓ Loaded master personality from DB, length: ${master.length}`);
+    return { master };
+  } catch (err) {
+    console.error('[swarm-loader] Exception loading master personality:', err);
+    return { master: 'You are Pat. Speak clearly and concisely.' };
+  }
+}
+
 export interface AgentConfig {
   id: string;
   name: string;
