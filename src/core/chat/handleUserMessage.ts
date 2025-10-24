@@ -5,7 +5,7 @@
 
 import { detectIntent, shouldTriggerRole } from '../router/intentRouter';
 import { selectModel, estimateCost, getModelDisplayName, type ModelSelection } from '../router/modelRouter';
-import { buildSystemPrompt, type UserContext } from '../personality/patSystem';
+import { type UserContext } from '../personality/patSystem';
 import { ensureChatSession } from './sessions';
 import { storeMessage, loadRecentMessages } from './store';
 

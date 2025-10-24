@@ -5,7 +5,8 @@ const corsHeaders = {
 };
 import { PAT_TOOLS, executeTool } from './tools.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.53.0';
-import { loadPersonality } from './personality-loader.ts';
+import { loadSwarmFromDB, buildSwarmPrompt } from './swarm-loader.ts';
+import { executePostAgents } from './post-executor.ts';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -21,7 +22,9 @@ interface ChatRequest {
   provider?: string;
 }
 
-// Personality now loads from database via personality-loader.ts
+// CRITICAL: Personality now loads via swarm system (10-agent dynamic composition)
+// Emergency fallback if swarm load fails
+const EMERGENCY_FALLBACK = 'You are Pat. Speak clearly and concisely.';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -69,18 +72,37 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Load personality from database
+    // Load personality swarm from database
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const systemPrompt = await loadPersonality(supabaseUrl, supabaseServiceKey);
 
+    let systemPrompt: string;
     const hasSystemPrompt = messages.length > 0 && messages[0].role === 'system';
+
+    if (hasSystemPrompt) {
+      // Client provided system prompt (passthrough mode)
+      systemPrompt = messages[0].content;
+      console.log('[openai-chat] systemPrompt: source=client');
+    } else {
+      // Load personality swarm from database
+      const swarm = await loadSwarmFromDB('personality', supabaseUrl, supabaseServiceKey);
+
+      if (!swarm) {
+        console.error('[openai-chat] ✗ CRITICAL: Personality swarm not found in database!');
+        console.error('[openai-chat] → Using emergency fallback prompt');
+        systemPrompt = EMERGENCY_FALLBACK;
+      } else {
+        console.log(`[openai-chat] ✓ Loaded swarm: personality (${swarm.agents.length} agents)`);
+        systemPrompt = await buildSwarmPrompt(swarm, supabaseUrl, supabaseServiceKey);
+      }
+    }
+
     const messagesWithSystem: ChatMessage[] = hasSystemPrompt
       ? messages
       : [{ role: 'system', content: systemPrompt }, ...messages];
 
-    console.log('[openai-chat] systemPrompt: source=' + (hasSystemPrompt ? 'client' : 'db'));
     console.log('[openai-chat] Total messages:', messagesWithSystem.length);
+    console.log('[openai-chat] System prompt length:', systemPrompt.length);
     console.log('[openai-chat] Temperature:', temperature);
 
     if (stream) {
@@ -261,9 +283,41 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Execute post-agents if swarm-based and not client-provided system prompt
+    let finalMessage = firstChoice.message?.content || 'No response';
+
+    if (!hasSystemPrompt) {
+      // Load swarm again to check for post-agents
+      const swarm = await loadSwarmFromDB('personality', supabaseUrl, supabaseServiceKey);
+      const postMode = (Deno.env.get('VITE_PERSONALITY_POST_EXECUTOR') || 'combined') as 'combined' | 'sequential' | 'off';
+
+      if (swarm && postMode !== 'off') {
+        const hasPostAgents = swarm.agents.some(a => a.enabled && a.phase === 'post');
+
+        if (hasPostAgents) {
+          try {
+            console.log(`[openai-chat] Executing post-agents in ${postMode} mode`);
+            const refined = await executePostAgents(
+              finalMessage,
+              swarm,
+              supabaseUrl,
+              supabaseServiceKey,
+              openaiApiKey,
+              postMode
+            );
+            console.log(`[personality-post] mode=${postMode}, original=${finalMessage.length}, refined=${refined.length}`);
+            finalMessage = refined;
+          } catch (postError) {
+            console.error('[personality-post] Post-agent execution failed, using original response:', postError);
+            // Continue with original response
+          }
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify({
-        message: firstChoice.message?.content || 'No response',
+        message: finalMessage,
         finish_reason: firstChoice.finish_reason
       }),
       {
