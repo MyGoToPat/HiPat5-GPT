@@ -48,6 +48,7 @@ const MODELS: Record<string, ModelConfig> = {
 } as const;
 
 export interface ModelRouterContext {
+  intent?: string;
   intentConfidence: number;
   messageLength: number;
   requiresStructuredOutput?: boolean;
@@ -61,6 +62,7 @@ export interface ModelRouterContext {
  */
 export function selectModel(context: ModelRouterContext): ModelSelection {
   const {
+    intent,
     intentConfidence,
     messageLength,
     requiresStructuredOutput = false,

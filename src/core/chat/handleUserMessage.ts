@@ -51,6 +51,7 @@ export async function handleUserMessage(
 
   // Step 3: Select model
   const modelSelection: ModelSelection = selectModel({
+    intent: intentResult.intent,
     intentConfidence: intentResult.confidence,
     messageLength: message.length,
     requiresStructuredOutput: shouldTriggerRole(intentResult.intent),
