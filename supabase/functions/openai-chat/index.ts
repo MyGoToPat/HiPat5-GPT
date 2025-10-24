@@ -81,6 +81,7 @@ Deno.serve(async (req: Request) => {
 
     console.log('[openai-chat] systemPrompt: source=' + (hasSystemPrompt ? 'client' : 'db'));
     console.log('[openai-chat] Total messages:', messagesWithSystem.length);
+    console.log('[openai-chat] Temperature:', temperature);
 
     if (stream) {
       console.log('[openai-chat] Streaming mode - tools disabled');
@@ -197,7 +198,7 @@ Deno.serve(async (req: Request) => {
 
       if (openaiResponse.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'I\'m a bit busy right now. Please try again in a moment.' }),
+          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
           {
             status: 429,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -206,20 +207,20 @@ Deno.serve(async (req: Request) => {
       }
 
       return new Response(
-        JSON.stringify({ error: 'I\'m having trouble connecting right now. Please try again later.' }),
+        JSON.stringify({ error: 'OpenAI API error', details: errorData }),
         {
-          status: 500,
+          status: openaiResponse.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
 
-    const openaiData = await openaiResponse.json();
-    const assistantMessage = openaiData.choices?.[0]?.message;
+    const data = await openaiResponse.json();
+    const firstChoice = data.choices?.[0];
 
-    if (!assistantMessage) {
+    if (!firstChoice) {
       return new Response(
-        JSON.stringify({ error: 'No response from AI' }),
+        JSON.stringify({ error: 'No response from OpenAI' }),
         {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -227,139 +228,31 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    console.log('OpenAI Chat - Usage:', {
-      input_tokens: openaiData.usage?.prompt_tokens,
-      output_tokens: openaiData.usage?.completion_tokens,
-      total_tokens: openaiData.usage?.total_tokens,
-      timestamp: new Date().toISOString()
-    });
-
-    try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabaseClient = createClient(supabaseUrl, supabaseKey);
-
-      const { data: flag } = await supabaseClient
-        .from('feature_flags')
-        .select('enabled')
-        .eq('key', 'log_tool_telemetry_db')
-        .maybeSingle();
-
-      if (flag?.enabled) {
-        const TOOL_TO_ROLE_MAP: Record<string, string> = {
-          'log_meal': 'tmwya',
-          'get_macros': 'macro',
-          'get_remaining_macros': 'macro',
-          'undo_last_meal': 'tmwya',
-        };
-
-        const userMessage = messages[messages.length - 1]?.content || '';
-        const toolName = assistantMessage.tool_calls?.[0]?.function?.name || null;
-        const roleTarget = toolName ? (TOOL_TO_ROLE_MAP[toolName] || 'unknown') : 'persona';
-        const personaFallback = toolName === null;
-
-        console.log('[tool-route]', JSON.stringify({
-          ts: new Date().toISOString(),
-          msgPreview: userMessage.slice(0, 120),
-          toolName,
-          roleTarget,
-          personaFallback
-        }));
-
-        await supabaseClient.from('admin_action_logs').insert({
-          actor_uid: effectiveUserId || '00000000-0000-0000-0000-000000000000',
-          action: 'tool_route',
-          target: 'openai-chat',
-          payload: {
-            msgPreview: userMessage.slice(0, 120),
-            toolName,
-            roleTarget,
-            personaFallback,
-            timestamp: new Date().toISOString()
-          }
-        });
-      }
-    } catch (telemetryError) {
-      console.error('[telemetry] Failed to log tool route:', telemetryError);
-    }
-
-    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-      console.log('[openai-chat] Tool calls detected:', assistantMessage.tool_calls.length);
-
-      if (!effectiveUserId) {
-        return new Response(
-          JSON.stringify({ error: 'User authentication required for tool execution' }),
-          {
-            status: 401,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
-      }
-
+    const toolCalls = firstChoice.message?.tool_calls;
+    if (toolCalls && toolCalls.length > 0) {
+      console.log('[openai-chat] Tool calls detected:', toolCalls.length);
       const toolResults = [];
-      for (const toolCall of assistantMessage.tool_calls) {
-        const toolName = toolCall.function.name;
-        const toolArgs = JSON.parse(toolCall.function.arguments);
 
-        console.log(`[openai-chat] Executing tool: ${toolName}`);
+      for (const toolCall of toolCalls) {
+        const { name, arguments: argsJson } = toolCall.function;
+        console.log(`[openai-chat] Executing tool: ${name}`);
 
-        const result = await executeTool(toolName, toolArgs, {
-          userId: effectiveUserId,
-          supabaseUrl: Deno.env.get('SUPABASE_URL')!,
-          supabaseKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-        });
-
-        toolResults.push({
-          tool_call_id: toolCall.id,
-          role: 'tool',
-          name: toolName,
-          content: JSON.stringify(result)
-        });
+        try {
+          const args = JSON.parse(argsJson);
+          const result = await executeTool(name, args, effectiveUserId);
+          toolResults.push({ name, result });
+          console.log(`[openai-chat] Tool ${name} succeeded:`, result);
+        } catch (err) {
+          console.error(`[openai-chat] Tool ${name} failed:`, err);
+          toolResults.push({ name, error: String(err) });
+        }
       }
-
-      const followUpMessages = [
-        ...messagesWithSystem,
-        assistantMessage,
-        ...toolResults
-      ];
-
-      const followUpResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: model || 'gpt-4o-mini',
-          messages: followUpMessages,
-          max_tokens: 700,
-          temperature: temperature,
-        }),
-      });
-
-      if (!followUpResponse.ok) {
-        console.error('[openai-chat] Follow-up call failed');
-        return new Response(
-          JSON.stringify({ error: 'Failed to process tool results' }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
-      }
-
-      const followUpData = await followUpResponse.json();
-      const finalMessage = followUpData.choices?.[0]?.message?.content;
 
       return new Response(
         JSON.stringify({
-          message: finalMessage,
-          tool_calls: assistantMessage.tool_calls.map((tc: any) => tc.function.name),
-          usage: {
-            prompt_tokens: openaiData.usage?.prompt_tokens + followUpData.usage?.prompt_tokens,
-            completion_tokens: openaiData.usage?.completion_tokens + followUpData.usage?.completion_tokens,
-            total_tokens: openaiData.usage?.total_tokens + followUpData.usage?.total_tokens
-          }
+          message: firstChoice.message?.content || 'Action completed',
+          tool_calls: toolResults,
+          finish_reason: firstChoice.finish_reason
         }),
         {
           status: 200,
@@ -370,19 +263,19 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({
-        message: assistantMessage.content,
-        usage: openaiData.usage
+        message: firstChoice.message?.content || 'No response',
+        finish_reason: firstChoice.finish_reason
       }),
       {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-
   } catch (error) {
-    console.error('Error in openai-chat function:', error);
+    console.error('Unexpected error:', error);
+
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', details: String(error) }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

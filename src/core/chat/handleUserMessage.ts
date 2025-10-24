@@ -75,39 +75,22 @@ export async function handleUserMessage(
   let systemPrompt: string;
   let swarm: any = null;
 
-  // Feature flag: allow fallback to legacy DB master path if needed
-  const AMA_SWARM_ENABLED = (import.meta?.env?.VITE_AMA_SWARM_ENABLED ?? 'true') !== 'false';
-
   try {
-    const { getSwarmForIntent } = await import('../swarm/loader');
-    const { buildSwarmPrompt } = await import('../swarm/loader');
+    const { getSwarmForIntent, buildSwarmPrompt } = await import('../swarm/loader');
 
     swarm = await getSwarmForIntent(intentResult.intent);
+
+    if (!swarm) {
+      // No swarm matched; force-load personality swarm as fallback
+      console.warn('[routing] No swarm matched; falling back to personality swarm');
+      swarm = await getSwarmForIntent('general');
+    }
 
     if (swarm) {
       console.log(`[handleUserMessage] Using swarm: ${swarm.swarm_name}`);
       systemPrompt = await buildSwarmPrompt(swarm, context.userContext);
-    } else if (!AMA_SWARM_ENABLED) {
-      // Emergency fallback to legacy DB master path
-      console.warn('[fallback: db-master] AMA swarm disabled, using legacy path');
-      const { loadPersonaFromDb } = await import('../swarm/loader');
-      const { buildAMADirectives } = await import('../swarm/prompts');
-      const { withMaster } = await import('../../lib/personality/promptMerger');
-      const { master } = await loadPersonaFromDb();
-      const directives = buildAMADirectives({
-        audience: context.userContext?.audienceLevel ?? 'intermediate'
-      });
-      systemPrompt = withMaster(master, directives);
     } else {
-      // No swarm matched; force-load personality swarm as fallback
-      console.warn('[routing] No swarm matched; falling back to personality swarm');
-      const fallback = await getSwarmForIntent('general');
-      if (fallback) {
-        swarm = fallback;
-        systemPrompt = await buildSwarmPrompt(fallback, context.userContext);
-      } else {
-        throw new Error('Personality swarm not configured');
-      }
+      throw new Error('Personality swarm not configured');
     }
   } catch (err) {
     console.error('[handleUserMessage] Swarm load failed, using minimal emergency prompt:', err);
