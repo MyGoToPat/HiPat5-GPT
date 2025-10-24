@@ -74,15 +74,13 @@ export async function handleUserMessage(
   let systemPrompt: string;
 
   try {
-    const { getSwarmForIntent, buildSwarmPrompt, loadPersonaFromDb } = await import('../swarm/loader');
+    const { getSwarmForIntent, loadPersonaFromDb } = await import('../swarm/loader');
     const swarm = await getSwarmForIntent(intentResult.intent);
 
-    if (swarm) {
-      console.log(`[handleUserMessage] Using swarm: ${swarm.swarm_name}`);
-      systemPrompt = await buildSwarmPrompt(swarm, context.userContext);
-    } else {
-      // AMA/General path: load DB master + merge with AMA directives
-      console.log('[handleUserMessage] No swarm found, using AMA (DB personality + directives)');
+    // CRITICAL: For 'general' intent, bypass persona swarm and use AMA directives directly
+    if (intentResult.intent === 'general' || !swarm) {
+      // AMA/General path: load DB master + merge with AMA directives (NO resolvePromptRef)
+      console.log('[handleUserMessage] Using AMA (DB personality + directives, bypassing swarm)');
       const { master } = await loadPersonaFromDb();
       const { buildAMADirectives } = await import('../swarm/prompts');
       const { withMaster } = await import('../../lib/personality/promptMerger');
@@ -92,7 +90,12 @@ export async function handleUserMessage(
       });
 
       systemPrompt = withMaster(master, directives);
-      console.log(`[AMA] systemPrompt: source=db, length=${systemPrompt.length}`);
+      console.log(`[AMA] systemPrompt: source=${master ? 'db' : 'emergency'}, length=${systemPrompt.length}`);
+    } else {
+      // Domain-specific swarms (macro, tmwya, etc.) use buildSwarmPrompt
+      console.log(`[handleUserMessage] Using swarm: ${swarm.swarm_name}`);
+      const { buildSwarmPrompt } = await import('../swarm/loader');
+      systemPrompt = await buildSwarmPrompt(swarm, context.userContext);
     }
   } catch (err) {
     console.warn('[handleUserMessage] Swarm/DB load failed, using minimal emergency prompt:', err);

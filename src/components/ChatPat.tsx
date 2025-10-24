@@ -580,13 +580,17 @@ export const ChatPat: React.FC = () => {
             await addChatMessage(sessionId, 'user', newMessage.text);
           }
 
-          // Legacy persistence
-          await ChatManager.saveMessage(
-            userId,
-            threadId,
-            newMessage.text,
-            'user'
-          );
+          // Legacy persistence - FIXED: pass sessionId not threadId
+          if (sessionId) {
+            await ChatManager.saveMessage(
+              userId,
+              sessionId,
+              newMessage.text,
+              'user'
+            );
+          } else {
+            console.error('[chat-save] No sessionId available, cannot save to legacy system');
+          }
         } catch (error) {
           console.error('Failed to save user message:', error);
         }
