@@ -16,6 +16,9 @@ interface ChatRequest {
   messages: ChatMessage[];
   stream?: boolean;
   userId?: string;
+  temperature?: number;
+  model?: string;
+  provider?: string;
 }
 
 // Personality now loads from database via personality-loader.ts
@@ -29,7 +32,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { messages, stream = false, userId }: ChatRequest = await req.json();
+    const { messages, stream = false, userId, temperature = 0.55, model, provider }: ChatRequest = await req.json();
 
     let effectiveUserId = userId;
     if (!effectiveUserId) {
@@ -89,10 +92,10 @@ Deno.serve(async (req: Request) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: model || 'gpt-4o-mini',
           messages: messagesWithSystem,
           max_tokens: 700,
-          temperature: 0.3,
+          temperature: temperature,
           stream: true,
         }),
       });
@@ -179,10 +182,10 @@ Deno.serve(async (req: Request) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: model || 'gpt-4o-mini',
         messages: messagesWithSystem,
         max_tokens: 700,
-        temperature: 0.3,
+        temperature: temperature,
         tools: PAT_TOOLS,
         tool_choice: 'auto'
       }),
@@ -327,10 +330,10 @@ Deno.serve(async (req: Request) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: model || 'gpt-4o-mini',
           messages: followUpMessages,
           max_tokens: 700,
-          temperature: 0.3,
+          temperature: temperature,
         }),
       });
 

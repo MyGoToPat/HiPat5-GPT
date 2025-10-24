@@ -72,11 +72,30 @@ export const ChatPat: React.FC = () => {
   // Initialize DB session on mount
   useEffect(() => {
     const initSession = async () => {
-      if (!userId) return;
+      let uid = userId;
+
+      // If no userId prop, try to get from auth session
+      if (!uid) {
+        try {
+          const { getSupabase } = await import('../lib/supabase');
+          const supabase = getSupabase();
+          const { data } = await supabase.auth.getUser();
+          uid = data?.user?.id ?? null;
+        } catch (authError) {
+          console.warn('[ChatPat] Could not fetch user from auth:', authError);
+        }
+      }
+
+      if (!uid) {
+        console.warn('[ChatPat] No userId available; cannot initialize session yet.');
+        return;
+      }
+
       try {
         const { ensureChatSession } = await import('../core/chat/sessions');
-        const sid = await ensureChatSession(userId);
+        const sid = await ensureChatSession(uid);
         setSessionId(sid);
+        setUserId(uid); // Also set userId state if it wasn't set
         console.log('[ChatPat] Session initialized:', sid);
       } catch (e) {
         console.error('[ChatPat] Failed to initialize session:', e);
@@ -631,6 +650,21 @@ export const ChatPat: React.FC = () => {
         // Get AI response
         const getAIResponse = async () => {
           try {
+            // Ensure session exists before making AI call
+            if (!sessionId && userId) {
+              console.warn('[ChatPat] No sessionId before AI call, creating session...');
+              try {
+                const { ensureChatSession } = await import('../core/chat/sessions');
+                const newSessionId = await ensureChatSession(userId);
+                setSessionId(newSessionId);
+                console.log('[ChatPat] Emergency session created:', newSessionId);
+              } catch (sessionError) {
+                console.error('[ChatPat] Failed to create session, blocking send:', sessionError);
+                toast.error('Unable to start chat session. Please refresh and try again.');
+                return;
+              }
+            }
+
             // Prepare conversation history for chat API
             const conversationHistory = [...messages, newMessage].map(msg => ({
               role: msg.isUser ? 'user' : 'assistant',

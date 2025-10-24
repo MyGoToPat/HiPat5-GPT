@@ -1,0 +1,75 @@
+{
+  "swarm_key": "personality",
+  "agents": [
+    {
+      "name": "Voice Calibrator",
+      "promptRef": "PERSONALITY_VOICE",
+      "phase": "pre",
+      "order": 10,
+      "enabled": true
+    },
+    {
+      "name": "Audience Personalizer",
+      "promptRef": "PERSONALITY_AUDIENCE",
+      "phase": "pre",
+      "order": 20,
+      "enabled": true
+    },
+    {
+      "name": "Ambiguity & Assumptions",
+      "promptRef": "PERSONALITY_AMBIGUITY",
+      "phase": "pre",
+      "order": 30,
+      "enabled": true
+    },
+    {
+      "name": "Core Responder",
+      "promptRef": "PERSONALITY_CORE_RESPONDER",
+      "phase": "main",
+      "order": 40,
+      "enabled": true
+    },
+    {
+      "name": "Structure & Brevity",
+      "promptRef": "PERSONALITY_STRUCTURE",
+      "phase": "post",
+      "order": 50,
+      "enabled": true
+    },
+    {
+      "name": "Numbers & Accuracy",
+      "promptRef": "PERSONALITY_NUMBERS",
+      "phase": "post",
+      "order": 60,
+      "enabled": true
+    },
+    {
+      "name": "Safety & Refusal",
+      "promptRef": "PERSONALITY_SAFETY",
+      "phase": "post",
+      "order": 70,
+      "enabled": true
+    },
+    {
+      "name": "Memory & Preferences",
+      "promptRef": "PERSONALITY_MEMORY",
+      "phase": "post",
+      "order": 80,
+      "enabled": true
+    },
+    {
+      "name": "Error Recovery",
+      "promptRef": "PERSONALITY_RECOVERY",
+      "phase": "post",
+      "order": 90,
+      "enabled": true
+    },
+    {
+      "name": "Tool Governance",
+      "promptRef": "PERSONALITY_TOOL_GOV",
+      "phase": "post",
+      "order": 95,
+      "enabled": true
+    }
+  ]
+}

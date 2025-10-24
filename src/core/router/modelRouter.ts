@@ -16,6 +16,7 @@ export interface ModelSelection {
   provider: ModelProvider;
   model: string;
   tokensEst: number;
+  temperature?: number;
   latencyMs?: number;
   reason: string;
 }
@@ -71,12 +72,26 @@ export function selectModel(context: ModelRouterContext): ModelSelection {
     forceOpenAI = false,
   } = context;
 
+  // Conversational default for general chat (higher temperature for natural flow)
+  if (intent === 'general') {
+    const selection = {
+      provider: 'openai' as ModelProvider,
+      model: 'gpt-4o-mini',
+      tokensEst: messageLength + 300,
+      temperature: 0.55,
+      reason: 'conversational_default',
+    };
+    console.log('[modelRouter] Selected:', JSON.stringify(selection));
+    return selection;
+  }
+
   // Force OpenAI for greetings and personality-driven interactions
   if (forceOpenAI) {
     const selection = {
       provider: 'openai' as ModelProvider,
       model: 'gpt-4o-mini',
       tokensEst: 400,
+      temperature: 0.55,
       reason: 'personality_interaction',
     };
     console.log('[modelRouter] Selected:', JSON.stringify(selection));
@@ -126,18 +141,6 @@ export function selectModel(context: ModelRouterContext): ModelSelection {
       model: 'gpt-4o-mini',
       tokensEst: 500,
       reason: 'structured_output_required',
-    };
-    console.log('[modelRouter] Selected:', JSON.stringify(selection));
-    return selection;
-  }
-
-  // For general/AMA, prefer gpt-4o-mini for conversational style adherence
-  if (intent === 'general') {
-    const selection = {
-      provider: 'openai' as ModelProvider,
-      model: 'gpt-4o-mini',
-      tokensEst: messageLength + 300,
-      reason: 'conversational_style_adherence',
     };
     console.log('[modelRouter] Selected:', JSON.stringify(selection));
     return selection;

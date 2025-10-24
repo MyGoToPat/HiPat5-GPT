@@ -71,35 +71,46 @@ export async function handleUserMessage(
   }
 
   // Step 5: Build system prompt with user context
-  // Try loading from swarm system first, fallback to DB master + AMA directives
+  // All intents now route through swarm system (including general → personality swarm)
   let systemPrompt: string;
+  let swarm: any = null;
+
+  // Feature flag: allow fallback to legacy DB master path if needed
+  const AMA_SWARM_ENABLED = (import.meta?.env?.VITE_AMA_SWARM_ENABLED ?? 'true') !== 'false';
 
   try {
-    const { getSwarmForIntent, loadPersonaFromDb } = await import('../swarm/loader');
-    const { buildAMADirectives } = await import('../swarm/prompts');
-    const { withMaster } = await import('../../lib/personality/promptMerger');
+    const { getSwarmForIntent } = await import('../swarm/loader');
+    const { buildSwarmPrompt } = await import('../swarm/loader');
 
-    const swarm = await getSwarmForIntent(intentResult.intent);
+    swarm = await getSwarmForIntent(intentResult.intent);
 
-    // CRITICAL: For 'general' intent, bypass persona swarm and use AMA directives directly
-    if (intentResult.intent === 'general' || !swarm) {
-      // AMA/General path: load DB master + merge with AMA directives (NO resolvePromptRef)
-      console.log('[handleUserMessage] Using AMA (DB personality + directives, bypassing swarm)');
+    if (swarm) {
+      console.log(`[handleUserMessage] Using swarm: ${swarm.swarm_name}`);
+      systemPrompt = await buildSwarmPrompt(swarm, context.userContext);
+    } else if (!AMA_SWARM_ENABLED) {
+      // Emergency fallback to legacy DB master path
+      console.warn('[fallback: db-master] AMA swarm disabled, using legacy path');
+      const { loadPersonaFromDb } = await import('../swarm/loader');
+      const { buildAMADirectives } = await import('../swarm/prompts');
+      const { withMaster } = await import('../../lib/personality/promptMerger');
       const { master } = await loadPersonaFromDb();
       const directives = buildAMADirectives({
         audience: context.userContext?.audienceLevel ?? 'intermediate'
       });
-
       systemPrompt = withMaster(master, directives);
-      console.log(`[AMA] systemPrompt: source=${master ? 'db' : 'emergency'}, length=${systemPrompt.length}`);
     } else {
-      // Domain-specific swarms (macro, tmwya, etc.) use buildSwarmPrompt
-      console.log(`[handleUserMessage] Using swarm: ${swarm.swarm_name}`);
-      const { buildSwarmPrompt } = await import('../swarm/loader');
-      systemPrompt = await buildSwarmPrompt(swarm, context.userContext);
+      // No swarm matched; force-load personality swarm as fallback
+      console.warn('[routing] No swarm matched; falling back to personality swarm');
+      const fallback = await getSwarmForIntent('general');
+      if (fallback) {
+        swarm = fallback;
+        systemPrompt = await buildSwarmPrompt(fallback, context.userContext);
+      } else {
+        throw new Error('Personality swarm not configured');
+      }
     }
   } catch (err) {
-    console.warn('[handleUserMessage] Swarm/DB load failed, using minimal emergency prompt:', err);
+    console.error('[handleUserMessage] Swarm load failed, using minimal emergency prompt:', err);
     systemPrompt = 'You are Pat. Speak clearly and concisely.';
   }
 
@@ -113,9 +124,23 @@ export async function handleUserMessage(
     userId: context.userId,
   });
 
-  const llmResponse = typeof llmResult === 'string' ? llmResult : llmResult.message;
+  let llmResponse = typeof llmResult === 'string' ? llmResult : llmResult.message;
   const toolCalls = typeof llmResult === 'object' ? llmResult.tool_calls : null;
   const rawData = typeof llmResult === 'object' ? llmResult.raw_data : null;
+
+  // Step 6.5: Execute post-agents if swarm has them (personality polish)
+  const postMode = (import.meta?.env?.VITE_PERSONALITY_POST_EXECUTOR ?? 'combined') as 'combined' | 'sequential' | 'off';
+  if (swarm?.agents?.some((a: any) => a.phase === 'post' && a.enabled)) {
+    try {
+      const { executePostAgents } = await import('../swarm/executor');
+      const refined = await executePostAgents(llmResponse, swarm, context.userContext, postMode);
+      console.log(`[personality-post] mode=${postMode}, original=${llmResponse.length}, refined=${refined.length}`);
+      llmResponse = refined;
+    } catch (postError) {
+      console.error('[personality-post] Post-agent execution failed, using original response:', postError);
+      // Continue with original response
+    }
+  }
 
   // Step 7: Store assistant response
   await storeMessage(sessionId, 'assistant', llmResponse);
@@ -168,7 +193,14 @@ async function callLLM(params: LLMCallParams): Promise<string> {
   const supabase = getSupabase();
 
   const { data, error } = await supabase.functions.invoke('openai-chat', {
-    body: { messages, stream: false, userId }
+    body: {
+      messages,
+      stream: false,
+      userId,
+      temperature: modelSelection.temperature ?? 0.3,
+      model: modelSelection.model,
+      provider: modelSelection.provider
+    }
   });
 
   if (error) {
