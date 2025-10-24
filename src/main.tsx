@@ -1,3 +1,4 @@
+console.info('[pat-build] v1.03', import.meta.url);
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
