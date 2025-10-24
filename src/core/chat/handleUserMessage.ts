@@ -75,6 +75,9 @@ export async function handleUserMessage(
 
   try {
     const { getSwarmForIntent, loadPersonaFromDb } = await import('../swarm/loader');
+    const { buildAMADirectives } = await import('../swarm/prompts');
+    const { withMaster } = await import('../../lib/personality/promptMerger');
+
     const swarm = await getSwarmForIntent(intentResult.intent);
 
     // CRITICAL: For 'general' intent, bypass persona swarm and use AMA directives directly
@@ -82,9 +85,6 @@ export async function handleUserMessage(
       // AMA/General path: load DB master + merge with AMA directives (NO resolvePromptRef)
       console.log('[handleUserMessage] Using AMA (DB personality + directives, bypassing swarm)');
       const { master } = await loadPersonaFromDb();
-      const { buildAMADirectives } = await import('../swarm/prompts');
-      const { withMaster } = await import('../../lib/personality/promptMerger');
-
       const directives = buildAMADirectives({
         audience: context.userContext?.audienceLevel ?? 'intermediate'
       });

@@ -68,6 +68,22 @@ export const ChatPat: React.FC = () => {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+
+  // Initialize DB session on mount
+  useEffect(() => {
+    const initSession = async () => {
+      if (!userId) return;
+      try {
+        const { ensureChatSession } = await import('../core/chat/sessions');
+        const sid = await ensureChatSession(userId);
+        setSessionId(sid);
+        console.log('[ChatPat] Session initialized:', sid);
+      } catch (e) {
+        console.error('[ChatPat] Failed to initialize session:', e);
+      }
+    };
+    initSession();
+  }, [userId]);
   const [inputText, setInputText] = useState('');
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -580,14 +596,14 @@ export const ChatPat: React.FC = () => {
             await addChatMessage(sessionId, 'user', newMessage.text);
           }
 
-          // Legacy persistence - FIXED: pass sessionId not threadId
+          // Legacy persistence - FIXED: pass sessionId not threadId, use object syntax
           if (sessionId) {
-            await ChatManager.saveMessage(
+            await ChatManager.saveMessage({
               userId,
               sessionId,
-              newMessage.text,
-              'user'
-            );
+              text: newMessage.text,
+              sender: 'user'
+            });
           } else {
             console.error('[chat-save] No sessionId available, cannot save to legacy system');
           }
@@ -814,13 +830,17 @@ export const ChatPat: React.FC = () => {
                 await addChatMessage(sessionId, 'assistant', finalStreamingResponse.text);
               }
 
-              // Legacy persistence
-              await ChatManager.saveMessage(
-                userId,
-                threadId,
-                finalStreamingResponse.text,
-                'pat'
-              );
+              // Legacy persistence - FIXED: pass sessionId not threadId, use object syntax
+              if (sessionId) {
+                await ChatManager.saveMessage({
+                  userId,
+                  sessionId,
+                  text: finalStreamingResponse.text,
+                  sender: 'pat'
+                });
+              } else {
+                console.error('[chat-save] No sessionId available for assistant message');
+              }
 
               // Spend credits for chat turn (non-blocking)
               try {

@@ -18,13 +18,17 @@ export const ChatManager = {
     }
   },
 
-  async saveMessage(
-    userId: string,
-    sessionId: string,
-    text: string,
-    sender: 'user' | 'pat' | 'system',
-    metadata?: Record<string, any>
-  ): Promise<ChatMessage | null> {
+  async saveMessage(params: {
+    userId: string;
+    sessionId: string;
+    text: string;
+    sender: 'user' | 'pat' | 'system';
+    metadata?: Record<string, any>;
+  }): Promise<ChatMessage | null> {
+    const { userId, sessionId, text, sender, metadata } = params;
+    if (!sessionId) {
+      throw new Error('saveMessage: sessionId is required');
+    }
     try {
       return await ChatSessions.saveMessage({
         sessionId,

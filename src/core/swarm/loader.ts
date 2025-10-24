@@ -178,7 +178,7 @@ export async function getSwarmForIntent(intent: string): Promise<SwarmConfig | n
     'food_undo': 'tmwya',
     'kpi_today': 'macro',
     'kpi_remaining': 'macro',
-    'general': 'persona', // General chat uses persona swarm
+    // 'general': removed - forces AMA bypass branch in handleUserMessage
   };
 
   const swarmName = intentToSwarm[intent];
