@@ -129,6 +129,18 @@ export function selectModel(context: ModelRouterContext): ModelSelection {
     return selection;
   }
 
+  // For general/AMA, prefer gpt-4o-mini for conversational style adherence
+  if (intent === 'general') {
+    const selection = {
+      provider: 'openai' as ModelProvider,
+      model: 'gpt-4o-mini',
+      tokensEst: messageLength + 300,
+      reason: 'conversational_style_adherence',
+    };
+    console.log('[modelRouter] Selected:', JSON.stringify(selection));
+    return selection;
+  }
+
   // Default: use cheapest model for routine queries
   const selection = {
     provider: 'gemini' as ModelProvider,

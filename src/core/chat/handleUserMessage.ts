@@ -103,7 +103,7 @@ export async function handleUserMessage(
   }
 
   // Step 6: Call LLM (placeholder - will be implemented with actual API calls)
-  const llmResponse = await callLLM({
+  const llmResult = await callLLM({
     system: systemPrompt,
     userMessage: message,
     messageHistory,
@@ -111,6 +111,10 @@ export async function handleUserMessage(
     modelSelection,
     userId: context.userId,
   });
+
+  const llmResponse = typeof llmResult === 'string' ? llmResult : llmResult.message;
+  const toolCalls = typeof llmResult === 'object' ? llmResult.tool_calls : null;
+  const rawData = typeof llmResult === 'object' ? llmResult.raw_data : null;
 
   // Step 7: Store assistant response
   await storeMessage(sessionId, 'assistant', llmResponse);
@@ -122,6 +126,8 @@ export async function handleUserMessage(
     modelUsed: getModelDisplayName(modelSelection),
     estimatedCost: cost,
     roleData,
+    toolCalls,
+    rawData,
   };
 }
 
@@ -178,5 +184,5 @@ async function callLLM(params: LLMCallParams): Promise<string> {
   if (data.tool_calls) {
     console.log('[callLLM] Tools executed:', data.tool_calls);
   }
-  return data.message;
+  return { message: data.message, tool_calls: data.tool_calls, raw_data: data };
 }

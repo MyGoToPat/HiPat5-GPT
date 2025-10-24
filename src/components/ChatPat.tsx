@@ -586,8 +586,17 @@ export const ChatPat: React.FC = () => {
       // Save user message to database
       const saveUserMessage = async () => {
         try {
-          if (!userId) {
-            console.warn('[chat-save] Skipping save: no userId');
+          // Lazy-fetch userId if missing
+          let uid = userId;
+          if (!uid) {
+            const { getSupabase } = await import('../lib/supabase');
+            const supa = getSupabase();
+            const { data } = await supa.auth.getUser();
+            uid = data?.user?.id ?? null;
+          }
+
+          if (!uid) {
+            console.error('[chat-save] No userId after fallback; aborting save to preserve integrity');
             return;
           }
 
@@ -599,7 +608,7 @@ export const ChatPat: React.FC = () => {
           // Legacy persistence - FIXED: pass sessionId not threadId, use object syntax
           if (sessionId) {
             await ChatManager.saveMessage({
-              userId,
+              userId: uid,
               sessionId,
               text: newMessage.text,
               sender: 'user'
@@ -671,12 +680,22 @@ export const ChatPat: React.FC = () => {
               mode: 'text',
             });
 
+            // Extract macro data from tool calls if present
+            let macroMetadata = null;
+            if (result.toolCalls && Array.isArray(result.toolCalls)) {
+              const getMacrosCalls = result.toolCalls.filter((tc: any) => tc.name === 'get_macros');
+              if (getMacrosCalls.length > 0 && result.rawData?.items) {
+                macroMetadata = { macros: result.rawData.items, source: 'get_macros_tool' };
+              }
+            }
+
             // Add Pat's response and remove thinking indicator
             const patMessage: ChatMessage = {
               id: crypto.randomUUID(),
               text: result.response,
               isUser: false,
-              timestamp: new Date()
+              timestamp: new Date(),
+              meta: macroMetadata || undefined
             };
 
             // Remove thinking message and add Pat's response
@@ -938,6 +957,13 @@ export const ChatPat: React.FC = () => {
       setStatusText('Searching for nutrition data...');
       console.log('[ChatPat] Processing meal with TMWYA:', { input, userId });
       const result = await processMealWithTMWYA(input, userId, 'text');
+
+      // GUARDRAIL: If front-end detected logging trigger and backend logged, force kind to food_log
+      const mealCheck = isMealText(input);
+      if (mealCheck.hasLoggingTrigger && result.logged) {
+        result.kind = 'food_log';
+      }
+
       console.log('[ChatPat] TMWYA result:', result);
 
       // V1 MEAL LOGGING RESPONSE HANDLING

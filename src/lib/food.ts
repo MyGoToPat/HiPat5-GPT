@@ -46,10 +46,13 @@ export async function processMealWithUnifiedChat(
 
     // If the response has tool_calls, check what was executed
     if (data.tool_calls && Array.isArray(data.tool_calls)) {
-      const hasLogMeal = data.tool_calls.includes('log_meal');
+      const hasLogMeal = data.tool_calls.some((tc: any) =>
+        typeof tc === 'string' ? tc === 'log_meal' : tc.name === 'log_meal'
+      );
 
       if (hasLogMeal) {
-        // Meal was logged successfully
+        // Meal was logged successfully - FORCE kind to food_log
+        console.log('[processMealWithUnifiedChat] log_meal executed, returning kind: food_log, logged: true');
         return {
           ok: true,
           kind: 'food_log',
