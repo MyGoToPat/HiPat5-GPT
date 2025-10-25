@@ -201,6 +201,14 @@ export default function SwarmsPage() {
   const [activeTab, setActiveTab] = useState<string>('personality');
   const [personalityCount, setPersonalityCount] = useState({ total: 0, active: 0 });
 
+  // Stable callback to prevent render loop in PersonalitySwarmSection
+  const handleAgentsLoaded = useCallback(
+    (counts: { total: number; active: number }) => {
+      setPersonalityCount(counts);
+    },
+    []
+  );
+
   useEffect(() => {
     loadSwarms();
   }, []);
@@ -448,7 +456,7 @@ export default function SwarmsPage() {
               </p>
             </div>
             <PersonalitySwarmSection
-              onAgentsLoaded={(total, active) => setPersonalityCount({ total, active })}
+              onAgentsLoaded={handleAgentsLoaded}
             />
           </div>
         ) : currentSwarm && (

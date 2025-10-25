@@ -13,7 +13,7 @@ type PersonalityAgent = {
 };
 
 type PersonalitySwarmSectionProps = {
-  onAgentsLoaded?: (count: number, activeCount: number) => void;
+  onAgentsLoaded?: (counts: { total: number; active: number }) => void;
 };
 
 export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalitySwarmSectionProps) {
@@ -24,6 +24,9 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
 
   // In-flight fetch guard to prevent duplicate concurrent loads
   const inFlightRef = useRef<Set<string>>(new Set());
+
+  // Guard to notify parent exactly once after first successful load
+  const notifiedRef = useRef(false);
 
   useEffect(() => {
     loadPersonalitySwarm();
@@ -57,6 +60,15 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
         const loadedAgents = data.config.agents as PersonalityAgent[];
         setAgents(loadedAgents);
         console.log('[PersonalitySwarm] Loaded', loadedAgents.length, 'agents');
+
+        // Notify parent exactly once after first successful load
+        if (!notifiedRef.current) {
+          notifiedRef.current = true;
+          onAgentsLoaded?.({
+            total: loadedAgents.length,
+            active: loadedAgents.filter(a => a.enabled).length
+          });
+        }
       } else {
         console.warn('[PersonalitySwarm] No config found');
         toast.error('Personality swarm configuration not found');

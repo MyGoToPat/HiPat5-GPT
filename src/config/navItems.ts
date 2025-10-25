@@ -22,7 +22,8 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'role-access', label: 'Role Access',       path: '/admin/roles',       section: 'admin', roles: ['admin'], requirePrivilege: 'admin.panel' },
   { key: 'user-mgmt',   label: 'User Management',   path: '/admin/users',       section: 'admin', roles: ['admin'], requirePrivilege: 'admin.panel' },
   { key: 'swarms',      label: 'Agent Configuration',  path: '/admin/swarms',      section: 'admin', roles: ['admin'], requirePrivilege: 'admin.panel' },
-  { key: 'personality', label: 'Personality Editor',   path: '/admin/personality', section: 'admin', roles: ['admin'], requirePrivilege: 'admin.panel' },
+  // RETIRED: Legacy Personality Editor replaced by 10-agent Personality Swarm (see Agent Configuration)
+  // { key: 'personality', label: 'Personality Editor',   path: '/admin/personality', section: 'admin', roles: ['admin'], requirePrivilege: 'admin.panel' },
   // Optional
   { key: 'shoplens',    label: 'ShopLens',         path: '/admin/shoplens', section: 'admin', roles: ['admin'], requirePrivilege: 'agents.use.shoplens' },
 

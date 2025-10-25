@@ -84,6 +84,7 @@ function App() {
             <Route path="users" element={<AdminGuard><AdminUsersPage /></AdminGuard>} />
             <Route path="swarms" element={<AdminGuard><SwarmsPage /></AdminGuard>} />
             <Route path="agent-configs" element={<AdminGuard><AgentConfigsPage /></AdminGuard>} />
+            {/* RETIRED: PersonalityEditorPage now shows retirement notice, not removed from routes for bookmark compatibility */}
             <Route path="personality" element={<AdminGuard><PersonalityEditorPage /></AdminGuard>} />
           </Route>
         </Route>
