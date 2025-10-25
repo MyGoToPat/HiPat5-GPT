@@ -329,17 +329,8 @@ export default function SwarmsPage() {
     }));
   }, [agentConfigs]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading swarms...</p>
-        </div>
-      </div>
-    );
-  }
-
+  // CRITICAL: All useMemo hooks MUST be declared BEFORE any early return
+  // to ensure consistent hook call order across all renders
   const currentSwarm = useMemo(
     () => swarms.find(s => s.name.toLowerCase() === activeTab),
     [swarms, activeTab]
@@ -369,6 +360,18 @@ export default function SwarmsPage() {
     () => personalityCount.active + swarms.reduce((sum, s) => sum + s.agents.filter(a => a.active).length, 0),
     [personalityCount.active, swarms]
   );
+
+  // Early return AFTER all hooks are declared
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading swarms...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
