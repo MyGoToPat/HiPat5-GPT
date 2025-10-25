@@ -22,9 +22,6 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // TEMPORARY: Remove after verification
-  console.count('render:PersonalitySwarmSection');
-
   // In-flight fetch guard to prevent duplicate concurrent loads
   const inFlightRef = useRef<Set<string>>(new Set());
 

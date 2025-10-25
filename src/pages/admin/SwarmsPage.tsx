@@ -331,26 +331,37 @@ export default function SwarmsPage() {
 
   // CRITICAL: All useMemo hooks MUST be declared BEFORE any early return
   // to ensure consistent hook call order across all renders
-  const currentSwarm = useMemo(
-    () => swarms.find(s => s.name.toLowerCase() === activeTab),
-    [swarms, activeTab]
-  );
+  const currentSwarm = useMemo(() => {
+    // Handle legacy tab IDs that now have 'swarm-' prefix
+    if (activeTab === 'personality') return null; // Personality handled separately
+    if (activeTab.startsWith('swarm-')) {
+      // Try to match by ID first, then by name
+      const targetId = activeTab.replace('swarm-', '');
+      return swarms.find(s => s.id === targetId || s.name.toLowerCase() === targetId);
+    }
+    return swarms.find(s => s.name.toLowerCase() === activeTab);
+  }, [swarms, activeTab]);
 
-  // Add personality tab first, then other swarms
-  const tabs = useMemo(() => [
-    {
+  // Add personality tab first, then other swarms (exclude legacy personality to prevent duplicate keys)
+  const tabs = useMemo(() => {
+    const personalityTab = {
       id: 'personality',
-      label: 'Personality',
+      label: 'Personality Swarm',
       count: personalityCount.total,
-      active: personalityCount.active
-    },
-    ...swarms.map(s => ({
-      id: s.name.toLowerCase(),
-      label: s.name.charAt(0).toUpperCase() + s.name.slice(1),
-      count: s.agents.length,
-      active: s.agents.filter(a => a.active).length
-    }))
-  ], [swarms, personalityCount]);
+      active: personalityCount.active,
+    };
+
+    const legacyTabs = swarms
+      .filter(s => s.name.toLowerCase() !== 'personality')
+      .map(s => ({
+        id: `swarm-${s.id ?? s.name.toLowerCase()}`,
+        label: s.name.charAt(0).toUpperCase() + s.name.slice(1),
+        count: s.agents.length,
+        active: s.agents.filter(a => a.active).length,
+      }));
+
+    return [personalityTab, ...legacyTabs];
+  }, [swarms, personalityCount]);
 
   const totalAgents = useMemo(
     () => personalityCount.total + swarms.reduce((sum, s) => sum + s.agents.length, 0),
