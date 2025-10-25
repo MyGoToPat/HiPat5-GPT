@@ -3,6 +3,7 @@ import { getSupabase } from '../../lib/supabase';
 import { Settings, ChevronDown, Edit2, Save, X, Power, PowerOff, Activity, Zap, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Breadcrumbs from '../../components/common/Breadcrumbs';
+import PersonalitySwarmSection from '../../components/admin/PersonalitySwarmSection';
 
 type Agent = {
   id: string;
@@ -197,7 +198,8 @@ export default function SwarmsPage() {
   const [editingConfigs, setEditingConfigs] = useState<Record<string, string>>({});
   const [editingAgentIds, setEditingAgentIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<string>('macro');
+  const [activeTab, setActiveTab] = useState<string>('personality');
+  const [personalityCount, setPersonalityCount] = useState({ total: 0, active: 0 });
 
   useEffect(() => {
     loadSwarms();
@@ -339,15 +341,25 @@ export default function SwarmsPage() {
   }
 
   const currentSwarm = swarms.find(s => s.name.toLowerCase() === activeTab);
-  const tabs = swarms.map(s => ({
-    id: s.name.toLowerCase(),
-    label: s.name.charAt(0).toUpperCase() + s.name.slice(1),
-    count: s.agents.length,
-    active: s.agents.filter(a => a.active).length
-  }));
 
-  const totalAgents = swarms.reduce((sum, s) => sum + s.agents.length, 0);
-  const activeAgents = swarms.reduce((sum, s) => sum + s.agents.filter(a => a.active).length, 0);
+  // Add personality tab first, then other swarms
+  const tabs = [
+    {
+      id: 'personality',
+      label: 'Personality',
+      count: personalityCount.total,
+      active: personalityCount.active
+    },
+    ...swarms.map(s => ({
+      id: s.name.toLowerCase(),
+      label: s.name.charAt(0).toUpperCase() + s.name.slice(1),
+      count: s.agents.length,
+      active: s.agents.filter(a => a.active).length
+    }))
+  ];
+
+  const totalAgents = personalityCount.total + swarms.reduce((sum, s) => sum + s.agents.length, 0);
+  const activeAgents = personalityCount.active + swarms.reduce((sum, s) => sum + s.agents.filter(a => a.active).length, 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -404,7 +416,19 @@ export default function SwarmsPage() {
           </div>
         </div>
 
-        {currentSwarm && (
+        {activeTab === 'personality' ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+              <h2 className="text-xl font-bold text-gray-900 mb-1">Personality Swarm (Database-Driven)</h2>
+              <p className="text-sm text-gray-600">
+                Dynamic 10-agent swarm loaded from <code className="bg-gray-100 px-1 rounded">agent_configs</code> table. Click any row to view prompt content.
+              </p>
+            </div>
+            <PersonalitySwarmSection
+              onAgentsLoaded={(total, active) => setPersonalityCount({ total, active })}
+            />
+          </div>
+        ) : currentSwarm && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
               <h2 className="text-xl font-bold text-gray-900 mb-1">Agent Configuration</h2>
