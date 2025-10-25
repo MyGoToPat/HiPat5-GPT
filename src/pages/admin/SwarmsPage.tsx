@@ -398,7 +398,7 @@ export default function SwarmsPage() {
             <nav className="flex min-w-max">
               {tabs.map((tab) => (
                 <button
-                  key={`swarm-tab-${tab.id}`}
+                  key={`swarm-tab-${tab.id ?? tab.name}`}
                   onClick={() => {
                     setActiveTab(tab.id);
                     setExpandedAgentId(null);
@@ -459,7 +459,7 @@ export default function SwarmsPage() {
                 </thead>
                 <tbody>
                   {currentSwarm.agents.map((agent, idx) => (
-                    <React.Fragment key={`agent-${agent.id || agent.slug || idx}`}>
+                    <React.Fragment key={`agent-${agent.id ?? agent.slug ?? `${agent.category}-${agent.order}`}`}>
                       <tr
                         onClick={() => toggleExpand(agent)}
                         className={`cursor-pointer transition-colors ${
@@ -518,7 +518,7 @@ export default function SwarmsPage() {
                         </td>
                       </tr>
                       {expandedAgentId === agent.id && (
-                        <tr key={`config-${agent.id}`} className="bg-gray-50">
+                        <tr key={`config-${agent.id ?? `${agent.category}-${agent.order}`}`} className="bg-gray-50">
                           <td colSpan={5} className="px-4 py-6">
                             <div className="max-w-full">
                               <div className="flex items-center justify-between mb-4">

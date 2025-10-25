@@ -194,7 +194,7 @@ export default function AgentConfigsPage() {
 
             return (
               <div
-                key={config.agent_key}
+                key={`cfg-${config.agent_key}-${config.id}`}
                 className={`bg-white rounded-lg shadow-md p-6 border-2 ${
                   validation?.isPersonalityAgent && !validation?.valid
                     ? 'border-red-300'
@@ -256,7 +256,7 @@ export default function AgentConfigsPage() {
                     <h4 className="font-semibold text-red-900 text-sm mb-2">Validation Issues:</h4>
                     <ul className="list-disc list-inside text-sm text-red-800 space-y-1">
                       {validation.violations.map((violation, idx) => (
-                        <li key={idx}>{violation}</li>
+                        <li key={`violation-${config.agent_key}-${idx}`}>{violation}</li>
                       ))}
                     </ul>
                   </div>

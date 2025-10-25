@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getSupabase } from '../../lib/supabase';
 import { ChevronDown, ChevronUp, Power, PowerOff, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -22,16 +22,28 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // TEMPORARY: Remove after verification
+  console.count('render:PersonalitySwarmSection');
+
+  // In-flight fetch guard to prevent duplicate concurrent loads
+  const inFlightRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     loadPersonalitySwarm();
   }, []);
+
+  // Stable signature to detect meaningful agent changes
+  const agentsSig = useMemo(
+    () => agents.map(a => `${a.promptRef ?? a.id}|${a.enabled}|${a.order}`).join(','),
+    [agents]
+  );
 
   useEffect(() => {
     if (agents.length > 0 && onAgentsLoaded) {
       const activeCount = agents.filter(a => a.enabled).length;
       onAgentsLoaded(agents.length, activeCount);
     }
-  }, [agents.length, agents, onAgentsLoaded]);
+  }, [agentsSig, onAgentsLoaded]);
 
   async function loadPersonalitySwarm() {
     try {
@@ -61,8 +73,10 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
   }
 
   const loadPromptContent = useCallback(async (promptRef: string) => {
-    if (promptContents[promptRef]) return;
+    // Guard: skip if already cached or currently fetching
+    if (promptContents[promptRef] || inFlightRef.current.has(promptRef)) return;
 
+    inFlightRef.current.add(promptRef);
     try {
       const { data, error } = await getSupabase()
         .from('agent_prompts')
@@ -80,19 +94,20 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
       }
     } catch (err: any) {
       console.error('[PersonalitySwarm] Failed to load prompt:', err);
+    } finally {
+      inFlightRef.current.delete(promptRef);
     }
-  }, [promptContents]);
+  }, []); // Empty deps - use functional state update inside
 
   const toggleExpand = useCallback(async (agent: PersonalityAgent) => {
     if (expandedAgentId === agent.id) {
       setExpandedAgentId(null);
     } else {
       setExpandedAgentId(agent.id);
-      if (!promptContents[agent.promptRef]) {
-        await loadPromptContent(agent.promptRef);
-      }
+      // loadPromptContent has internal cache check, no need to check promptContents here
+      await loadPromptContent(agent.promptRef);
     }
-  }, [expandedAgentId, promptContents, loadPromptContent]);
+  }, [expandedAgentId, loadPromptContent]);
 
   async function toggleAgent(agent: PersonalityAgent) {
     try {
@@ -171,7 +186,7 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
         </thead>
         <tbody>
           {agents.map((agent, idx) => (
-            <React.Fragment key={`agent-${agent.id || agent.promptRef || agent.order}`}>
+            <React.Fragment key={`agent-${agent.promptRef ?? agent.id ?? `${agent.name}-${agent.order}-${agent.phase}`}`}>
               <tr
                 onClick={() => toggleExpand(agent)}
                 className={`cursor-pointer transition-colors ${
@@ -235,7 +250,7 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
                 </td>
               </tr>
               {expandedAgentId === agent.id && (
-                <tr key={`prompt-${agent.id}`} className="bg-gray-50">
+                <tr key={`expanded-${agent.promptRef}`} className="bg-gray-50">
                   <td colSpan={6} className="px-4 py-6">
                     <div className="max-w-full">
                       <h3 className="text-lg font-bold text-gray-900 mb-4">Prompt Content for {agent.name}</h3>
