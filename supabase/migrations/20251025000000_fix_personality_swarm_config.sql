@@ -25,7 +25,7 @@
 -- Update ONLY the agents array. Keep all other config keys intact.
 UPDATE agent_configs
 SET config = jsonb_set(
-  config,
+  COALESCE(config, '{}'::jsonb),
   '{agents}',
   '[
     {"id":"PERSONALITY_VOICE","enabled":true,"phase":"PRE","order":10},

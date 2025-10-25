@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '../../lib/supabase';
 import { ChevronDown, ChevronUp, Power, PowerOff, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -31,19 +31,6 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
   useEffect(() => {
     loadPersonalitySwarm();
   }, []);
-
-  // Stable signature to detect meaningful agent changes
-  const agentsSig = useMemo(
-    () => agents.map(a => `${a.promptRef ?? a.id}|${a.enabled}|${a.order}`).join(','),
-    [agents]
-  );
-
-  useEffect(() => {
-    if (agents.length > 0 && onAgentsLoaded) {
-      const activeCount = agents.filter(a => a.enabled).length;
-      onAgentsLoaded(agents.length, activeCount);
-    }
-  }, [agentsSig, onAgentsLoaded]);
 
   async function loadPersonalitySwarm() {
     try {
