@@ -51,7 +51,6 @@ export async function ensureChatSession(userId: string): Promise<string> {
     .insert({
       user_id: userId,
       started_at: new Date().toISOString(),
-      title: null,
     })
     .select('id')
     .single();
