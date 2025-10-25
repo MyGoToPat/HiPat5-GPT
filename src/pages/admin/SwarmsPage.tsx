@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { getSupabase } from '../../lib/supabase';
 import { Settings, ChevronDown, Edit2, Save, X, Power, PowerOff, Activity, Zap, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -235,7 +235,7 @@ export default function SwarmsPage() {
     }
   }
 
-  async function loadAgentConfig(agent: Agent) {
+  const loadAgentConfig = useCallback(async (agent: Agent) => {
     if (!agent.current_version_id) {
       setAgentConfigs(prev => ({ ...prev, [agent.id]: null }));
       return;
@@ -256,9 +256,9 @@ export default function SwarmsPage() {
     } catch (err: any) {
       toast.error('Failed to load config: ' + err.message);
     }
-  }
+  }, []);
 
-  async function toggleExpand(agent: Agent) {
+  const toggleExpand = useCallback(async (agent: Agent) => {
     if (expandedAgentId === agent.id) {
       setExpandedAgentId(null);
     } else {
@@ -267,9 +267,9 @@ export default function SwarmsPage() {
         await loadAgentConfig(agent);
       }
     }
-  }
+  }, [expandedAgentId, agentConfigs, loadAgentConfig]);
 
-  async function saveAgentConfig(agent: Agent) {
+  const saveAgentConfig = useCallback(async (agent: Agent) => {
     if (!agent.current_version_id) return;
 
     try {
@@ -295,7 +295,7 @@ export default function SwarmsPage() {
     } catch (err: any) {
       toast.error('Failed to save: ' + err.message);
     }
-  }
+  }, [editingConfigs]);
 
   async function toggleAgent(agent: Agent) {
     try {
@@ -313,11 +313,11 @@ export default function SwarmsPage() {
     }
   }
 
-  function startEditing(agentId: string) {
+  const startEditing = useCallback((agentId: string) => {
     setEditingAgentIds(prev => new Set(prev).add(agentId));
-  }
+  }, []);
 
-  function cancelEditing(agentId: string) {
+  const cancelEditing = useCallback((agentId: string) => {
     setEditingAgentIds(prev => {
       const next = new Set(prev);
       next.delete(agentId);
@@ -327,7 +327,7 @@ export default function SwarmsPage() {
       ...prev,
       [agentId]: JSON.stringify(agentConfigs[agentId], null, 2)
     }));
-  }
+  }, [agentConfigs]);
 
   if (loading) {
     return (
@@ -340,10 +340,13 @@ export default function SwarmsPage() {
     );
   }
 
-  const currentSwarm = swarms.find(s => s.name.toLowerCase() === activeTab);
+  const currentSwarm = useMemo(
+    () => swarms.find(s => s.name.toLowerCase() === activeTab),
+    [swarms, activeTab]
+  );
 
   // Add personality tab first, then other swarms
-  const tabs = [
+  const tabs = useMemo(() => [
     {
       id: 'personality',
       label: 'Personality',
@@ -356,10 +359,16 @@ export default function SwarmsPage() {
       count: s.agents.length,
       active: s.agents.filter(a => a.active).length
     }))
-  ];
+  ], [swarms, personalityCount]);
 
-  const totalAgents = personalityCount.total + swarms.reduce((sum, s) => sum + s.agents.length, 0);
-  const activeAgents = personalityCount.active + swarms.reduce((sum, s) => sum + s.agents.filter(a => a.active).length, 0);
+  const totalAgents = useMemo(
+    () => personalityCount.total + swarms.reduce((sum, s) => sum + s.agents.length, 0),
+    [personalityCount.total, swarms]
+  );
+  const activeAgents = useMemo(
+    () => personalityCount.active + swarms.reduce((sum, s) => sum + s.agents.filter(a => a.active).length, 0),
+    [personalityCount.active, swarms]
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -389,7 +398,7 @@ export default function SwarmsPage() {
             <nav className="flex min-w-max">
               {tabs.map((tab) => (
                 <button
-                  key={tab.id}
+                  key={`swarm-tab-${tab.id}`}
                   onClick={() => {
                     setActiveTab(tab.id);
                     setExpandedAgentId(null);
@@ -450,7 +459,7 @@ export default function SwarmsPage() {
                 </thead>
                 <tbody>
                   {currentSwarm.agents.map((agent, idx) => (
-                    <React.Fragment key={agent.id}>
+                    <React.Fragment key={`agent-${agent.id || agent.slug || idx}`}>
                       <tr
                         onClick={() => toggleExpand(agent)}
                         className={`cursor-pointer transition-colors ${
@@ -509,7 +518,7 @@ export default function SwarmsPage() {
                         </td>
                       </tr>
                       {expandedAgentId === agent.id && (
-                        <tr className="bg-gray-50">
+                        <tr key={`config-${agent.id}`} className="bg-gray-50">
                           <td colSpan={5} className="px-4 py-6">
                             <div className="max-w-full">
                               <div className="flex items-center justify-between mb-4">

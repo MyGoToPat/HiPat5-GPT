@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getSupabase } from '../../lib/supabase';
 import { ChevronDown, ChevronUp, Power, PowerOff, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -31,7 +31,7 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
       const activeCount = agents.filter(a => a.enabled).length;
       onAgentsLoaded(agents.length, activeCount);
     }
-  }, [agents, onAgentsLoaded]);
+  }, [agents.length, agents, onAgentsLoaded]);
 
   async function loadPersonalitySwarm() {
     try {
@@ -60,7 +60,7 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
     }
   }
 
-  async function loadPromptContent(promptRef: string) {
+  const loadPromptContent = useCallback(async (promptRef: string) => {
     if (promptContents[promptRef]) return;
 
     try {
@@ -81,9 +81,9 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
     } catch (err: any) {
       console.error('[PersonalitySwarm] Failed to load prompt:', err);
     }
-  }
+  }, [promptContents]);
 
-  async function toggleExpand(agent: PersonalityAgent) {
+  const toggleExpand = useCallback(async (agent: PersonalityAgent) => {
     if (expandedAgentId === agent.id) {
       setExpandedAgentId(null);
     } else {
@@ -92,7 +92,7 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
         await loadPromptContent(agent.promptRef);
       }
     }
-  }
+  }, [expandedAgentId, promptContents, loadPromptContent]);
 
   async function toggleAgent(agent: PersonalityAgent) {
     try {
@@ -128,14 +128,14 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
     }
   }
 
-  function getPhaseColor(phase: string) {
+  const getPhaseColor = useCallback((phase: string) => {
     switch (phase) {
       case 'pre': return 'bg-blue-100 text-blue-700';
       case 'main': return 'bg-purple-100 text-purple-700';
       case 'post': return 'bg-green-100 text-green-700';
       default: return 'bg-gray-100 text-gray-700';
     }
-  }
+  }, []);
 
   if (loading) {
     return (
@@ -171,7 +171,7 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
         </thead>
         <tbody>
           {agents.map((agent, idx) => (
-            <React.Fragment key={agent.id}>
+            <React.Fragment key={`agent-${agent.id || agent.promptRef || agent.order}`}>
               <tr
                 onClick={() => toggleExpand(agent)}
                 className={`cursor-pointer transition-colors ${
@@ -235,7 +235,7 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
                 </td>
               </tr>
               {expandedAgentId === agent.id && (
-                <tr className="bg-gray-50">
+                <tr key={`prompt-${agent.id}`} className="bg-gray-50">
                   <td colSpan={6} className="px-4 py-6">
                     <div className="max-w-full">
                       <h3 className="text-lg font-bold text-gray-900 mb-4">Prompt Content for {agent.name}</h3>
