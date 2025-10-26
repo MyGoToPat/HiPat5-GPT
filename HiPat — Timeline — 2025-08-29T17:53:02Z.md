@@ -1,5 +1,4 @@
-# HiPat — Timeline — 2025-08-29T17:53:02Z
-
+HiPat — Timeline — 2025-08-29T175302Z.md
 | date | artifact (file/canvas/chat) | concise change summary | evidence (path:lines or canvas/chat ref) |
 |------|----------------------------|------------------------|------------------------------------------|
 | 2025-08-29 | HiPat — Evidence Pack — 2025-08-29T17:53:02Z | Comprehensive forensic audit of current build state | Canvas creation timestamp |
