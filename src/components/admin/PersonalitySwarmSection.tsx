@@ -41,41 +41,34 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
   const notifiedRef = useRef(false);
 
   useEffect(() => {
-    loadPersonalitySwarm();
+    loadPersonalityPrompts();
   }, []);
 
-  async function loadPersonalitySwarm() {
+  async function loadPersonalityPrompts() {
     try {
       setLoading(true);
-      // Load directly from personality_prompts table (single source of truth)
       const { data, error } = await getSupabase()
         .from('personality_prompts')
-        .select('prompt_code, title, phase, "order", model, version, locked, content')
+        .select('prompt_code, title, phase, "order", model, version, enabled, content')
+        .eq('agent', 'pat')
         .order('phase', { ascending: true })
-        .order('order', { ascending: true });
+        .order('"order"', { ascending: true });
 
       if (error) throw error;
 
       if (data) {
-        // Convert to PersonalityAgent format for UI compatibility
+        // Transform personality_prompts rows to PersonalityAgent format for UI compatibility
         const loadedAgents: PersonalityAgent[] = data.map(row => ({
-          id: row.prompt_code, // Use prompt_code as ID
+          id: row.prompt_code,
           name: row.title,
-          enabled: !row.locked, // Enabled if not locked
-          phase: row.phase,
-          order: row.order,
+          enabled: row.enabled,
+          phase: row.phase as 'pre' | 'main' | 'post',
+          order: row["order"],
           promptRef: row.prompt_code
         }));
 
         setAgents(loadedAgents);
-        console.log('[PersonalitySwarm] Loaded', loadedAgents.length, 'personality prompts from DB');
-
-        // Cache prompt contents for display
-        const contentMap: Record<string, string> = {};
-        data.forEach(row => {
-          contentMap[row.prompt_code] = row.content;
-        });
-        setPromptContents(contentMap);
+        console.log('[PersonalitySwarm] Loaded', loadedAgents.length, 'prompts');
 
         // Notify parent exactly once after first successful load
         if (!notifiedRef.current) {
@@ -86,8 +79,8 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
           });
         }
       } else {
-        console.warn('[PersonalitySwarm] No personality prompts found in DB');
-        toast.error('No personality prompts found in database');
+        console.warn('[PersonalitySwarm] No prompts found');
+        toast.error('Personality prompts not found');
       }
     } catch (err: any) {
       console.error('[PersonalitySwarm] Load error:', err);
@@ -97,49 +90,60 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
     }
   }
 
-  // Content is now loaded upfront in loadPersonalitySwarm()
-  // No need for on-demand loading since we load all content at once
+  const loadPromptContent = useCallback(async (promptRef: string) => {
+    // Guard: skip if already cached or currently fetching
+    if (promptContents[promptRef] || inFlightRef.current.has(promptRef)) return;
+
+    inFlightRef.current.add(promptRef);
+    try {
+      const { data, error } = await getSupabase()
+        .from('personality_prompts')
+        .select('content')
+        .eq('prompt_code', promptRef)
+        .eq('agent', 'pat')
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data?.content) {
+        setPromptContents(prev => ({ ...prev, [promptRef]: data.content }));
+      }
+    } catch (err: any) {
+      console.error('[PersonalitySwarm] Failed to load prompt:', err);
+    } finally {
+      inFlightRef.current.delete(promptRef);
+    }
+  }, []); // Empty deps - use functional state update inside
 
   const toggleExpand = useCallback(async (agent: PersonalityAgent) => {
     if (expandedAgentId === agent.id) {
       setExpandedAgentId(null);
     } else {
       setExpandedAgentId(agent.id);
-      // Content is already loaded upfront, no need to fetch
+      // loadPromptContent has internal cache check, no need to check promptContents here
+      await loadPromptContent(agent.promptRef);
     }
-  }, [expandedAgentId]);
+  }, [expandedAgentId, loadPromptContent]);
 
   async function toggleAgent(agent: PersonalityAgent) {
     try {
-      const { data: currentConfig, error: fetchError } = await getSupabase()
-        .from('agent_configs')
-        .select('config')
-        .eq('agent_key', 'personality')
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      const updatedAgents = currentConfig.config.agents.map((a: PersonalityAgent) =>
-        a.id === agent.id ? { ...a, enabled: !a.enabled } : a
-      );
-
       const { error: updateError } = await getSupabase()
-        .from('agent_configs')
-        .update({
-          config: {
-            ...currentConfig.config,
-            agents: updatedAgents
-          }
-        })
-        .eq('agent_key', 'personality');
+        .from('personality_prompts')
+        .update({ enabled: !agent.enabled })
+        .eq('prompt_code', agent.promptRef)
+        .eq('agent', 'pat');
 
       if (updateError) throw updateError;
 
-      setAgents(updatedAgents);
-      toast.success(`Agent ${!agent.enabled ? 'enabled' : 'disabled'}`);
+      // Update local state
+      setAgents(prev => prev.map(a =>
+        a.id === agent.id ? { ...a, enabled: !a.enabled } : a
+      ));
+
+      toast.success(`Prompt ${!agent.enabled ? 'enabled' : 'disabled'}`);
     } catch (err: any) {
       console.error('[PersonalitySwarm] Toggle error:', err);
-      toast.error('Failed to toggle agent: ' + err.message);
+      toast.error('Failed to toggle prompt: ' + err.message);
     }
   }
 
@@ -147,12 +151,10 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
     try {
       // Load current prompt content
       const { data, error } = await getSupabase()
-        .from('agent_prompts')
+        .from('personality_prompts')
         .select('content')
-        .eq('agent_id', agent.promptRef)
-        .eq('status', 'published')
-        .order('version', { ascending: false })
-        .limit(1)
+        .eq('prompt_code', agent.promptRef)
+        .eq('agent', 'pat')
         .maybeSingle();
 
       if (error) throw error;
@@ -179,46 +181,25 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
 
     setSavingPrompt(true);
     try {
-      const supabase = getSupabase();
-
-      // Use supabase.functions.invoke for proper auth/CORS handling
-      const { data, error } = await supabase.functions.invoke('swarm-admin-api', {
-        body: {
-          op: 'updatePrompt',
-          agent_id: editingPromptRef,
+      const { error } = await getSupabase()
+        .from('personality_prompts')
+        .update({
           content: editingPromptContent.trim(),
-          status: 'published',
-          version: 1 // ✅ Explicitly pass version
-        }
-      });
+          updated_at: new Date().toISOString()
+        })
+        .eq('prompt_code', editingPromptRef)
+        .eq('agent', 'pat');
 
-      // Check for invoke-level error (network, auth, etc.)
-      if (error) {
-        console.error('[PersonalitySwarm] API invoke error:', error);
-        throw new Error(error.message || 'Failed to invoke function');
-      }
-
-      // Check for function-level error (non-2xx or ok:false)
-      if (!data || !data.ok) {
-        const errorMsg = data?.error || 'Unknown error';
-        const errorDetail = data?.detail || '';
-        console.error('[PersonalitySwarm] Function returned error:', { 
-          ok: data?.ok, 
-          op: data?.op, 
-          error: errorMsg, 
-          detail: errorDetail 
-        });
-        throw new Error(errorDetail ? `${errorMsg}: ${errorDetail}` : errorMsg);
-      }
+      if (error) throw error;
 
       // Success - refresh prompt content cache
       setPromptContents(prev => ({ ...prev, [editingPromptRef]: editingPromptContent.trim() }));
       setEditingPromptRef(null);
       setEditingPromptContent('');
       toast.success('Prompt updated');
-      
-      // Reload swarm to ensure UI is in sync
-      await loadPersonalitySwarm();
+
+      // Reload prompts to ensure UI is in sync
+      await loadPersonalityPrompts();
     } catch (err: any) {
       console.error('[PersonalitySwarm] Failed to save prompt:', err);
       toast.error('Failed to save prompt: ' + (err.message || String(err)));
@@ -462,8 +443,8 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
                         )}
                         <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                           <p className="text-sm text-blue-900">
-                            <strong>Note:</strong> This prompt is loaded from the <code className="bg-blue-100 px-1 rounded">agent_prompts</code> table.
-                            Click "Edit" to modify the prompt content.
+                            <strong>Note:</strong> This prompt is loaded from the <code className="bg-blue-100 px-1 rounded">personality_prompts</code> table.
+                            DB is the single source of truth. Click "Edit" to modify the prompt content.
                           </p>
                         </div>
                       </div>

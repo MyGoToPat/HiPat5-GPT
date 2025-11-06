@@ -4,7 +4,7 @@
  * Persona post-processors run AFTER role swarm returns content
  */
 
-import { RULES } from '../config/personality/prompts';
+// Legacy import removed - routing rules now handled by personality prompts in DB
 
 export type SwarmTarget = 'persona' | 'macro' | 'tmwya' | 'mmb';
 
@@ -90,7 +90,7 @@ export function routeToSwarm(
   // ========================================================================
   // Priority 4: MMB (feedback/bugs)
   // ========================================================================
-  const mmbPatterns = RULES.MMB_ROUTER.patterns;
+  const mmbPatterns = ['bug', 'issue', 'problem', 'suggestion', 'feature'];
   for (const keyword of mmbPatterns) {
     if (text.includes(keyword)) {
       return {

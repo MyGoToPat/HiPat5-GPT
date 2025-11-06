@@ -1,40 +1,43 @@
 /**
- * CANONICAL PERSONALITY LOADER
- * DB-only personality loading (single source of truth)
+ * PERSONALITY SYSTEM BOOTSTRAP - DB ONLY
+ * Loads and initializes Pat's personality system from database
+ *
+ * This is the canonical entry point for personality loading.
+ * DB is the single source of truth - no file fallbacks.
  */
 
-import { getSupabase } from '../../lib/supabase';
-import { loadPersonalityPrompts, type PromptBlock } from './promptLoader';
+import { createClient } from '@supabase/supabase-js';
+import { loadPersonalityFromDB } from './promptLoader';
 
-export interface PersonalityPrompts {
-  [key: string]: PromptBlock;
+// Create DB client for personality loading
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
+
+/**
+ * Load personality prompts from DB
+ * @returns Promise<PromptBlock[]> - Loaded and sorted personality prompts
+ */
+export async function loadPersonality() {
+  try {
+    const prompts = await loadPersonalityFromDB(supabase);
+    return prompts;
+  } catch (error) {
+    console.error('[personality-bootstrap] Failed to load from DB:', error);
+    throw new Error(`Personality system unavailable: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 /**
- * Load personality prompts from database only
- * No file fallbacks - database is the single source of truth
+ * Check if personality system is available
+ * @returns Promise<boolean>
  */
-export async function loadPersonality(): Promise<PersonalityPrompts> {
-  const supabase = getSupabase();
-
+export async function isPersonalityAvailable(): Promise<boolean> {
   try {
-    const blocks = await loadPersonalityPrompts(supabase, 'pat', true);
-
-    // Convert array to keyed object for easier access
-    const prompts: PersonalityPrompts = {};
-    blocks.forEach(block => {
-      prompts[block.prompt_key] = block;
-    });
-
-    if (Object.keys(prompts).length < 5) {
-      throw new Error(`[personality] Insufficient prompts loaded: ${Object.keys(prompts).length}`);
-    }
-
-    console.info('[personality] Loaded from DB:', Object.keys(prompts).length, 'prompts');
-    return prompts;
-
-  } catch (error) {
-    console.error('[personality] Failed to load from DB:', error);
-    throw new Error(`Personality system unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    await loadPersonality();
+    return true;
+  } catch {
+    return false;
   }
 }
