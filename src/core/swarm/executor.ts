@@ -22,14 +22,22 @@ export interface UserContext {
  * @param swarm - Swarm configuration with agents
  * @param context - User context for personalization
  * @param mode - Execution mode (combined, sequential, off)
+ * @param roleDataType - Optional roleData.type to skip post-processing for structured data
  * @returns Refined response text
  */
 export async function executePostAgents(
   draft: string,
   swarm: SwarmConfig,
   context?: UserContext,
-  mode: ExecutionMode = 'combined'
+  mode: ExecutionMode = 'combined',
+  roleDataType?: string
 ): Promise<string> {
+  // CRITICAL BYPASS: Do NOT polish structured nutrition data (Verification Sheets)
+  if (roleDataType === 'tmwya.verify') {
+    console.log('[post-executor] Skipping post-polish for structured nutrition data (roleData.type=tmwya.verify)');
+    return draft;
+  }
+
   if (mode === 'off') {
     console.log('[post-executor] Mode is OFF, returning draft unchanged');
     return draft;

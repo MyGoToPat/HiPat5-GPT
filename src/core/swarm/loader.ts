@@ -105,7 +105,11 @@ export async function loadSwarm(swarmName: string): Promise<SwarmConfig | null> 
   // Database is the single source of truth
   const dbConfig = await loadSwarmFromDB(swarmName);
   if (dbConfig) {
+    const hasRouter = dbConfig.agents.some(a => a.promptRef === 'PERSONALITY_ROUTER');
     console.log(`[swarm-loader] ✓ Loaded ${swarmName} from database`);
+    if (swarmName === 'personality') {
+      console.info('[swarm-loader] personality agents loaded:', dbConfig.agents.length, 'hasRouter=', hasRouter);
+    }
     return dbConfig;
   }
 
@@ -172,19 +176,22 @@ export async function buildSwarmPrompt(swarm: SwarmConfig, userContext?: Record<
  */
 export async function getSwarmForIntent(intent: string): Promise<SwarmConfig | null> {
   const intentToSwarm: Record<string, string> = {
-    'food_question': 'macro',
-    'food_mention': 'tmwya',
-    'food_log': 'tmwya',
-    'food_undo': 'tmwya',
-    'kpi_today': 'macro',
-    'kpi_remaining': 'macro',
-    'general': 'personality', // general chat now goes through the Personality swarm
+    // NUTRITION INTENTS: Handled by unified pipeline before reaching swarm loader
+    // These are redirected to personality for any post-processing text only
+    'food_question': 'personality',    // ← Was 'macro', now unified pipeline handles it
+    'food_mention': 'personality',     // ← Was 'tmwya', now unified pipeline handles it
+    'food_log': 'personality',         // ← Was 'tmwya', now unified pipeline handles it
+    'meal_logging': 'personality',     // ← Alias for food_log
+    'food_undo': 'personality',        // ← Was 'tmwya', undo handled separately
+    'kpi_today': 'personality',        // ← Was 'macro', dashboard handles KPIs
+    'kpi_remaining': 'personality',    // ← Was 'macro', dashboard handles KPIs
+    'general': 'personality',          // general chat goes through Personality swarm
   };
 
   const swarmName = intentToSwarm[intent];
   if (!swarmName) {
-    console.warn(`[swarm-loader] No swarm mapped for intent: ${intent}`);
-    return null;
+    console.warn(`[swarm-loader] No swarm mapped for intent: ${intent}, defaulting to personality`);
+    return await loadSwarm('personality');
   }
 
   return await loadSwarm(swarmName);

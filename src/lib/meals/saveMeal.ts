@@ -16,6 +16,18 @@ import {
   hasColumn
 } from './schemaMap';
 
+/**
+ * Infer meal_slot from current time
+ * Used as fallback when meal_slot is not provided
+ */
+function inferMealSlotFromTime(): 'breakfast' | 'lunch' | 'dinner' | 'snack' {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour < 11) return 'breakfast';
+  if (hour >= 11 && hour < 16) return 'lunch';
+  if (hour >= 16 && hour < 22) return 'dinner';
+  return 'snack';
+}
+
 // UUID validator to prevent "invalid input syntax for uuid" errors
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -196,7 +208,7 @@ export async function saveMeal(input: SaveMealInput): Promise<SaveMealResult> {
     // Success
     return {
       ok: true,
-      mealLogId,
+      mealLogId: mealLogId || undefined,
       itemsCount: input.items.length,
       totals
     };
@@ -238,10 +250,11 @@ export async function logMealViaRpc(input: SaveMealInput): Promise<SaveMealResul
     }
 
     // Validate and sanitize meal_slot (must match enum values)
+    // CRITICAL: Use time-based fallback to avoid NULL constraint violations
     const allowedSlots = new Set(['breakfast', 'lunch', 'dinner', 'snack']);
     const safeMealSlot = input.mealSlot && allowedSlots.has(input.mealSlot.toLowerCase())
       ? input.mealSlot.toLowerCase()
-      : null;
+      : inferMealSlotFromTime(); // Fallback to time-based inference
 
     // Prepare RPC parameters (matching new signature)
     const p_ts = input.timestamp ? new Date(input.timestamp) : new Date();
@@ -249,8 +262,9 @@ export async function logMealViaRpc(input: SaveMealInput): Promise<SaveMealResul
     const p_note = input.note || null;
 
     // Compute totals
-    const totals = {
+    const totals: MealTotals = {
       kcal: 0,
+      calories: 0,
       protein_g: 0,
       fat_g: 0,
       carbs_g: 0,
@@ -264,6 +278,9 @@ export async function logMealViaRpc(input: SaveMealInput): Promise<SaveMealResul
       totals.carbs_g += item.carbs_g || 0;
       totals.fiber_g += item.fiber_g || 0;
     }
+    
+    // Dual-key compatibility
+    totals.calories = totals.kcal;
 
     // Prepare items JSONB (matching new signature)
     const p_items = input.items.map((item, index) => ({

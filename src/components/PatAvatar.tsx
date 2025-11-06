@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 
 interface PatAvatarProps {
   size?: number;
@@ -334,21 +335,49 @@ export const PatAvatar: React.FC<PatAvatarProps> = ({
 
   return (
     <div className={`relative ${className}`}>
-      <div 
-        className={`relative mx-auto rounded-full bg-gradient-to-br ${moodStyles.gradient} transition-all duration-500 ${getAnimationClasses()}`}
-        style={{
-          width: size,
-          height: size,
-          filter: `brightness(${moodStyles.brightness})`,
-          boxShadow: size > 50 
-            ? `0 0 ${40 * pulseIntensity}px ${6 * pulseIntensity}px ${moodStyles.glow}` 
-            : `0 0 ${20 * pulseIntensity}px ${3 * pulseIntensity}px ${moodStyles.glow}`,
-          animation: effectiveMood === 'listening' ? 'pulse 2s infinite' : 
-                    effectiveMood === 'excited' ? 'pulse 0.8s infinite' :
-                    effectiveMood === 'energetic' ? 'pulse 0.6s infinite' :
-                    effectiveMood === 'thinking' ? 'pulse 1.5s infinite' : undefined
+      <motion.div
+        animate={animated ? {
+          scale: isThinking ? [1, 1.1, 1] : isSpeaking ? [1, 1.05, 1] : 1,
+          rotate: isSpeaking ? [0, 3, -3, 0] : 0,
+        } : {}}
+        transition={{
+          duration: isThinking ? 1.5 : isSpeaking ? 0.5 : 0.3,
+          repeat: (isThinking || isSpeaking) ? Infinity : 0,
+          ease: "easeInOut"
         }}
+        className="relative"
       >
+        {/* Thinking pulse glow ring */}
+        {isThinking && (
+          <motion.div
+            className="absolute inset-0 rounded-full bg-blue-500/20"
+            animate={{
+              scale: [1, 1.3, 1],
+              opacity: [0.3, 0, 0.3]
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          />
+        )}
+        
+        <div 
+          className={`relative mx-auto rounded-full bg-gradient-to-br ${moodStyles.gradient} transition-all duration-500 ${getAnimationClasses()}`}
+          style={{
+            width: size,
+            height: size,
+            filter: `brightness(${moodStyles.brightness})`,
+            boxShadow: size > 50 
+              ? `0 0 ${40 * pulseIntensity}px ${6 * pulseIntensity}px ${moodStyles.glow}` 
+              : `0 0 ${20 * pulseIntensity}px ${3 * pulseIntensity}px ${moodStyles.glow}`,
+            animation: effectiveMood === 'listening' ? 'pulse 2s infinite' : 
+                      effectiveMood === 'excited' ? 'pulse 0.8s infinite' :
+                      effectiveMood === 'energetic' ? 'pulse 0.6s infinite' :
+                      effectiveMood === 'thinking' ? 'pulse 1.5s infinite' : undefined
+          }}
+        >
         {/* Eyes */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className={`flex items-center ${size > 50 ? 'gap-9' : 'gap-3'}`}>
@@ -398,15 +427,16 @@ export const PatAvatar: React.FC<PatAvatarProps> = ({
         )}
       </div>
 
-      {/* Status text for development */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-xs text-gray-500 whitespace-nowrap">
-          {effectiveMood}
-          {isListening && ' (listening)'}
-          {isThinking && ' (thinking)'}
-          {isSpeaking && ' (speaking)'}
-        </div>
-      )}
+        {/* Status text for development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-xs text-gray-500 whitespace-nowrap">
+            {effectiveMood}
+            {isListening && ' (listening)'}
+            {isThinking && ' (thinking)'}
+            {isSpeaking && ' (speaking)'}
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 };

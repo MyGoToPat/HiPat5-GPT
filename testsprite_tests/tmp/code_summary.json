@@ -1,0 +1,116 @@
+{
+  "tech_stack": [
+    "TypeScript",
+    "React 18",
+    "Vite",
+    "Supabase",
+    "Tailwind CSS",
+    "React Router DOM",
+    "Framer Motion",
+    "Zustand",
+    "Zod",
+    "React Hot Toast",
+    "Lucide React",
+    "Vitest",
+    "ESLint"
+  ],
+  "features": [
+    {
+      "name": "Authentication System",
+      "description": "User login, registration, password reset, and protected routes with role-based access control",
+      "files": [
+        "src/components/auth/ProtectedRoute.tsx",
+        "src/pages/auth/LoginPage.tsx",
+        "src/pages/auth/RegisterPage.tsx",
+        "src/pages/auth/ForgotPasswordPage.tsx",
+        "src/hooks/useAuth.ts",
+        "src/lib/auth/"
+      ]
+    },
+    {
+      "name": "Chat System",
+      "description": "AI-powered chat interface with Pat (AI assistant) for nutrition and health guidance",
+      "files": [
+        "src/pages/ChatPage.tsx",
+        "src/components/ChatPat.tsx",
+        "src/core/chat/handleUserMessage.ts",
+        "src/lib/chat.ts",
+        "src/core/chat/sessions.ts"
+      ]
+    },
+    {
+      "name": "Nutrition Pipeline",
+      "description": "Meal logging, macro calculation, and nutrition data processing with multiple providers (brand, gemini, generic)",
+      "files": [
+        "src/core/nutrition/unifiedPipeline.ts",
+        "src/agents/shared/nutrition/providers/",
+        "src/components/tmwya/MealVerifyCard.tsx",
+        "src/lib/food.ts"
+      ]
+    },
+    {
+      "name": "TDEE Calculation",
+      "description": "Total Daily Energy Expenditure calculation with personalized user data",
+      "files": [
+        "src/agents/tmwya/tdee.ts",
+        "src/utils/tdeeCalculator.ts",
+        "src/lib/bmr.ts"
+      ]
+    },
+    {
+      "name": "User Dashboard",
+      "description": "Main dashboard showing user progress, meals, and health metrics",
+      "files": [
+        "src/pages/DashboardPage.tsx",
+        "src/components/dashboard/",
+        "src/pages/profile/UsagePage.tsx"
+      ]
+    },
+    {
+      "name": "Admin Panel",
+      "description": "Administrative interface for managing users, roles, and system settings",
+      "files": [
+        "src/pages/AdminPage.tsx",
+        "src/pages/admin/",
+        "src/components/admin/",
+        "src/hooks/useRole.tsx"
+      ]
+    },
+    {
+      "name": "Voice Integration",
+      "description": "Text-to-speech functionality for AI responses",
+      "files": [
+        "src/pages/VoicePage.tsx",
+        "src/core/talk/tts.ts",
+        "src/hooks/useSpeechRecognition.ts"
+      ]
+    },
+    {
+      "name": "Swarm AI System",
+      "description": "Multi-agent AI system with personality swarms and intent routing",
+      "files": [
+        "src/core/swarm/",
+        "src/agents/persona/orchestrator.ts",
+        "src/core/router/",
+        "src/store/swarms.ts"
+      ]
+    },
+    {
+      "name": "Onboarding Flow",
+      "description": "Multi-step user onboarding with TDEE calculation and profile setup",
+      "files": [
+        "src/pages/TDEEOnboardingWizard.tsx",
+        "src/components/onboarding/",
+        "src/context/OnboardingContext.tsx"
+      ]
+    },
+    {
+      "name": "Trainer Features",
+      "description": "Trainer dashboard for managing clients and their data",
+      "files": [
+        "src/pages/TrainerDashboardPage.tsx",
+        "src/components/TrainerDashboardPage.tsx"
+      ]
+    }
+  ]
+}

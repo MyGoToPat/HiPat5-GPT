@@ -63,23 +63,6 @@ export const PAT_TOOLS = [
   {
     type: "function",
     function: {
-      name: "get_macros",
-      description: "Calculate nutritional macros for food items WITHOUT logging them. Use this when user asks 'what are the macros for...' or 'tell me the nutrition of...'",
-      parameters: {
-        type: "object",
-        properties: {
-          food_description: {
-            type: "string",
-            description: "Description of the food to calculate macros for (e.g., '10 oz ribeye steak', '2 cups cooked rice')"
-          }
-        },
-        required: ["food_description"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
       name: "get_remaining_macros",
       description: "Get the user's remaining macro targets for today (calories, protein, carbs, fat remaining)",
       parameters: {
@@ -122,9 +105,6 @@ export async function executeTool(
     switch (toolName) {
       case 'log_meal':
         return await logMealTool(toolArgs, context.userId, supabase);
-
-      case 'get_macros':
-        return await getMacrosTool(toolArgs);
 
       case 'get_remaining_macros':
         return await getRemainingMacrosTool(context.userId, supabase);
@@ -204,20 +184,6 @@ async function logMealTool(args: any, userId: string, supabase: any) {
       meal_log_id: mealLogId,
       items_logged: items.length,
       totals
-    }
-  };
-}
-
-async function getMacrosTool(args: any) {
-  const { food_description } = args;
-
-  return {
-    success: true,
-    result: {
-      kind: 'food_question',
-      logged: false,
-      message: "Use your nutritional knowledge to provide macro estimates based on USDA values.",
-      food_description
     }
   };
 }

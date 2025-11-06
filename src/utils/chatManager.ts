@@ -11,7 +11,7 @@ export type ChatMessageRow = {
 export const ChatManager = {
   async ensureActiveSession(userId: string): Promise<ChatSession> {
     try {
-      return await ChatSessions.getOrCreateActiveSession(userId, 'user_chat');
+      return await ChatSessions.getOrCreateActiveSession(userId, 'general');
     } catch (error) {
       console.error('Failed to ensure active session:', error);
       throw error;

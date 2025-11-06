@@ -5,7 +5,18 @@
  */
 
 import { z } from 'zod';
-import { PROMPTS } from '../config/personality/prompts';
+// PROMPTS definition (inline to avoid missing config dependency)
+const PROMPTS = {
+  SHARED_MACRO_NLU: `Parse meal descriptions into structured food items.
+
+Return JSON: {"items":[{"name":"food name","qty":number,"unit":"piece|cup|g|oz|etc","brand":null,"prep_method":null,"originalText":"original text"}]}
+
+Rules:
+- Split on "and", commas
+- Extract quantities and units
+- Preserve exact food names
+- Default unit: piece for countable foods, cup for measured foods`
+};
 
 // Zod schemas for validation
 export const MealItemSchema = z.object({
@@ -84,7 +95,7 @@ export async function parseMeal(text: string): Promise<MealParse> {
  * Deterministic local parser (no LLM) for simple patterns
  * Used when LLM unavailable or for testing
  */
-export function parseMe alLocal(text: string): MealParse {
+export function parseMealLocal(text: string): MealParse {
   const cleanText = text
     .replace(/^(macros? of|calories? of|what are the macros? for|tell me the macros? of)\s+/i, '')
     .replace(/^(i ate|i had|for (breakfast|lunch|dinner|snack))\s+/i, '')

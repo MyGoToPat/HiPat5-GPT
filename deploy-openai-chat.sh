@@ -1,39 +1,80 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
-# Deploy openai-chat edge function with CORS fix
-# This fixes the "pragma" and "cache-control" CORS header issues
+# Unified deploy script for Supabase Edge Functions
+# - Default: deploys openai-chat (with CORS fixes)
+# - Optional: pass function name as 1st arg, e.g. "nutrition-gemini"
+#
+# Usage:
+#   ./deploy-openai-chat.sh
+#   ./deploy-openai-chat.sh nutrition-gemini
+#   SUPABASE_PROJECT_REF=yourref ./deploy-openai-chat.sh openai-chat
 #
 
-cd "$(dirname "$0")"
+set -euo pipefail
+trap 'echo ""; echo "❌ Deployment failed (exit $?). Check messages above."; exit 1' ERR
 
-echo "Deploying openai-chat with updated CORS headers..."
-echo ""
-echo "CORS headers now include: authorization, x-client-info, apikey, content-type, cache-control, pragma"
+# --- Setup --------------------------------------------------------------------
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+PROJECT_REF="${SUPABASE_PROJECT_REF:-jdtogitfqptdrxkczdbw}"
+FUNCTION_NAME="${1:-openai-chat}"
+
+echo "Supabase project: ${PROJECT_REF}"
+echo "Function to deploy: ${FUNCTION_NAME}"
 echo ""
 
-# Check if supabase CLI is available
-if ! command -v supabase &> /dev/null; then
-    echo "ERROR: Supabase CLI not found. Please install it first."
-    echo "Visit: https://supabase.com/docs/guides/cli"
-    exit 1
+# --- Checks -------------------------------------------------------------------
+
+# Supabase CLI present?
+if ! command -v supabase >/dev/null 2>&1; then
+  echo "ERROR: Supabase CLI not found."
+  echo "Install: https://supabase.com/docs/guides/cli"
+  exit 1
 fi
 
-# Deploy the function
-supabase functions deploy openai-chat --project-ref jdtogitfqptdrxkczdbw
+# Ensure we’re logged in (projects list fails when unauthenticated)
+if ! supabase projects list >/dev/null 2>&1; then
+  echo "Supabase CLI not authenticated. Opening browser to log in..."
+  supabase login
+  echo ""
+fi
 
-if [ $? -eq 0 ]; then
-    echo ""
-    echo "✅ Deployment successful!"
-    echo ""
-    echo "Next steps:"
-    echo "1. Test in staging by sending these 3 messages:"
-    echo "   - 'hey'"
-    echo "   - 'what are the macros of an avocado'"
-    echo "   - 'i ate 2 eggs and toast for breakfast'"
-    echo ""
-    echo "2. Verify telemetry is being logged to admin_action_logs table"
+# --- Deploy -------------------------------------------------------------------
+
+if [[ "${FUNCTION_NAME}" == "openai-chat" ]]; then
+  echo "Deploying openai-chat with updated CORS headers..."
+  echo ""
+  echo "CORS headers include: authorization, x-client-info, apikey, content-type, cache-control, pragma"
+  echo ""
 else
-    echo ""
-    echo "❌ Deployment failed. Check error messages above."
-    exit 1
+  echo "Deploying ${FUNCTION_NAME}..."
+  echo ""
+fi
+
+# Use --use-api flag to deploy without requiring database password/linking
+supabase functions deploy "${FUNCTION_NAME}" --project-ref "${PROJECT_REF}" --use-api
+
+echo ""
+echo "✅ Deployment successful!"
+echo ""
+
+# Show functions table so you can confirm status is Active
+echo "Current Edge Functions:"
+supabase functions list --project-ref "${PROJECT_REF}"
+echo ""
+
+# --- Next steps ---------------------------------------------------------------
+
+echo "Next steps:"
+if [[ "${FUNCTION_NAME}" == "nutrition-gemini" ]]; then
+  echo "1) In the app, log a meal with branded/fast-food items and confirm a response."
+  echo "2) Verify telemetry rows in admin_action_logs."
+else
+  echo "1) Test in staging by sending these 3 messages:"
+  echo "   - 'hey'"
+  echo "   - 'what are the macros of an avocado'"
+  echo "   - 'i ate 2 eggs and toast for breakfast'"
+  echo "2) Verify telemetry is being logged to admin_action_logs table."
 fi

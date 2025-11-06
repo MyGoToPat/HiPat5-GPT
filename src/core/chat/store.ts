@@ -19,16 +19,23 @@ export interface ChatMessage {
 export async function storeMessage(
   sessionId: string,
   role: 'user' | 'assistant' | 'system',
-  content: string
+  content: string,
+  metadata?: Record<string, any>
 ): Promise<string> {
+  const messageData: any = {
+    session_id: sessionId,
+    role,
+    content,
+    created_at: new Date().toISOString(),
+  };
+
+  if (metadata) {
+    messageData.metadata = metadata;
+  }
+
   const { data, error } = await supabase
     .from('chat_messages')
-    .insert({
-      session_id: sessionId,
-      role,
-      content,
-      created_at: new Date().toISOString(),
-    })
+    .insert(messageData)
     .select('id')
     .single();
 

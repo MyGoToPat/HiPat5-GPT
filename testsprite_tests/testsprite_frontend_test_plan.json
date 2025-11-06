@@ -1,0 +1,433 @@
+[
+  {
+    "id": "TC001",
+    "title": "User Authentication Success",
+    "description": "Verify that a user can successfully authenticate and access the HiPat5-GPT-1 platform with valid credentials.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the platform login page."
+      },
+      {
+        "type": "action",
+        "description": "Enter a valid username/email and password."
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the user is successfully logged in and redirected to the dashboard."
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "User Authentication Failure",
+    "description": "Verify that the system displays an error when a user attempts to log in with invalid credentials.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the platform login page."
+      },
+      {
+        "type": "action",
+        "description": "Enter an invalid username/email or password."
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that an error message is displayed indicating authentication failure."
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Pat AI Valid Nutrition Query Response",
+    "description": "Test that the AI Chat Assistant (Pat) responds appropriately when asked nutrition-related questions.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in to the platform."
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the chat interface with Pat AI."
+      },
+      {
+        "type": "action",
+        "description": "Input a nutrition-related question, e.g., 'What are the benefits of protein?'"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that Pat AI returns a relevant and informative response within a reasonable time."
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Pat AI Handles Invalid or Ambiguous Queries",
+    "description": "Verify that Pat AI gracefully handles unclear, ambiguous, or nonsensical nutrition queries with appropriate messages.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Access the AI chat interface."
+      },
+      {
+        "type": "action",
+        "description": "Enter an ambiguous or invalid question, e.g., 'What is the color of nutrition?'"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that Pat AI returns a polite clarification or error message indicating the query is unclear."
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Meal Logging with Macro Calculation Using USDA Data",
+    "description": "Test meal logging functionality using USDA data and verify automatic macro nutrient calculation is accurate.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in and navigate to the meal logging page."
+      },
+      {
+        "type": "action",
+        "description": "Search for a meal item available in the USDA database."
+      },
+      {
+        "type": "action",
+        "description": "Log the meal with specified quantity."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the system calculates and displays calories, proteins, fats, and carbohydrates correctly."
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Meal Logging with Branded Product Data Source",
+    "description": "Ensure that meal logging from branded product databases functions correctly and macros are calculated accurately.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the meal logging section."
+      },
+      {
+        "type": "action",
+        "description": "Search for a branded food product."
+      },
+      {
+        "type": "action",
+        "description": "Log the product with appropriate portion size."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that macros and calorie values are correct according to product data."
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Meal Logging with Gemini AI Data Source",
+    "description": "Verify that Gemini AI generated meal entries provide accurate macro calculations when logged by the user.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Access the meal logging page."
+      },
+      {
+        "type": "action",
+        "description": "Add a meal suggested by the Gemini AI data source."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm macros are calculated automatically and values align with typical nutrition standards."
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Meal Logging Error Handling for Invalid Entries",
+    "description": "Verify system behavior when user attempts to log incomplete or invalid meal data.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open meal logging interface."
+      },
+      {
+        "type": "action",
+        "description": "Attempt to log a meal without selecting a valid food item or quantity."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the system rejects the entry and shows an appropriate error message."
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Calculate TDEE Based on User Profile",
+    "description": "Validate that the Total Daily Energy Expenditure (TDEE) is correctly calculated based on user demographics and reported activity level.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in and fill the user profile with necessary attributes (age, weight, height, gender, activity level)."
+      },
+      {
+        "type": "action",
+        "description": "Access TDEE calculation module or dashboard."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that TDEE calculation uses the correct formula and that the result appears in the user interface accurately."
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "TDEE Calculation with Edge Case Inputs",
+    "description": "Test TDEE calculation with extreme or boundary values for user parameters (very low/high weight, age, activity level).",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create user profiles with extreme but valid input values."
+      },
+      {
+        "type": "action",
+        "description": "Trigger TDEE calculation for each profile."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that the system handles edge cases gracefully and outputs reasonable TDEE values or warns if input is unrealistic."
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "User Dashboard Displays Health Metrics and Progress",
+    "description": "Check that the personalized user dashboard shows relevant health metrics, meal logs, and progress visually and textually.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in with a user account having meal logs and health data."
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the user dashboard."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the display of daily meals, macro summaries, TDEE, and visual progress indicators."
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "User Dashboard Responsive Layout",
+    "description": "Verify the dashboard UI is responsive and correctly displays on multiple screen sizes, including mobile and desktop.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Access the dashboard on desktop, tablet, and mobile devices."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that all elements are visible, well-aligned, and functional in each screen resolution."
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Voice Integration Text-to-Speech Functionality",
+    "description": "Test that the platform’s text-to-speech correctly vocalizes AI assistant responses across supported browsers.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Access the Pat AI chat interface."
+      },
+      {
+        "type": "action",
+        "description": "Input a query that triggers an AI response."
+      },
+      {
+        "type": "action",
+        "description": "Activate the text-to-speech function."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the AI response is accurately vocalized without distortion or cutoffs across supported browsers."
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Voice Input Functionality",
+    "description": "Verify that users can submit queries to the Pat AI assistant via voice input and receive appropriate AI responses.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the AI chat interface."
+      },
+      {
+        "type": "action",
+        "description": "Use voice input to ask a nutrition-related question."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm the AI interprets voice input correctly and returns an accurate response."
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Multi-Agent AI System Response Variation",
+    "description": "Ensure different AI personalities and specialized agents in the multi-agent AI system respond appropriately and distinctly to queries.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Submit the same nutrition question multiple times triggering different AI agents."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that responses differ by tone or expertise based on the active AI agent personality."
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Admin Panel User Role Management",
+    "description": "Verify that admins can manage user roles (assign, modify, revoke) via the admin panel successfully.",
+    "category": "functional",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in as an admin user."
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the admin panel user management section."
+      },
+      {
+        "type": "action",
+        "description": "Modify a user's role and save changes."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm the user role updates correctly and permissions reflect the new role."
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Admin Panel System Settings Management",
+    "description": "Test that admin users can view and update system settings through the admin panel.",
+    "category": "functional",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Access admin panel settings section."
+      },
+      {
+        "type": "action",
+        "description": "Change a configurable system parameter (e.g., AI response timeout)."
+      },
+      {
+        "type": "action",
+        "description": "Save the updated settings."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that changes persist and affect system behavior as expected."
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Trainer Features: Manage Multiple Clients",
+    "description": "Validate that personal trainers can add, view, and manage multiple clients and their data.",
+    "category": "functional",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in as a trainer."
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the client management dashboard."
+      },
+      {
+        "type": "action",
+        "description": "Add a new client with profile details."
+      },
+      {
+        "type": "action",
+        "description": "Access and modify the client’s logged nutrition and health data."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that client data is saved and retrievable correctly."
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "Real-Time Chat Streaming Responses",
+    "description": "Ensure streaming AI chat responses appear in real-time in the chat interface without delays or breaks.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Access the AI chat interface."
+      },
+      {
+        "type": "action",
+        "description": "Input a nutrition query that triggers a multi-sentence AI response."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the AI response displays incrementally and smoothly as it streams."
+      }
+    ]
+  }
+]

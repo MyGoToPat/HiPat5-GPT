@@ -60,16 +60,519 @@ async function logAdminAction(
 }
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    // Create service role client for all DB operations
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
 
     const url = new URL(req.url);
     const path = url.pathname.replace('/swarm-admin-api', '');
     const method = req.method;
+    let body: any = null;
+
+    // Parse request body if present
+    try {
+      const text = await req.text();
+      if (text) {
+        body = JSON.parse(text);
+      }
+    } catch {
+      // No body or invalid JSON - continue
+    }
+
+    // Handle operation-based requests (from supabase.functions.invoke)
+    // Body format: { op: 'updatePrompt', agent_id: '...', content: '...', ... }
+    if (body?.op) {
+      // Health check (no auth required)
+      if (body.op === 'health') {
+        return new Response(JSON.stringify({ ok: true, service: 'swarm-admin-api' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const { user, error: authError } = await validateAdmin(req, supabaseAdmin);
+      if (authError) {
+        return new Response(JSON.stringify({ 
+          ok: false, 
+          op: body.op, 
+          error: authError,
+          detail: authError.includes('Missing') ? 'Missing authorization header' : 'Invalid or insufficient permissions'
+        }), {
+          status: authError.includes('Missing') ? 401 : 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      if (body.op === 'updatePrompt') {
+        try {
+          const agentId = body.agent_id;
+          const content = body.content;
+          const status = body.status || 'published';
+          const version = body.version || 1; // Default to version 1
+
+          if (!agentId || !content) {
+            return new Response(JSON.stringify({ 
+              ok: false, 
+              op: 'updatePrompt', 
+              error: 'Missing required fields', 
+              detail: !agentId ? 'agent_id is required' : 'content is required'
+            }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+
+          // Update by agent_id + version (exact match)
+          const { data, error } = await supabaseAdmin
+            .from('agent_prompts')
+            .update({ content, status })
+            .eq('agent_id', agentId)
+            .eq('version', version)
+            .select()
+            .maybeSingle();
+
+          if (error) {
+            console.error('[swarm-admin-api] updatePrompt DB error:', { agent_id: agentId, version, error: error.message });
+            throw error;
+          }
+
+          if (!data) {
+            return new Response(JSON.stringify({ 
+              ok: false, 
+              op: 'updatePrompt', 
+              error: 'Prompt not found', 
+              detail: `No row found for agent_id="${agentId}" and version=${version}`
+            }), {
+              status: 404,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+
+          await logAdminAction(supabaseAdmin, user.id, 'update_prompt', `agent_prompts:${data.id}`, {
+            agent_id: data.agent_id,
+            version: data.version,
+            updated_fields: ['content', 'status'],
+          });
+
+          return new Response(JSON.stringify({ ok: true, data }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        } catch (err: any) {
+          console.error('[swarm-admin-api] updatePrompt exception:', { 
+            agent_id: body.agent_id, 
+            op: 'updatePrompt',
+            error: err.message || String(err)
+          });
+          return new Response(JSON.stringify({ 
+            ok: false, 
+            op: 'updatePrompt', 
+            error: 'Update failed', 
+            detail: err.message || String(err)
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
+      if (body.op === 'createPrompt') {
+        try {
+          const agentId = body.agent_id;
+          const content = body.content;
+          const status = body.status || 'published';
+
+          if (!agentId || !content) {
+            return new Response(JSON.stringify({ 
+              ok: false, 
+              op: 'createPrompt', 
+              error: 'Missing required fields', 
+              detail: !agentId ? 'agent_id is required' : 'content is required'
+            }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+
+          const { data: existing } = await supabaseAdmin
+            .from('agent_prompts')
+            .select('id, version')
+            .eq('agent_id', agentId)
+            .eq('status', 'published')
+            .order('version', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          let result;
+          if (existing && status === 'published') {
+            const { data, error } = await supabaseAdmin
+              .from('agent_prompts')
+              .update({ content })
+              .eq('id', existing.id)
+              .select()
+              .single();
+            if (error) throw error;
+            result = data;
+          } else {
+            const version = existing ? existing.version + 1 : 1;
+            const promptData = {
+              agent_id: agentId,
+              title: body.title || `${agentId} prompt`,
+              content,
+              model: body.model || 'gpt-4o-mini',
+              phase: body.phase || 'pre',
+              exec_order: body.exec_order || body.order || 50, // ✅ Use exec_order, not "order"
+              status,
+              version,
+              created_by: user.id,
+            };
+
+            const { data, error } = await supabaseAdmin.from('agent_prompts').insert(promptData).select().single();
+            if (error) throw error;
+            result = data;
+          }
+
+          await logAdminAction(supabaseAdmin, user.id, existing ? 'update_prompt' : 'create_prompt', `agent_prompts:${result.id}`, {
+            agent_id: agentId,
+            status: result.status,
+          });
+
+          return new Response(JSON.stringify({ ok: true, data: result }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        } catch (err: any) {
+          console.error('[swarm-admin-api] createPrompt exception:', { 
+            agent_id: body.agent_id, 
+            op: 'createPrompt',
+            error: err.message || String(err)
+          });
+          return new Response(JSON.stringify({ 
+            ok: false, 
+            op: 'createPrompt', 
+            error: 'Create failed', 
+            detail: err.message || String(err)
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
+      if (body.op === 'addAgentToSwarm') {
+        try {
+          const agentKey = body.agentKey || 'personality';
+          if (!body.promptRef || !body.name || body.phase === undefined || body.order === undefined) {
+            return new Response(JSON.stringify({ 
+              ok: false, 
+              op: 'addAgentToSwarm', 
+              error: 'Missing required fields', 
+              detail: 'promptRef, name, phase, and order are required'
+            }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+
+          const { data: currentConfig, error: fetchError } = await supabaseAdmin
+            .from('agent_configs')
+            .select('config')
+            .eq('agent_key', agentKey)
+            .single();
+
+          if (fetchError || !currentConfig) {
+            return new Response(JSON.stringify({ 
+              ok: false, 
+              op: 'addAgentToSwarm', 
+              error: 'Swarm config not found', 
+              detail: `No config found for agent_key="${agentKey}"`
+            }), {
+              status: 404,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+
+          const agents = currentConfig.config?.agents || [];
+          
+          if (agents.some((a: any) => a.promptRef === body.promptRef)) {
+            return new Response(JSON.stringify({ 
+              ok: false, 
+              op: 'addAgentToSwarm', 
+              error: 'Agent already exists', 
+              detail: `Agent with promptRef "${body.promptRef}" already exists in swarm`
+            }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+
+          // ✅ Use "order" in JSON config (not exec_order)
+          const newAgent = {
+            id: body.id || `agent-${Date.now()}`,
+            name: body.name,
+            promptRef: body.promptRef,
+            phase: body.phase,
+            order: body.order, // ✅ JSON key is "order"
+            enabled: body.enabled !== undefined ? body.enabled : true,
+          };
+
+          const updatedAgents = [...agents, newAgent].sort((a: any, b: any) => {
+            const phaseOrder = { pre: 1, main: 2, post: 3 };
+            const phaseDiff = (phaseOrder[a.phase] || 99) - (phaseOrder[b.phase] || 99);
+            return phaseDiff !== 0 ? phaseDiff : a.order - b.order;
+          });
+
+          const { data, error } = await supabaseAdmin
+            .from('agent_configs')
+            .update({ 
+              config: { ...currentConfig.config, agents: updatedAgents },
+              updated_at: new Date().toISOString()
+            })
+            .eq('agent_key', agentKey)
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          await logAdminAction(supabaseAdmin, user.id, 'add_agent_to_swarm', `agent_configs:${agentKey}`, {
+            promptRef: body.promptRef,
+            name: body.name,
+          });
+
+          return new Response(JSON.stringify({ ok: true, data, agent: newAgent }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        } catch (err: any) {
+          console.error('[swarm-admin-api] addAgentToSwarm exception:', { 
+            promptRef: body.promptRef, 
+            op: 'addAgentToSwarm',
+            error: err.message || String(err)
+          });
+          return new Response(JSON.stringify({ 
+            ok: false, 
+            op: 'addAgentToSwarm', 
+            error: 'Add agent failed', 
+            detail: err.message || String(err)
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+    }
+
+    // Handle invoke-style requests (from supabase.functions.invoke with method/path)
+    // Body format: { method: 'PUT', path: '/agent-prompts/:id', content: '...', ... }
+    if (body?.method && body?.path) {
+      const invokeMethod = body.method;
+      const invokePath = body.path;
+      const invokeBody = { ...body };
+      delete invokeBody.method;
+      delete invokeBody.path;
+
+      // Route based on invoke path
+      if (invokePath.startsWith('/agent-prompts/')) {
+        const agentId = invokePath.split('/')[2];
+        if (invokeMethod === 'PUT') {
+          const { user, error: authError } = await validateAdmin(req, supabaseAdmin);
+          if (authError) {
+            return new Response(JSON.stringify({ error: authError }), {
+              status: authError.includes('Missing') ? 401 : 403,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+
+          let query = supabaseAdmin.from('agent_prompts');
+          if (agentId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            query = query.eq('id', agentId);
+          } else {
+            query = query.eq('agent_id', agentId).eq('status', 'published').order('version', { ascending: false }).limit(1);
+          }
+
+          const { data: existing } = await query.select('id').maybeSingle();
+          if (!existing) {
+            return new Response(JSON.stringify({ error: 'Prompt not found' }), {
+              status: 404,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+
+          const updateData: any = {};
+          if (invokeBody.content !== undefined) updateData.content = invokeBody.content;
+          if (invokeBody.status !== undefined) updateData.status = invokeBody.status;
+
+          const { data, error } = await supabaseAdmin
+            .from('agent_prompts')
+            .update(updateData)
+            .eq('id', existing.id)
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          await logAdminAction(supabaseAdmin, user.id, 'update_prompt', `agent_prompts:${existing.id}`, {
+            agent_id: data.agent_id,
+            updated_fields: Object.keys(updateData),
+          });
+
+          return new Response(JSON.stringify({ ok: true, data }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
+      if (invokePath === '/agent-prompts' && invokeMethod === 'POST') {
+        const { user, error: authError } = await validateAdmin(req, supabaseAdmin);
+        if (authError) {
+          return new Response(JSON.stringify({ error: authError }), {
+            status: authError.includes('Missing') ? 401 : 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const agentId = invokeBody.agent_id || invokeBody.agent_key;
+        const content = invokeBody.content || invokeBody.prompt;
+        const status = invokeBody.status || 'published';
+
+        if (!agentId || !content) {
+          return new Response(JSON.stringify({ error: 'Missing required fields: agent_id (or agent_key), content (or prompt)' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const { data: existing } = await supabaseAdmin
+          .from('agent_prompts')
+          .select('id, version')
+          .eq('agent_id', agentId)
+          .eq('status', 'published')
+          .order('version', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        let result;
+        if (existing && status === 'published') {
+          const { data, error } = await supabaseAdmin
+            .from('agent_prompts')
+            .update({ content })
+            .eq('id', existing.id)
+            .select()
+            .single();
+          if (error) throw error;
+          result = data;
+        } else {
+          const version = existing ? existing.version + 1 : 1;
+          const promptData = {
+            agent_id: agentId,
+            title: invokeBody.title || `${agentId} prompt`,
+            content,
+            model: invokeBody.model || 'gpt-4o-mini',
+            phase: invokeBody.phase || 'pre',
+            exec_order: invokeBody.exec_order || invokeBody.order || 50,
+            status,
+            version,
+            created_by: user.id,
+          };
+
+          const { data, error } = await supabaseAdmin.from('agent_prompts').insert(promptData).select().single();
+          if (error) throw error;
+          result = data;
+        }
+
+        await logAdminAction(supabaseAdmin, user.id, existing ? 'update_prompt' : 'create_prompt', `agent_prompts:${result.id}`, {
+          agent_id: agentId,
+          status: result.status,
+        });
+
+        return new Response(JSON.stringify({ ok: true, data: result }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      if (invokePath === '/agent-configs/personality/agents' && invokeMethod === 'POST') {
+        const { user, error: authError } = await validateAdmin(req, supabaseAdmin);
+        if (authError) {
+          return new Response(JSON.stringify({ error: authError }), {
+            status: authError.includes('Missing') ? 401 : 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        if (!invokeBody.promptRef || !invokeBody.name || invokeBody.phase === undefined || invokeBody.order === undefined) {
+          return new Response(JSON.stringify({ error: 'Missing required fields: promptRef, name, phase, order' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const { data: currentConfig, error: fetchError } = await supabaseAdmin
+          .from('agent_configs')
+          .select('config')
+          .eq('agent_key', 'personality')
+          .single();
+
+        if (fetchError || !currentConfig) {
+          return new Response(JSON.stringify({ error: 'Swarm config not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const agents = currentConfig.config?.agents || [];
+        
+        if (agents.some((a: any) => a.promptRef === invokeBody.promptRef)) {
+          return new Response(JSON.stringify({ error: `Agent with promptRef "${invokeBody.promptRef}" already exists` }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const newAgent = {
+          id: invokeBody.id || `agent-${Date.now()}`,
+          name: invokeBody.name,
+          promptRef: invokeBody.promptRef,
+          phase: invokeBody.phase,
+          order: invokeBody.order,
+          enabled: invokeBody.enabled !== undefined ? invokeBody.enabled : true,
+        };
+
+        const updatedAgents = [...agents, newAgent].sort((a: any, b: any) => {
+          const phaseOrder = { pre: 1, main: 2, post: 3 };
+          const phaseDiff = (phaseOrder[a.phase] || 99) - (phaseOrder[b.phase] || 99);
+          return phaseDiff !== 0 ? phaseDiff : a.order - b.order;
+        });
+
+        const { data, error } = await supabaseAdmin
+          .from('agent_configs')
+          .update({ 
+            config: { ...currentConfig.config, agents: updatedAgents },
+            updated_at: new Date().toISOString()
+          })
+          .eq('agent_key', 'personality')
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        await logAdminAction(supabaseAdmin, user.id, 'add_agent_to_swarm', `agent_configs:personality`, {
+          promptRef: invokeBody.promptRef,
+          name: invokeBody.name,
+        });
+
+        return new Response(JSON.stringify({ ok: true, data, agent: newAgent }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Continue with existing path-based routing for direct HTTP requests
+    const supabase = supabaseAdmin;
 
     // Health check
     if (path === '/health') {
@@ -88,8 +591,8 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       if (method === 'POST') {
-        const body = await req.json();
-        const { data, error } = await supabase.from('swarms').insert(body).select().single();
+        const requestBody = body || await req.json();
+        const { data, error } = await supabase.from('swarms').insert(requestBody).select().single();
         if (error) throw error;
         return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
@@ -110,10 +613,10 @@ Deno.serve(async (req) => {
           });
         }
 
-        const body = await req.json();
+        const requestBody = body || await req.json();
 
         // Validate required fields
-        if (!body.manifest) {
+        if (!requestBody.manifest) {
           return new Response(JSON.stringify({ error: 'Missing required field: manifest' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -123,7 +626,7 @@ Deno.serve(async (req) => {
         // Create draft version
         const versionData = {
           swarm_id: swarmId,
-          manifest: body.manifest,
+          manifest: requestBody.manifest,
           status: 'draft',
           rollout_percent: 0,
           created_by: user.id,
@@ -145,8 +648,8 @@ Deno.serve(async (req) => {
       // Handle /swarms/:id PUT/DELETE
       if (pathParts.length === 2) {
         if (method === 'PUT') {
-          const body = await req.json();
-          const { data, error } = await supabase.from('swarms').update(body).eq('id', swarmId).select().single();
+          const requestBody = body || await req.json();
+          const { data, error } = await supabase.from('swarms').update(requestBody).eq('id', swarmId).select().single();
           if (error) throw error;
           return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
@@ -178,57 +681,159 @@ Deno.serve(async (req) => {
           });
         }
 
-        const body = await req.json();
+        const requestBody = body || await req.json();
 
-        // Validate required fields
-        if (!body.agent_key || !body.model || !body.prompt) {
-          return new Response(JSON.stringify({ error: 'Missing required fields: agent_key, model, prompt' }), {
+        // Support both old format (agent_key, prompt) and new format (agent_id, content, status)
+        const agentId = requestBody.agent_id || requestBody.agent_key;
+        const content = requestBody.content || requestBody.prompt;
+        const status = requestBody.status || 'published'; // Default to published for swarm prompts
+
+        if (!agentId || !content) {
+          return new Response(JSON.stringify({ error: 'Missing required fields: agent_id (or agent_key), content (or prompt)' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
         }
 
-        // Map API fields to database schema
-        const promptData = {
-          agent_id: body.agent_key,
-          title: body.title || `${body.agent_key} prompt`,
-          content: body.prompt,
-          model: body.model,
-          phase: body.phase || 'core',
-          exec_order: body.exec_order || 50,
-          status: 'draft',
-          created_by: user.id,
-        };
+        // Check if prompt already exists for this agent_id
+        const { data: existing } = await supabase
+          .from('agent_prompts')
+          .select('id, version')
+          .eq('agent_id', agentId)
+          .eq('status', 'published')
+          .order('version', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        const { data, error } = await supabase.from('agent_prompts').insert(promptData).select().single();
-        if (error) throw error;
+        let result;
+        if (existing && status === 'published') {
+          // Update existing published version
+          const { data, error } = await supabase
+            .from('agent_prompts')
+            .update({ content })
+            .eq('id', existing.id)
+            .select()
+            .single();
+          if (error) throw error;
+          result = data;
+        } else {
+          // Create new version
+          const version = existing ? existing.version + 1 : 1;
+          const promptData = {
+            agent_id: agentId,
+            title: requestBody.title || `${agentId} prompt`,
+            content,
+            model: requestBody.model || 'gpt-4o-mini',
+            phase: requestBody.phase || 'pre',
+            exec_order: requestBody.exec_order || requestBody.order || 50,
+            status,
+            version,
+            created_by: user.id,
+          };
+
+          const { data, error } = await supabase.from('agent_prompts').insert(promptData).select().single();
+          if (error) throw error;
+          result = data;
+        }
 
         // Audit log
-        await logAdminAction(supabase, user.id, 'create_prompt_draft', `agent_prompts:${data.id}`, {
-          agent_key: body.agent_key,
-          model: body.model,
+        await logAdminAction(supabase, user.id, existing ? 'update_prompt' : 'create_prompt', `agent_prompts:${result.id}`, {
+          agent_id: agentId,
+          status: result.status,
         });
 
-        return new Response(JSON.stringify({ ok: true, data }), {
+        return new Response(JSON.stringify({ ok: true, data: result }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
     }
 
     if (path.startsWith('/agent-prompts/')) {
-      const id = path.split('/')[2];
+      const pathParts = path.split('/').filter(p => p);
+      const identifier = pathParts[1]; // Could be 'id' (UUID) or 'agent_id' (string)
+      
       if (method === 'PUT') {
-        const body = await req.json();
-        const { data, error } = await supabase.from('agent_prompts').update(body).eq('id', id).select().single();
+        // Validate admin
+        const { user, error: authError } = await validateAdmin(req, supabase);
+        if (authError) {
+          return new Response(JSON.stringify({ error: authError }), {
+            status: user ? 403 : 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const requestBody = body || await req.json();
+
+        // Support updating by UUID (id) or by agent_id
+        let query = supabase.from('agent_prompts');
+        if (identifier.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+          // UUID format - update by id
+          query = query.eq('id', identifier);
+        } else {
+          // agent_id format - update latest published version
+          query = query.eq('agent_id', identifier).eq('status', 'published').order('version', { ascending: false }).limit(1);
+        }
+
+        const { data: existing } = await query.select('id').maybeSingle();
+        if (!existing) {
+          return new Response(JSON.stringify({ error: 'Prompt not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Update content and optionally status
+        const updateData: any = {};
+        if (requestBody.content !== undefined) updateData.content = requestBody.content;
+        if (requestBody.status !== undefined) updateData.status = requestBody.status;
+
+        const { data, error } = await supabase
+          .from('agent_prompts')
+          .update(updateData)
+          .eq('id', existing.id)
+          .select()
+          .single();
+
         if (error) throw error;
-        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+        await logAdminAction(supabase, user.id, 'update_prompt', `agent_prompts:${existing.id}`, {
+          agent_id: data.agent_id,
+          updated_fields: Object.keys(updateData),
+        });
+
+        return new Response(JSON.stringify({ ok: true, data }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
       if (method === 'DELETE') {
-        const { error } = await supabase.from('agent_prompts').delete().eq('id', id);
+        // Validate admin
+        const { user, error: authError } = await validateAdmin(req, supabase);
+        if (authError) {
+          return new Response(JSON.stringify({ error: authError }), {
+            status: user ? 403 : 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Support deleting by UUID (id) or by agent_id
+        let query = supabase.from('agent_prompts');
+        if (identifier.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+          query = query.eq('id', identifier);
+        } else {
+          query = query.eq('agent_id', identifier);
+        }
+
+        const { error } = await query.delete();
         if (error) throw error;
-        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+        await logAdminAction(supabase, user.id, 'delete_prompt', `agent_prompts:${identifier}`, null);
+
+        return new Response(JSON.stringify({ success: true }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
       }
       if (path.endsWith('/publish')) {
+        const id = pathParts[1];
         // Validate admin
         const { user, error: authError } = await validateAdmin(req, supabase);
         if (authError) {
@@ -291,8 +896,8 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       if (method === 'POST') {
-        const body = await req.json();
-        const { data, error } = await supabase.from('swarm_agents').insert(body).select().single();
+        const requestBody = body || await req.json();
+        const { data, error } = await supabase.from('swarm_agents').insert(requestBody).select().single();
         if (error) throw error;
         return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
@@ -309,8 +914,8 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       if (method === 'POST') {
-        const body = await req.json();
-        const { data, error } = await supabase.from('swarm_versions').insert(body).select().single();
+        const requestBody = body || await req.json();
+        const { data, error } = await supabase.from('swarm_versions').insert(requestBody).select().single();
         if (error) throw error;
         return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
@@ -355,10 +960,7 @@ Deno.serve(async (req) => {
         // Publish this version
         const { data, error } = await supabase
           .from('swarm_versions')
-          .update({
-            status: 'published',
-            published_at: new Date().toISOString()
-          })
+          .update({ status: 'published' })
           .eq('id', id)
           .select()
           .single();
@@ -366,98 +968,13 @@ Deno.serve(async (req) => {
         if (error) throw error;
 
         // Audit log
-        await logAdminAction(supabase, user.id, 'publish_swarm', `swarm_versions:${id}`, {
+        await logAdminAction(supabase, user.id, 'publish_swarm_version', `swarm_versions:${id}`, {
           swarm_id: version.swarm_id,
         });
 
         return new Response(JSON.stringify({ ok: true, data }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
-      }
-
-      if (action === 'rollout' && method === 'PUT') {
-        // Validate admin
-        const { user, error: authError } = await validateAdmin(req, supabase);
-        if (authError) {
-          return new Response(JSON.stringify({ error: authError }), {
-            status: user ? 403 : 401,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
-
-        const body = await req.json();
-
-        // Validate rollout_percent
-        if (body.rollout_percent !== undefined) {
-          const percent = Number(body.rollout_percent);
-          if (isNaN(percent) || percent < 0 || percent > 100) {
-            return new Response(JSON.stringify({ error: 'rollout_percent must be between 0 and 100' }), {
-              status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
-          }
-        }
-
-        // Validate cohort
-        if (body.cohort && !['beta', 'paid', 'all'].includes(body.cohort)) {
-          return new Response(JSON.stringify({ error: 'cohort must be one of: beta, paid, all' }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
-
-        // Update rollout
-        const updateData: any = {};
-        if (body.rollout_percent !== undefined) updateData.rollout_percent = body.rollout_percent;
-        if (body.cohort) updateData.cohort = body.cohort;
-
-        const { data, error } = await supabase
-          .from('swarm_versions')
-          .update(updateData)
-          .eq('id', id)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        // Audit log
-        await logAdminAction(supabase, user.id, 'update_rollout', `swarm_versions:${id}`, updateData);
-
-        return new Response(JSON.stringify({ ok: true, data }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-
-      // Generic PUT for other updates
-      if (method === 'PUT' && !action) {
-        const body = await req.json();
-        const { data, error} = await supabase.from('swarm_versions').update(body).eq('id', id).select().single();
-        if (error) throw error;
-        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-    }
-
-    // Test Runs CRUD
-    if (path === '/agent-test-runs') {
-      if (method === 'GET') {
-        const { data, error } = await supabase.from('agent_test_runs').select('*').order('created_at', { ascending: false }).limit(50);
-        if (error) throw error;
-        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-      if (method === 'POST') {
-        const body = await req.json();
-        const { data, error } = await supabase.from('agent_test_runs').insert(body).select().single();
-        if (error) throw error;
-        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-    }
-
-    // Dietary Filter Rules
-    if (path === '/dietary-filter-rules') {
-      if (method === 'GET') {
-        const { data, error } = await supabase.from('dietary_filter_rules').select('*').order('type');
-        if (error) throw error;
-        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 
@@ -478,18 +995,18 @@ Deno.serve(async (req) => {
           });
         }
 
-        const body = await req.json();
-        if (!body.agent_key || !body.config) {
+        const requestBody = body || await req.json();
+        if (!requestBody.agent_key || !requestBody.config) {
           return new Response(JSON.stringify({ error: 'Missing required fields: agent_key, config' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
         }
 
-        const { data, error } = await supabase.from('agent_configs').insert(body).select().single();
+        const { data, error } = await supabase.from('agent_configs').insert(requestBody).select().single();
         if (error) throw error;
 
-        await logAdminAction(supabase, user.id, 'create_agent_config', `agent_configs:${data.id}`, { agent_key: body.agent_key });
+        await logAdminAction(supabase, user.id, 'create_agent_config', `agent_configs:${data.id}`, { agent_key: requestBody.agent_key });
 
         return new Response(JSON.stringify({ ok: true, data }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -517,16 +1034,16 @@ Deno.serve(async (req) => {
           });
         }
 
-        const body = await req.json();
+        const requestBody = body || await req.json();
         const { data, error } = await supabase.from('agent_configs')
-          .update({ config: body.config, updated_at: new Date().toISOString() })
+          .update({ config: requestBody.config, updated_at: new Date().toISOString() })
           .eq('agent_key', agentKey)
           .select()
           .single();
 
         if (error) throw error;
 
-        await logAdminAction(supabase, user.id, 'update_agent_config', `agent_configs:${agentKey}`, body);
+        await logAdminAction(supabase, user.id, 'update_agent_config', `agent_configs:${agentKey}`, requestBody);
 
         return new Response(JSON.stringify({ ok: true, data }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -552,13 +1069,173 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
+
+      // POST /agent-configs/:agentKey/agents - Add agent to swarm config
+      if (pathParts.length === 3 && pathParts[2] === 'agents' && method === 'POST') {
+        // Validate admin
+        const { user, error: authError } = await validateAdmin(req, supabase);
+        if (authError) {
+          return new Response(JSON.stringify({ error: authError }), {
+            status: user ? 403 : 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const requestBody = body || await req.json();
+        if (!requestBody.promptRef || !requestBody.name || requestBody.phase === undefined || requestBody.order === undefined) {
+          return new Response(JSON.stringify({ error: 'Missing required fields: promptRef, name, phase, order' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Get current config
+        const { data: currentConfig, error: fetchError } = await supabase
+          .from('agent_configs')
+          .select('config')
+          .eq('agent_key', agentKey)
+          .single();
+
+        if (fetchError || !currentConfig) {
+          return new Response(JSON.stringify({ error: 'Swarm config not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const agents = currentConfig.config?.agents || [];
+        
+        // Check if agent already exists
+        const exists = agents.some((a: any) => a.promptRef === requestBody.promptRef);
+        if (exists) {
+          return new Response(JSON.stringify({ error: `Agent with promptRef "${requestBody.promptRef}" already exists` }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Add new agent
+        const newAgent = {
+          id: requestBody.id || `agent-${Date.now()}`,
+          name: requestBody.name,
+          promptRef: requestBody.promptRef,
+          phase: requestBody.phase,
+          order: requestBody.order,
+          enabled: requestBody.enabled !== undefined ? requestBody.enabled : true,
+        };
+
+        const updatedAgents = [...agents, newAgent].sort((a: any, b: any) => {
+          const phaseOrder = { pre: 1, main: 2, post: 3 };
+          const phaseDiff = (phaseOrder[a.phase] || 99) - (phaseOrder[b.phase] || 99);
+          return phaseDiff !== 0 ? phaseDiff : a.order - b.order;
+        });
+
+        const { data, error } = await supabase
+          .from('agent_configs')
+          .update({ 
+            config: { ...currentConfig.config, agents: updatedAgents },
+            updated_at: new Date().toISOString()
+          })
+          .eq('agent_key', agentKey)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        await logAdminAction(supabase, user.id, 'add_agent_to_swarm', `agent_configs:${agentKey}`, {
+          promptRef: requestBody.promptRef,
+          name: requestBody.name,
+        });
+
+        return new Response(JSON.stringify({ ok: true, data, agent: newAgent }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // PUT /agent-configs/:agentKey/agents/:promptRef - Update agent in swarm config
+      if (pathParts.length === 4 && pathParts[2] === 'agents' && method === 'PUT') {
+        const promptRef = pathParts[3];
+
+        // Validate admin
+        const { user, error: authError } = await validateAdmin(req, supabase);
+        if (authError) {
+          return new Response(JSON.stringify({ error: authError }), {
+            status: user ? 403 : 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const requestBody = body || await req.json();
+
+        // Get current config
+        const { data: currentConfig, error: fetchError } = await supabase
+          .from('agent_configs')
+          .select('config')
+          .eq('agent_key', agentKey)
+          .single();
+
+        if (fetchError || !currentConfig) {
+          return new Response(JSON.stringify({ error: 'Swarm config not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const agents = currentConfig.config?.agents || [];
+        const agentIndex = agents.findIndex((a: any) => a.promptRef === promptRef);
+
+        if (agentIndex === -1) {
+          return new Response(JSON.stringify({ error: `Agent with promptRef "${promptRef}" not found` }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Update agent
+        const updatedAgents = [...agents];
+        updatedAgents[agentIndex] = {
+          ...updatedAgents[agentIndex],
+          ...(requestBody.name !== undefined && { name: requestBody.name }),
+          ...(requestBody.phase !== undefined && { phase: requestBody.phase }),
+          ...(requestBody.order !== undefined && { order: requestBody.order }),
+          ...(requestBody.enabled !== undefined && { enabled: requestBody.enabled }),
+        };
+
+        // Re-sort after update
+        updatedAgents.sort((a: any, b: any) => {
+          const phaseOrder = { pre: 1, main: 2, post: 3 };
+          const phaseDiff = (phaseOrder[a.phase] || 99) - (phaseOrder[b.phase] || 99);
+          return phaseDiff !== 0 ? phaseDiff : a.order - b.order;
+        });
+
+        const { data, error } = await supabase
+          .from('agent_configs')
+          .update({ 
+            config: { ...currentConfig.config, agents: updatedAgents },
+            updated_at: new Date().toISOString()
+          })
+          .eq('agent_key', agentKey)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        await logAdminAction(supabase, user.id, 'update_agent_in_swarm', `agent_configs:${agentKey}`, {
+          promptRef,
+          updates: requestBody,
+        });
+
+        return new Response(JSON.stringify({ ok: true, data, agent: updatedAgents[agentIndex] }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
     }
 
     // Agent Config Validation
     if (path === '/agent-configs/validate') {
       if (method === 'POST') {
-        const body = await req.json();
-        const { agent_key, config } = body;
+        const requestBody = body || await req.json();
+        const { agent_key, config } = requestBody;
 
         // Role-specific terms that should NOT appear in personality agents
         const roleTerms = [
@@ -596,10 +1273,16 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
-  } catch (error) {
-    console.error('Admin API error:', error);
+  } catch (error: any) {
+    console.error('[swarm-admin-api] Unhandled exception:', error);
+    const errorResponse = {
+      ok: false,
+      op: body?.op || 'unknown',
+      error: 'request_failed',
+      detail: error.message || String(error)
+    };
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify(errorResponse),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

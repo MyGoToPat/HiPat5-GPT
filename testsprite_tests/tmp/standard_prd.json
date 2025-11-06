@@ -1,0 +1,78 @@
+{
+  "product_name": "HiPat5-GPT-1",
+  "product_description": "AI-powered nutrition and health coaching platform with Pat AI assistant",
+  "target_users": [
+    "Health-conscious individuals seeking personalized nutrition guidance",
+    "People looking to track and optimize their daily energy expenditure (TDEE)",
+    "Users wanting AI-powered meal logging and macro calculation",
+    "Fitness enthusiasts and those working with personal trainers"
+  ],
+  "key_features": [
+    {
+      "name": "AI Chat Assistant (Pat)",
+      "description": "Conversational AI assistant for nutrition advice, meal planning, and health guidance",
+      "priority": "high"
+    },
+    {
+      "name": "Meal Logging & Macro Tracking",
+      "description": "Log meals with automatic macro calculation using multiple data sources (USDA, branded products, Gemini AI)",
+      "priority": "high"
+    },
+    {
+      "name": "TDEE Calculation",
+      "description": "Calculate Total Daily Energy Expenditure based on user profile and activity level",
+      "priority": "high"
+    },
+    {
+      "name": "User Dashboard",
+      "description": "Personalized dashboard showing progress, meals, and health metrics",
+      "priority": "medium"
+    },
+    {
+      "name": "Voice Integration",
+      "description": "Text-to-speech for AI responses and voice input capabilities",
+      "priority": "medium"
+    },
+    {
+      "name": "Multi-Agent AI System",
+      "description": "Swarm AI system with different personalities and specialized agents",
+      "priority": "medium"
+    },
+    {
+      "name": "Admin Panel",
+      "description": "Administrative interface for managing users and system settings",
+      "priority": "low"
+    },
+    {
+      "name": "Trainer Features",
+      "description": "Tools for personal trainers to manage their clients",
+      "priority": "low"
+    }
+  ],
+  "user_stories": [
+    "As a user, I want to chat with Pat AI to get nutrition advice",
+    "As a user, I want to log my meals and see automatic macro calculations",
+    "As a user, I want to know my TDEE to plan my daily calorie intake",
+    "As a user, I want a personalized dashboard showing my health progress",
+    "As a trainer, I want to manage multiple clients and their data",
+    "As an admin, I want to manage user roles and system settings"
+  ],
+  "acceptance_criteria": [
+    "Users can successfully authenticate and access the platform",
+    "Pat AI responds appropriately to nutrition-related questions",
+    "Meal logging shows accurate macro calculations",
+    "TDEE calculations are based on proper formulas and user data",
+    "Dashboard displays relevant health metrics and progress",
+    "Voice features work across supported browsers",
+    "Admin panel allows proper user and system management"
+  ],
+  "technical_requirements": [
+    "React 18 with TypeScript",
+    "Supabase for backend services and authentication",
+    "Vite for build tooling",
+    "Responsive design with Tailwind CSS",
+    "Edge functions for AI processing",
+    "Multiple nutrition data providers (USDA, branded products, AI)",
+    "Real-time chat with streaming responses"
+  ]
+}

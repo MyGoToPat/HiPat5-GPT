@@ -6,7 +6,8 @@ export default defineConfig({
     globals: true,
     include: [
       'src/**/*.{test,spec}.{ts,tsx}',
-      'src/**/__tests__/**/*.{ts,tsx}'
+      'src/**/__tests__/**/*.{ts,tsx}',
+      'tests/**/*.{test,spec}.{ts,tsx}'
     ],
     reporters: 'default'
   },

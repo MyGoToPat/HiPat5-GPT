@@ -1,7 +1,9 @@
 /**
  * INTENT ROUTER
- * Quick regex hits + low-cost JSON classifier
+ * Personality Router (LLM-aware) → Quick regex hits → Low-cost classifier
  */
+
+import { runPersonalityRouter, normalizeIntent } from '../personality/routerAgent';
 
 export interface IntentResult {
   intent: string;
@@ -79,17 +81,110 @@ async function classifyIntent(message: string): Promise<IntentResult> {
 }
 
 /**
- * Main intent detection entry point
+ * Detect web search intent from message
  */
-export async function detectIntent(message: string): Promise<IntentResult> {
-  // Try quick regex hits first
+function detectWebIntent(message: string): { needs_web: boolean; wants_links: boolean; freshness_days?: number; depth: 'brief' | 'detailed' } {
+  const lower = message.toLowerCase();
+  
+  const needs_web = /\b(search|find|latest|link|links|cite|sources|up[- ]to[- ]date|news|study|paper|current|recent)\b/.test(lower);
+  const wants_links = /\b(link|links|cite|sources|url|website)\b/.test(lower);
+  const freshness_days = /\b(today|this week|this month|this year|latest|new|2024|2025)\b/.test(lower) ? 365 : undefined;
+  const depth = /\b(detailed|deep|thorough|long|comprehensive|extensive)\b/.test(lower) ? 'detailed' as const : 'brief' as const;
+  
+  return { needs_web, wants_links, freshness_days, depth };
+}
+
+/**
+ * Main intent detection entry point
+ * Tries Personality Router first (LLM-aware), falls back to regex/classifier
+ * @param routerDecision Optional router decision to avoid duplicate calls
+ */
+export async function detectIntent(message: string, routerDecision?: import('../personality/routerAgent').RouterDecision | null): Promise<IntentResult> {
+  // ✅ Step 1: Try Personality Router first (LLM-aware intelligent routing)
+  let decision = routerDecision;
+  
+  if (!decision) {
+    try {
+      decision = await runPersonalityRouter(message);
+    } catch (e) {
+      console.warn('[intentRouter] Personality router failed, falling back', e);
+    }
+  }
+  
+  if (decision && decision.confidence >= 0.6) {
+    console.info('[intentRouter] Personality router decision', decision);
+    
+    // Map router route_to to intent format with normalization
+    let intent: string;
+    const normalizedRoute = normalizeIntent(decision.route_to);
+    if (normalizedRoute === 'tmwya' || normalizedRoute === 'meal_logging') {
+      intent = 'food_question';
+    } else if (normalizedRoute === 'workout') {
+      intent = 'workout';
+    } else if (normalizedRoute === 'camera') {
+      intent = 'camera';
+    } else {
+      intent = 'general';
+    }
+
+    const webIntent = detectWebIntent(message);
+    
+    return {
+      intent,
+      confidence: decision.confidence,
+      metadata: {
+        method: 'personality_router',
+        route_to: decision.route_to,
+        use_gemini: decision.use_gemini,
+        reason: decision.reason,
+        needs_clarification: decision.needs_clarification,
+        clarifier: decision.clarifier,
+        needs_web: webIntent.needs_web,
+        wants_links: webIntent.wants_links,
+        freshness_days: webIntent.freshness_days,
+        depth: webIntent.depth
+      }
+    };
+  }
+
+  // ✅ Step 2: Fallback to quick regex hits
   const quickResult = quickHit(message);
   if (quickResult) {
+    // ✅ Check for web intent even in quick hits
+    const webIntent = detectWebIntent(message);
+    if (webIntent.needs_web) {
+      return {
+        ...quickResult,
+        metadata: {
+          ...quickResult.metadata,
+          needs_web: true,
+          wants_links: webIntent.wants_links,
+          freshness_days: webIntent.freshness_days,
+          depth: webIntent.depth
+        }
+      };
+    }
     return quickResult;
   }
 
-  // Fall back to classifier
+  // ✅ Step 3: Fall back to classifier
   const classifierResult = await classifyIntent(message);
+
+  // ✅ Check for web intent in classifier result
+  const webIntent = detectWebIntent(message);
+  if (webIntent.needs_web) {
+    return {
+      intent: classifierResult.intent || 'general',
+      confidence: Math.max(classifierResult.confidence, 0.7), // Boost confidence if web keywords present
+      metadata: {
+        ...classifierResult.metadata,
+        needs_web: true,
+        wants_links: webIntent.wants_links,
+        freshness_days: webIntent.freshness_days,
+        depth: webIntent.depth
+      }
+    };
+  }
 
   // If classifier confidence is too low, default to general
   if (classifierResult.confidence < 0.6) {

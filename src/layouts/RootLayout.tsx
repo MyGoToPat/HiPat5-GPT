@@ -5,11 +5,14 @@ import NavigationSidebar from '../components/NavigationSidebar';
 import TDEEGuard from '../components/auth/TDEEGuard';
 import { ChatManager } from '../utils/chatManager';
 import { getSupabase, getUserProfile } from '../lib/supabase';
+import { getChatHistory, deleteChatSession, restoreChatSession, type ChatHistoryItem } from '../lib/chatHistory';
+import toast from 'react-hot-toast';
 
 type ChatSummary = {
   id: string;
-  title: string | null;
-  updated_at: string | null;
+  title: string;
+  preview: string;
+  updated_at: string;
 };
 
 type UserProfile = { role?: 'admin' | 'trainer' | 'user' | string } | null;
@@ -37,39 +40,68 @@ export default function RootLayout() {
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile>(null);
 
-  // Load chats whenever location changes or sidebar opens
+  // Load chat history helper
+  const loadChats = async () => {
+    const supabase = getSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { 
+      setChats([]); 
+      return; 
+    }
+    
+    try {
+      const list = await getChatHistory(user.id);
+      // getChatHistory now only returns sessions with both user questions and assistant responses
+      setChats(list);
+    } catch (err) {
+      console.error('[Recent Chats] Failed to load:', err);
+      setChats([]);
+    }
+  };
+
+  // Load chats when nav opens
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const supabase = getSupabase();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!active || !user) return;
+    if (isNavOpen) {
+      loadChats();
+    }
+  }, [isNavOpen, location.pathname]);
 
-        const state = await ChatManager.loadChatState?.(user.id);
-        if (!active || !state) return;
+  // Delete chat handler with undo
+  const handleDeleteChat = async (chatId: string) => {
+    const supabase = getSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-        // Defensive normalization across possible shapes:
-        // - state.threads: [{ id, title, updated_at }]
-        // - state.chatHistories: [{ id, title, updated_at }]
-        const raw =
-          (Array.isArray((state as any).threads) && (state as any).threads) ||
-          (Array.isArray((state as any).chatHistories) && (state as any).chatHistories) ||
-          [];
-
-        const normalized: ChatSummary[] = raw.map((t: any) => ({
-          id: t.id ?? t.thread_id ?? '',
-          title: t.title ?? t.name ?? 'Untitled',
-          updated_at: t.updated_at ?? t.modified_at ?? null,
-        })).filter((c: ChatSummary) => !!c.id);
-
-        setChats(normalized);
-      } catch (err) {
-        console.error('Failed to load chat state', err);
-      }
-    })();
-    return () => { active = false; };
-  }, [location.pathname, isNavOpen]);
+    const deletedChat = chats.find(c => c.id === chatId);
+    
+    try {
+      await deleteChatSession(chatId, user.id);
+      setChats(chats.filter(c => c.id !== chatId));
+      
+      // Show undo toast
+      toast.success(
+        (t) => (
+          <div className="flex items-center gap-2">
+            <span>Chat moved to trash</span>
+            <button
+              onClick={async () => {
+                await restoreChatSession(chatId, user.id);
+                await loadChats();
+                toast.dismiss(t.id);
+              }}
+              className="text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Undo
+            </button>
+          </div>
+        ),
+        { duration: 10000 }
+      );
+    } catch (error) {
+      console.error('[Recent Chats] Failed to delete:', error);
+      toast.error('Failed to delete chat');
+    }
+  };
 
   // Load user profile for role-based navigation
   useEffect(() => {
@@ -103,6 +135,7 @@ export default function RootLayout() {
         onNavigate={(path: string) => { setIsNavOpen(false); navigate(path); }}
         recentChats={chats}
         userProfile={userProfile}
+        onDeleteChat={handleDeleteChat}
       />
 
       {/* Padding to clear fixed header: 56px (14 * 4) on mobile, 64px (16 * 4) on sm+ */}

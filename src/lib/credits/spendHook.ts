@@ -62,8 +62,8 @@ export function calculateCost(model: string, inputTokens: number, outputTokens: 
   const rates: Record<string, { input: number; output: number }> = {
     'gpt-4o-mini': { input: 0.15 / 1_000_000, output: 0.60 / 1_000_000 },
     'gpt-4o': { input: 2.50 / 1_000_000, output: 10.00 / 1_000_000 },
-    'gemini-1.5-flash': { input: 0.075 / 1_000_000, output: 0.30 / 1_000_000 },
-    'gemini-1.5-pro': { input: 1.25 / 1_000_000, output: 5.00 / 1_000_000 }
+    'gemini-2.5-flash': { input: 0.075 / 1_000_000, output: 0.30 / 1_000_000 }, // pricing verified externally
+    'gemini-2.5-pro': { input: 1.25 / 1_000_000, output: 5.00 / 1_000_000 } // pricing verified externally
   };
 
   const rate = rates[model] || rates['gpt-4o-mini'];

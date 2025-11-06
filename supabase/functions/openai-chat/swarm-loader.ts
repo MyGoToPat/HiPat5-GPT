@@ -52,8 +52,13 @@ export async function loadSwarmFromDB(
       return null;
     }
 
+    const swarm = data.config as SwarmConfig;
+    const hasRouter = swarm.agents?.some(a => a.promptRef === 'PERSONALITY_ROUTER') || false;
     console.log(`[swarm-loader] ✓ Loaded swarm: ${swarmName}`);
-    return data.config as SwarmConfig;
+    if (swarmName === 'personality') {
+      console.info('[swarm-loader] personality agents loaded:', swarm.agents?.length || 0, 'hasRouter=', hasRouter);
+    }
+    return swarm;
   } catch (err) {
     console.error(`[swarm-loader] Exception loading swarm ${swarmName}:`, err);
     return null;

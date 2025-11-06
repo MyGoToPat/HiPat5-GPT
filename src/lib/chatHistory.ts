@@ -132,3 +132,91 @@ export async function getOrCreateTodaySession(userId: string): Promise<ChatSessi
 
   return createChatSession(userId);
 }
+
+export interface ChatHistoryItem {
+  id: string;
+  title: string;
+  preview: string;
+  updated_at: string;
+}
+
+/**
+ * Get user's chat history with previews (excluding deleted)
+ */
+export async function getChatHistory(userId: string): Promise<ChatHistoryItem[]> {
+  const { data: sessions, error } = await supabase
+    .from('chat_sessions')
+    .select('id, title, created_at, last_activity_at')
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+    .order('last_activity_at', { ascending: false })
+    .limit(20);
+
+  if (error) throw error;
+
+  // Enrich with last message preview AND check for real conversation
+  const enriched = await Promise.all(
+    (sessions ?? []).map(async (s) => {
+      // Get all messages to check if there's a real conversation
+      const { data: messages } = await supabase
+        .from('chat_messages')
+        .select('role, content, created_at')
+        .eq('session_id', s.id)
+        .order('created_at', { ascending: true });
+
+      // Check if there's at least one user message AND one assistant response
+      const hasUserMessage = messages?.some(m => m.role === 'user') ?? false;
+      const hasAssistantResponse = messages?.some(m => m.role === 'assistant') ?? false;
+      
+      // Skip sessions without both question and response
+      if (!hasUserMessage || !hasAssistantResponse) {
+        return null;
+      }
+
+      // Get last message for preview
+      const last = messages?.[messages.length - 1];
+      const preview =
+        typeof last?.content === 'string'
+          ? last.content
+          : (last?.content?.text ?? last?.content?.content ?? '');
+
+      return {
+        id: s.id,
+        title: s.title || 'Untitled',
+        preview: preview.slice(0, 50),
+        updated_at: s.last_activity_at ?? last?.created_at ?? s.created_at,
+      };
+    })
+  );
+
+  // Filter out nulls (sessions without real conversations) and sort by activity time
+  return enriched
+    .filter((item): item is ChatHistoryItem => item !== null)
+    .sort(
+      (a, b) => new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime()
+    );
+}
+
+/**
+ * Soft delete a chat session
+ */
+export async function deleteChatSession(sessionId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('chat_sessions')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', sessionId)
+    .eq('user_id', userId);
+  if (error) throw error;
+}
+
+/**
+ * Restore a deleted chat session
+ */
+export async function restoreChatSession(sessionId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('chat_sessions')
+    .update({ deleted_at: null })
+    .eq('id', sessionId)
+    .eq('user_id', userId);
+  if (error) throw error;
+}

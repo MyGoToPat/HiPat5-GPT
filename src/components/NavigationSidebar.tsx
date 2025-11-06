@@ -5,7 +5,7 @@ import { useRole } from '../hooks/useRole';
 import { supabase } from '../lib/supabase';
 import { getFeatureFlags, type FeatureFlags } from '../lib/featureFlags';
 
-type ChatSummary = { id: string; title: string | null; updated_at: string | null; };
+type ChatSummary = { id: string; title: string; preview: string; updated_at: string; };
 type UserProfile = { role?: 'admin' | 'trainer' | 'user' | string } | null;
 
 type Props = {
@@ -14,14 +14,29 @@ type Props = {
   onNavigate: (path: string) => void;
   recentChats: ChatSummary[];
   userProfile?: UserProfile;
+  onDeleteChat?: (id: string) => void;
 };
 
-export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentChats, userProfile }: Props) {
+export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentChats, userProfile, onDeleteChat }: Props) {
   const { can } = useRole();
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isLowBalance, setIsLowBalance] = useState(false);
   const [isUnlimited, setIsUnlimited] = useState(false);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags | null>(null);
+
+  // Format relative time for chat history
+  const formatRelativeTime = (iso: string) => {
+    const d = new Date(iso);
+    const now = new Date();
+    const mins = Math.floor((now.getTime() - d.getTime()) / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return d.toLocaleDateString();
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -138,13 +153,15 @@ export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentC
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <aside className="absolute left-0 top-0 h-full w-[320px] max-w-[85vw] bg-white text-gray-900 shadow-xl flex flex-col">
-        <div className="flex items-center justify-between h-12 px-4 border-b">
+        {/* Header - fixed */}
+        <div className="flex items-center justify-between h-12 px-4 border-b flex-shrink-0">
           <div className="text-sm font-semibold">Menu</div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100" aria-label="Close">
             <X size={18} />
           </button>
         </div>
 
+        {/* Scrollable content */}
         <nav className="flex-1 overflow-y-auto px-2 py-3">
           {/* Credit Balance Display */}
           {(creditBalance !== null || isUnlimited) && (
@@ -200,19 +217,50 @@ export default function NavigationSidebar({ isOpen, onClose, onNavigate, recentC
             {recentChats.length === 0 ? (
               <div className="px-2 py-1 text-xs text-gray-500">No chat history yet</div>
             ) : recentChats.map(chat => (
-              <Row key={chat.id} label={chat.title ?? 'Untitled'} to={`/chat?t=${encodeURIComponent(chat.id)}`} />
+              <div 
+                key={chat.id} 
+                className="group flex items-center justify-between px-3 py-2 rounded hover:bg-gray-100"
+              >
+                <button
+                  className="flex-1 text-left min-w-0"
+                  onClick={() => onNavigate(`/chat?t=${encodeURIComponent(chat.id)}`)}
+                >
+                  <div className="text-sm font-medium text-gray-800 truncate">
+                    {chat.title}
+                  </div>
+                  <div className="text-xs text-gray-500 truncate">
+                    {chat.preview}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    {formatRelativeTime(chat.updated_at)}
+                  </div>
+                </button>
+                {onDeleteChat && (
+                  <button
+                    className="ml-2 p-1 text-red-600 rounded hover:bg-red-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteChat(chat.id);
+                    }}
+                    aria-label="Delete chat"
+                  >
+                    🗑️
+                  </button>
+                )}
+              </div>
             ))}
           </Section>
-
-          <div className="mt-3 px-2">
-            <button
-              className="w-full text-left px-3 py-2 rounded-lg border hover:bg-gray-50 text-sm"
-              onClick={() => { onNavigate('/login?signout=1'); onClose(); }}
-            >
-              Sign Out
-            </button>
-          </div>
         </nav>
+
+        {/* Footer - fixed at bottom */}
+        <div className="border-t px-2 py-3 flex-shrink-0">
+          <button
+            className="w-full text-left px-3 py-2 rounded-lg border hover:bg-gray-50 text-sm transition-colors"
+            onClick={() => { onNavigate('/login?signout=1'); onClose(); }}
+          >
+            Sign Out
+          </button>
+        </div>
       </aside>
     </div>
   );

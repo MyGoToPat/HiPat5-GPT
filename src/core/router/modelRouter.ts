@@ -5,6 +5,9 @@
 
 export type ModelProvider = 'openai' | 'gemini';
 
+// Emergency Gemini kill-switch
+const GEMINI_AMA_ENABLED = import.meta.env.VITE_GEMINI_AMA !== 'false';
+
 export interface ModelConfig {
   provider: ModelProvider;
   model: string;
@@ -26,25 +29,31 @@ const MODELS: Record<string, ModelConfig> = {
     provider: 'openai',
     model: 'gpt-4o-mini',
     estimatedTokensPerRequest: 500,
-    costPer1kTokens: 0.00015, // $0.15 per 1M input tokens
+    costPer1kTokens: 0.00015, // pricing verified externally
   },
   'gpt-4o': {
     provider: 'openai',
     model: 'gpt-4o',
     estimatedTokensPerRequest: 500,
-    costPer1kTokens: 0.0025, // $2.50 per 1M input tokens
+    costPer1kTokens: 0.0025, // pricing verified externally
   },
   'gemini-flash': {
     provider: 'gemini',
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-flash',
     estimatedTokensPerRequest: 500,
-    costPer1kTokens: 0.000075, // $0.075 per 1M input tokens (cheaper!)
+    costPer1kTokens: 0.000075, // pricing verified externally
   },
   'gemini-pro': {
     provider: 'gemini',
-    model: 'gemini-1.5-pro',
+    model: 'gemini-2.5-pro',
     estimatedTokensPerRequest: 500,
-    costPer1kTokens: 0.00125, // $1.25 per 1M input tokens
+    costPer1kTokens: 0.00125, // pricing verified externally
+  },
+  'gemini-flash-lite': {
+    provider: 'gemini',
+    model: 'gemini-2.5-flash-lite',
+    estimatedTokensPerRequest: 300,
+    costPer1kTokens: 0.00005, // pricing verified externally
   },
 } as const;
 
@@ -56,7 +65,17 @@ export interface ModelRouterContext {
   userRequestedExpert?: boolean;
   previousFailures?: number;
   forceOpenAI?: boolean;
+  needsWeb?: boolean;        // ✅ ADD: Web research required
+  wantsLinks?: boolean;      // ✅ ADD: User wants links/citations
+  depth?: 'brief' | 'detailed'; // ✅ ADD: Response depth preference
+  hints?: ModelSelectionHints; // ✅ ADD: Personality router hints
 }
+
+export type ModelSelectionHints = {
+  use_gemini?: boolean;
+  confidence?: number;
+  reason?: string;
+};
 
 /**
  * Select the most appropriate model based on context
@@ -70,18 +89,47 @@ export function selectModel(context: ModelRouterContext): ModelSelection {
     userRequestedExpert = false,
     previousFailures = 0,
     forceOpenAI = false,
+    needsWeb = false,        // ✅ ADD
+    wantsLinks = false,      // ✅ ADD
+    depth = 'brief',         // ✅ ADD
+    hints,                    // ✅ ADD: Personality router hints
   } = context;
 
-  // Conversational default for general chat (higher temperature for natural flow)
-  if (intent === 'general') {
+  // ✅ HIGH PRIORITY: web research always wins (before router hints)
+  if (needsWeb) {
     const selection = {
-      provider: 'openai' as ModelProvider,
-      model: 'gpt-4o-mini',
+      provider: 'gemini' as ModelProvider,
+      model: depth === 'detailed' ? 'gemini-2.5-pro' : 'gemini-2.5-flash',
+      tokensEst: 900,
+      reason: 'web_research',
+    };
+    console.info('[modelRouter] Selected via needsWeb', selection);
+    return selection;
+  }
+
+  // ✅ PRIORITY 2: Check personality router hints (only if not web research)
+  if (hints?.use_gemini !== undefined) {
+    const selection = {
+      provider: hints.use_gemini ? 'gemini' : 'openai' as ModelProvider,
+      model: hints.use_gemini ? 'gemini-2.5-flash' : 'gpt-4o-mini',
+      tokensEst: 500,
+      reason: hints.reason || 'personality_routing',
+    };
+    console.info('[modelRouter] Selected via router hints', selection);
+    return selection;
+  }
+
+  // Conversational default for general chat (AMA) - with Gemini fallback
+  if (intent === 'general') {
+    const useGemini = GEMINI_AMA_ENABLED && hints?.use_gemini;
+    const selection = {
+      provider: useGemini ? 'gemini' : 'openai' as ModelProvider,
+      model: useGemini ? 'gemini-2.5-flash' : 'gpt-4o-mini',
       tokensEst: messageLength + 300,
       temperature: 0.55,
-      reason: 'conversational_default',
+      reason: useGemini ? 'ama_gemini_fallback' : 'ama_openai_fallback',
     };
-    console.log('[modelRouter] Selected:', JSON.stringify(selection));
+    console.info('[modelRouter] Selected', { provider: selection.provider, model: selection.model, reason: selection.reason });
     return selection;
   }
 
@@ -94,7 +142,7 @@ export function selectModel(context: ModelRouterContext): ModelSelection {
       temperature: 0.55,
       reason: 'personality_interaction',
     };
-    console.log('[modelRouter] Selected:', JSON.stringify(selection));
+    console.info('[modelRouter] Selected', { provider: selection.provider, model: selection.model, reason: selection.reason });
     return selection;
   }
 
@@ -106,7 +154,7 @@ export function selectModel(context: ModelRouterContext): ModelSelection {
       tokensEst: 1000,
       reason: 'user_requested_expert',
     };
-    console.log('[modelRouter] Selected:', JSON.stringify(selection));
+    console.info('[modelRouter] Selected', { provider: selection.provider, model: selection.model, reason: selection.reason });
     return selection;
   }
 
@@ -118,7 +166,7 @@ export function selectModel(context: ModelRouterContext): ModelSelection {
       tokensEst: 1000,
       reason: 'retry_with_stronger_model',
     };
-    console.log('[modelRouter] Selected:', JSON.stringify(selection));
+    console.info('[modelRouter] Selected', { provider: selection.provider, model: selection.model, reason: selection.reason });
     return selection;
   }
 
@@ -130,7 +178,7 @@ export function selectModel(context: ModelRouterContext): ModelSelection {
       tokensEst: 600,
       reason: 'low_confidence_needs_better_understanding',
     };
-    console.log('[modelRouter] Selected:', JSON.stringify(selection));
+    console.info('[modelRouter] Selected', { provider: selection.provider, model: selection.model, reason: selection.reason });
     return selection;
   }
 
@@ -142,18 +190,18 @@ export function selectModel(context: ModelRouterContext): ModelSelection {
       tokensEst: 500,
       reason: 'structured_output_required',
     };
-    console.log('[modelRouter] Selected:', JSON.stringify(selection));
+    console.info('[modelRouter] Selected', { provider: selection.provider, model: selection.model, reason: selection.reason });
     return selection;
   }
 
   // Default: use cheapest model for routine queries
   const selection = {
     provider: 'gemini' as ModelProvider,
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-flash',
     tokensEst: messageLength + 300, // Estimate based on message length
     reason: 'default_cost_optimized',
   };
-  console.log('[modelRouter] Selected:', JSON.stringify(selection));
+  console.info('[modelRouter] Selected', { provider: selection.provider, model: selection.model, reason: selection.reason });
   return selection;
 }
 

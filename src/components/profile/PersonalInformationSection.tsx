@@ -62,6 +62,7 @@ export const PersonalInformationSection: React.FC<PersonalInformationSectionProp
   const [isSaving, setIsSaving] = useState(false);
   const [editedProfile, setEditedProfile] = useState(userProfile);
   const [timezone, setTimezone] = useState('America/New_York');
+  const [countryCode, setCountryCode] = useState<'US' | 'CA'>('US');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [metrics, setMetrics] = useState<TDEEMetrics>({});
   const [unitPrefs, setUnitPrefs] = useState<UnitPreferences>({ weight_unit: 'lbs', height_unit: 'feet' });
@@ -98,7 +99,7 @@ export const PersonalInformationSection: React.FC<PersonalInformationSectionProp
 
       const [metricsResult, prefsResult] = await Promise.all([
         supabase.from('user_metrics').select('*').eq('user_id', user.id).maybeSingle(),
-        supabase.from('user_preferences').select('weight_unit, height_unit, timezone').eq('user_id', user.id).maybeSingle()
+        supabase.from('user_preferences').select('weight_unit, height_unit, timezone, country_code').eq('user_id', user.id).maybeSingle()
       ]);
 
       if (metricsResult.data) {
@@ -118,6 +119,9 @@ export const PersonalInformationSection: React.FC<PersonalInformationSectionProp
         });
         if (prefsResult.data.timezone) {
           setTimezone(prefsResult.data.timezone);
+        }
+        if (prefsResult.data.country_code) {
+          setCountryCode(prefsResult.data.country_code as 'US' | 'CA');
         }
       }
     } catch (error) {
@@ -149,6 +153,33 @@ export const PersonalInformationSection: React.FC<PersonalInformationSectionProp
     } catch (error: any) {
       console.error('Error saving timezone:', error);
       toast.error('Failed to save timezone');
+    }
+  };
+
+  const handleCountryChange = async (newCountry: 'US' | 'CA') => {
+    try {
+      setCountryCode(newCountry);
+
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('user_preferences')
+        .upsert({
+          user_id: user.id,
+          country_code: newCountry,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) throw error;
+
+      toast.success(`Food database set to ${newCountry === 'US' ? 'United States' : 'Canada'}`);
+    } catch (error: any) {
+      console.error('Error saving country:', error);
+      toast.error('Failed to save country preference');
     }
   };
 
@@ -601,6 +632,22 @@ export const PersonalInformationSection: React.FC<PersonalInformationSectionProp
                 <option value="UTC">UTC</option>
               </select>
               <div className="mt-2 text-xs text-gray-400">Current time: {formatCurrentTime()}</div>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Food Database Country</label>
+              <select
+                value={countryCode}
+                onChange={(e) => handleCountryChange(e.target.value as 'US' | 'CA')}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white"
+              >
+                <option value="US">United States (USDA)</option>
+                <option value="CA">Canada (CNF)</option>
+              </select>
+              <div className="mt-2 text-xs text-gray-400">
+                {countryCode === 'US' 
+                  ? 'Using USDA FoodData Central for packaged foods' 
+                  : 'Using Canadian Nutrient File for packaged foods'}
+              </div>
             </div>
             <div>
               <label className="block text-sm text-gray-400 mb-2">Bio</label>

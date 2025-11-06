@@ -232,6 +232,12 @@ Ask at most 1 clarifying question if critical details are missing.`,
  * PRIORITY: Database > Hardcoded library
  */
 export async function resolvePromptRef(promptRef: string): Promise<string | null> {
+  // Guard: Skip if promptRef is falsy
+  if (!promptRef) {
+    console.warn('[prompts] Skipping resolvePromptRef, promptRef is undefined');
+    return null;
+  }
+
   // Try loading from database first
   try {
     const { getSupabase } = await import('../../lib/supabase');

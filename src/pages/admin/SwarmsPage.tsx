@@ -1,9 +1,11 @@
+"use client";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { getSupabase } from '../../lib/supabase';
 import { Settings, ChevronDown, Edit2, Save, X, Power, PowerOff, Activity, Zap, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Breadcrumbs from '../../components/common/Breadcrumbs';
 import PersonalitySwarmSection from '../../components/admin/PersonalitySwarmSection';
+import { fetchLatestPublishedPrompts, type LatestPromptRow, fetchLatestPromptByAgentId, type AgentPromptLatest } from '../../lib/admin/prompts';
 
 type Agent = {
   id: string;
@@ -27,7 +29,136 @@ type SwarmCategory = {
   agents: Agent[];
 };
 
-function ConfigViewer({ config }: { config: any }) {
+function LatestPromptsPanel() {
+  const [rows, setRows] = useState<LatestPromptRow[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const data = await fetchLatestPublishedPrompts();
+        console.log('[admin-prompts] loaded:', data.length);
+        if (alive) setRows(data);
+      } catch (e: any) {
+        console.error('[admin-prompts] load error', e);
+        if (alive) setError(e?.message ?? 'Failed to load prompts');
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold">Latest Published Prompts</h2>
+        <div className="text-sm text-gray-500 mt-2">Loading…</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold">Latest Published Prompts</h2>
+        <div className="text-sm text-red-600 mt-2">{error}</div>
+      </div>
+    );
+  }
+
+  if (!rows || rows.length === 0) {
+    return (
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold">Latest Published Prompts</h2>
+        <div className="text-sm text-gray-500 mt-2">No prompts found.</div>
+      </div>
+    );
+  }
+
+  const trunc = (s: string | null | undefined, n = 120) => {
+    if (!s) return '';
+    return s.length > n ? s.slice(0, n) + '…' : s;
+  };
+
+  return (
+    <div className="mt-10">
+      <h2 className="text-lg font-semibold">Latest Published Prompts</h2>
+      <div className="mt-3 overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-left">
+            <tr>
+              <th className="p-3">Agent</th>
+              <th className="p-3">Version</th>
+              <th className="p-3">Model</th>
+              <th className="p-3">Phase</th>
+              <th className="p-3">Order</th>
+              <th className="p-3">Preview</th>
+              <th className="p-3">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={`${r.agent_id}-${r.version}`} className="border-t">
+                <td className="p-3 font-mono">{r.agent_id}</td>
+                <td className="p-3">{r.version}</td>
+                <td className="p-3">{r.model ?? ''}</td>
+                <td className="p-3">{r.phase ?? ''}</td>
+                <td className="p-3">{r.exec_order ?? ''}</td>
+                <td className="p-3">{trunc(r.content)}</td>
+                <td className="p-3">{new Date(r.created_at).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function PromptViewer({ agentKey }: { agentKey: string }) {
+  const [state, setState] = React.useState<{loading:boolean; data:AgentPromptLatest|null; error:string|null}>({
+    loading: true, data: null, error: null
+  });
+
+  React.useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const row = await fetchLatestPromptByAgentId(agentKey);
+        if (!active) return;
+        setState({ loading:false, data: row, error: null });
+        console.info('[admin-prompts] loaded agent prompt:', agentKey, !!row);
+      } catch (e:any) {
+        if (!active) return;
+        setState({ loading:false, data: null, error: e?.message ?? 'Error' });
+      }
+    })();
+    return () => { active = false; };
+  }, [agentKey]);
+
+  if (state.loading) return <div className="text-xs text-gray-400">Loading…</div>;
+  if (state.error) return <div className="text-xs text-red-500">Error: {state.error}</div>;
+  if (!state.data || !state.data.content) return <div className="text-xs text-gray-400">Not specified</div>;
+
+  const m = state.data;
+  return (
+    <div className="space-y-2">
+      <div className="text-[11px] text-gray-500">
+        <span className="mr-3">agent: <code>{m.agent_id}</code></span>
+        <span className="mr-3">v{m.version ?? '-'}</span>
+        <span className="mr-3">model: {m.model ?? '-'}</span>
+        <span className="mr-3">phase: {m.phase ?? '-'}</span>
+        <span>order: {m.exec_order ?? '-'}</span>
+      </div>
+      <pre className="max-h-48 overflow-auto text-xs bg-gray-900 text-gray-100 p-3 rounded">{m.content}</pre>
+    </div>
+  );
+}
+
+function ConfigViewer({ config, agent }: { config: any; agent?: Agent }) {
   const displayConfig = {
     model: config.model || 'Not specified',
     temperature: config.temperature ?? 'Not specified',
@@ -57,8 +188,8 @@ function ConfigViewer({ config }: { config: any }) {
       </div>
       <div className="space-y-4">
         <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">System Prompt</h4>
-        <div className="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-xs overflow-auto max-h-[300px]">
-          {displayConfig.system_prompt}
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          {agent ? <PromptViewer agentKey={agent.id} /> : displayConfig.system_prompt}
         </div>
       </div>
       <div className="lg:col-span-2 space-y-4">
@@ -359,14 +490,21 @@ export default function SwarmsPage() {
       active: personalityCount.active,
     };
 
+    const usedIds = new Set(['personality']);
     const legacyTabs = swarms
       .filter(s => s.name.toLowerCase() !== 'personality')
-      .map(s => ({
-        id: `swarm-${s.id ?? s.name.toLowerCase()}`,
-        label: s.name.charAt(0).toUpperCase() + s.name.slice(1),
-        count: s.agents.length,
-        active: s.agents.filter(a => a.active).length,
-      }));
+      .map(s => {
+        const tabId = `swarm-${s.id ?? s.name.toLowerCase()}`;
+        if (usedIds.has(tabId)) return null;
+        usedIds.add(tabId);
+        return {
+          id: tabId,
+          label: s.name.charAt(0).toUpperCase() + s.name.slice(1),
+          count: s.agents.length,
+          active: s.agents.filter(a => a.active).length,
+        };
+      })
+      .filter(Boolean);
 
     return [personalityTab, ...legacyTabs];
   }, [swarms, personalityCount]);
@@ -420,7 +558,7 @@ export default function SwarmsPage() {
             <nav className="flex min-w-max">
               {tabs.map((tab) => (
                 <button
-                  key={`swarm-tab-${tab.id ?? tab.name}`}
+                  key={tab.id}
                   onClick={() => {
                     setActiveTab(tab.id);
                     setExpandedAgentId(null);
@@ -581,7 +719,7 @@ export default function SwarmsPage() {
                                     onChange={(newValue) => setEditingConfigs(prev => ({ ...prev, [agent.id]: newValue }))}
                                   />
                                 ) : (
-                                  <ConfigViewer config={agentConfigs[agent.id]} />
+                                  <ConfigViewer config={agentConfigs[agent.id]} agent={agent} />
                                 )
                               ) : agentConfigs[agent.id] === null ? (
                                 <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
@@ -606,6 +744,9 @@ export default function SwarmsPage() {
             </div>
           </div>
         )}
+
+        {/* Latest published prompts */}
+        <LatestPromptsPanel />
       </div>
     </div>
   );

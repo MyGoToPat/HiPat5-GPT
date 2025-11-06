@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '../../lib/supabase';
+import { safeSelect } from '../../lib/safeSelect';
 
 export interface ChatSession {
   id: string;
@@ -23,7 +24,7 @@ export async function ensureChatSession(userId: string): Promise<string> {
   // Check for existing active session (started within last 24 hours)
   const { data: existingSessions, error: fetchError } = await supabase
     .from('chat_sessions')
-    .select('id, started_at')
+    .select(safeSelect('id, started_at'))
     .eq('user_id', userId)
     .order('started_at', { ascending: false })
     .limit(1);
@@ -52,7 +53,7 @@ export async function ensureChatSession(userId: string): Promise<string> {
       user_id: userId,
       started_at: new Date().toISOString(),
     })
-    .select('id')
+    .select(safeSelect('id'))
     .single();
 
   if (createError) {
@@ -70,7 +71,7 @@ export async function ensureChatSession(userId: string): Promise<string> {
 export async function getUserSessions(userId: string, limit: number = 20): Promise<ChatSession[]> {
   const { data, error } = await supabase
     .from('chat_sessions')
-    .select('*')
+    .select(safeSelect('*'))
     .eq('user_id', userId)
     .order('started_at', { ascending: false })
     .limit(limit);

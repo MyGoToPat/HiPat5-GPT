@@ -4,10 +4,10 @@ import { PatAvatar } from './PatAvatar';
 import { VoiceWaveform } from './VoiceWaveform';
 import { TDEEPromptBubble } from './TDEEPromptBubble';
 import ThinkingAvatar from './common/ThinkingAvatar';
-import { Plus, Mic, Folder, Camera, Image, ArrowUp, Check, X } from 'lucide-react';
+import { Plus, Mic, Folder, Camera, Image, ArrowUp, Check } from 'lucide-react';
 import { FoodVerificationScreen } from './FoodVerificationScreen';
 import { MealSuccessTransition } from './MealSuccessTransition';
-import { fetchFoodMacros, processMealWithTMWYA } from '../lib/food';
+import { fetchFoodMacros } from '../lib/food';
 import type { AnalysisResult, NormalizedMealData } from '../types/food';
 import { PatMoodCalculator, UserMetrics } from '../utils/patMoodCalculator';
 import { MetricAlert } from '../types/metrics';
@@ -36,7 +36,8 @@ import {
 import {
   getOrCreateTodaySession,
   addChatMessage,
-  getChatMessages
+  getChatMessages,
+  createChatSession
 } from '../lib/chatHistory';
 import { spendCredits, PRICING } from '../lib/credits';
 import toast from 'react-hot-toast';
@@ -69,39 +70,57 @@ export const ChatPat: React.FC = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
-  // Initialize DB session on mount
+  // Guards against duplicate hydration and sending
+  const hydratedOnceRef = useRef(false);     // ensure DB hydration runs once
+  const hydratingRef = useRef(false);        // gate re-entrant loads
+  const sendingRef = useRef(false);          // prevent double-send in dev
+  const sessionIdRef = useRef<string | null>(null); // keep sessionId ref for async updates
+
+  // Helper to deduplicate messages by ID
+  function dedupeById<T extends { id?: string }>(arr: T[]): T[] {
+    const seen = new Set<string>();
+    return arr.filter((m) => {
+      const key = m.id ?? JSON.stringify(m); // fallback if id missing
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  // Sync sessionId to ref for async operations
   useEffect(() => {
-    const initSession = async () => {
-      let uid = userId;
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
-      // If no userId prop, try to get from auth session
-      if (!uid) {
-        try {
-          const { getSupabase } = await import('../lib/supabase');
-          const supabase = getSupabase();
-          const { data } = await supabase.auth.getUser();
-          uid = data?.user?.id ?? null;
-        } catch (authError) {
-          console.warn('[ChatPat] Could not fetch user from auth:', authError);
-        }
-      }
+  // Keep sessionIdRef in sync with URL (?t=) and reset hydration per selection
+  useEffect(() => {
+    const id = searchParams.get('t');
+    if (id) {
+      sessionIdRef.current = id;
+      setSessionId(id);
+    } else {
+      sessionIdRef.current = null;
+      setSessionId(null);
+    }
+    // reset hydration when switching threads
+    hydratedOnceRef.current = false;
+  }, [searchParams]);
 
-      if (!uid) {
-        console.warn('[ChatPat] No userId available; cannot initialize session yet.');
-        return;
-      }
-
+  // Initialize user id on mount (do NOT create sessions here)
+  useEffect(() => {
+    const initUser = async () => {
+      if (userId) return;
       try {
-        const { ensureChatSession } = await import('../core/chat/sessions');
-        const sid = await ensureChatSession(uid);
-        setSessionId(sid);
-        setUserId(uid); // Also set userId state if it wasn't set
-        console.log('[ChatPat] Session initialized:', sid);
-      } catch (e) {
-        console.error('[ChatPat] Failed to initialize session:', e);
+        const { getSupabase } = await import('../lib/supabase');
+        const supabase = getSupabase();
+        const { data } = await supabase.auth.getUser();
+        const uid = data?.user?.id ?? null;
+        if (uid) setUserId(uid);
+      } catch (authError) {
+        console.warn('[ChatPat] Could not fetch user from auth:', authError);
       }
     };
-    initSession();
+    initUser();
   }, [userId]);
   const [inputText, setInputText] = useState('');
   const [showPlusMenu, setShowPlusMenu] = useState(false);
@@ -191,32 +210,73 @@ export const ChatPat: React.FC = () => {
     const threadParam = searchParams.get('t');
 
     if (newParam === '1') {
-      // Start new chat
+      // Local UI reset only; create DB session on first send to avoid empty sessions
       const newId = newThreadId();
       setThreadId(newId);
       setMessages(ChatManager.getInitialMessages());
       setActiveChatId(null);
+      setSessionId(null);
+      sessionIdRef.current = null;
       setIsLoadingChat(false);
       return;
     }
 
     if (threadParam) {
-      // Load existing thread
-      const thread = getThread(threadParam);
-      if (thread) {
-        setThreadId(thread.id);
-        // Convert ChatThread messages to ChatMessage format
-        const convertedMessages: ChatMessage[] = thread.messages.map((msg, index) => ({
-          id: `${thread.id}-${index}`,
-          text: msg.content,
-          timestamp: new Date(thread.updatedAt),
-          isUser: msg.role === 'user'
-        }));
-        setMessages(convertedMessages);
-        setActiveChatId(thread.id);
-        setIsLoadingChat(false);
+      // GUARD: Only hydrate once per session ID
+      if (hydratedOnceRef.current || hydratingRef.current) {
+        console.log('[ChatPat] Skipping duplicate hydration for session:', threadParam);
         return;
       }
+      
+      // Reset hydration guard when loading existing session
+      hydratedOnceRef.current = false;
+
+      hydratingRef.current = true;
+      
+      // Load existing session from database (not localStorage)
+      (async () => {
+        try {
+          setIsLoadingChat(true);
+
+          const dbMsgs = await getChatMessages(threadParam);
+          
+          // Normalize content whether it's string or JSON
+          const norm = (c: any) =>
+            typeof c === 'string' ? c : (c?.text ?? c?.content ?? JSON.stringify(c));
+
+          const converted: ChatMessage[] = dbMsgs.map(m => ({
+            id: m.id ?? `${m.session_id}-${m.created_at}`, // stable id fallback
+            text: norm(m.content),
+            timestamp: new Date(m.created_at),
+            isUser: m.role === 'user',
+          }));
+
+          // DE-DUPE before setting (idempotent merge)
+          setMessages(prev => dedupeById([...prev, ...converted]));
+          setSessionId(threadParam);
+          setActiveChatId(threadParam);
+          setThreadId(threadParam);
+          
+          // Set userId if we have it
+          const supabase = getSupabase();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) setUserId(user.id);
+          
+        } catch (e) {
+          console.error('[ChatPat] Failed to load session:', e);
+          // Only fallback if we truly have nothing:
+          if (messages.length === 0) {
+            setMessages(ChatManager.getInitialMessages());
+          }
+        } finally {
+          hydratedOnceRef.current = true;
+          hydratingRef.current = false;
+          setIsLoadingChat(false);
+        }
+      })();
+      
+      // IMPORTANT: Skip auto-creating new session when loading specific session
+      return;
     }
 
     // Default: load chat state with session management
@@ -236,12 +296,17 @@ export const ChatPat: React.FC = () => {
           // Load messages from session
           const sessionMessages = await getChatMessages(session.id);
           if (sessionMessages.length > 0) {
-            const mappedMessages = sessionMessages.map(msg => ({
-              role: msg.role,
-              content: msg.content,
-              timestamp: new Date(msg.created_at)
-            }));
-            setMessages(mappedMessages as ChatMessage[]);
+            const mappedMessages = sessionMessages.map(msg => {
+              const normContent = typeof msg.content === 'string' ? msg.content : '';
+              return {
+                id: msg.id,
+                text: normContent,
+                timestamp: new Date(msg.created_at),
+                isUser: msg.role === 'user',
+              };
+            });
+            // DE-DUPE before setting (idempotent merge)
+            setMessages(prev => dedupeById([...prev, ...mappedMessages]));
           } else {
             setMessages(ChatManager.getInitialMessages());
           }
@@ -474,6 +539,9 @@ export const ChatPat: React.FC = () => {
   const starterChips = ConversationAgentManager.getAgents()
     .filter(agent => workingAgentIds.includes(agent.id))
     .map(agent => agent.title);
+  
+  // Detect new users (less than 3 messages)
+  const isNewUser = messages.length <= 2;
 
   const plusMenuOptions = [
     { id: 'take', label: 'Take a picture', icon: Camera },
@@ -483,8 +551,17 @@ export const ChatPat: React.FC = () => {
   ];
 
   const handleSendMessage = () => {
-    if (inputText.trim()) {
-      const lowerInput = inputText.toLowerCase().trim();
+    // GUARD: Prevent double send
+    if (sendingRef.current) {
+      console.log('[ChatPat] Skipping duplicate send');
+      return;
+    }
+    
+    sendingRef.current = true;
+    
+    try {
+      if (inputText.trim()) {
+        const lowerInput = inputText.toLowerCase().trim();
 
       // SHORTCUT: If verification screen is active and user types "log" or "save", confirm it
       if (showFoodVerificationScreen && currentAnalysisResult && (lowerInput === 'log' || lowerInput === 'save')) {
@@ -541,7 +618,8 @@ export const ChatPat: React.FC = () => {
 
             if (matchedItems.length > 0) {
               const foodText = matchedItems.map((item: any) => item.name).join(', ');
-              handleMealTextInput(`I ate ${foodText}`);
+              // Legacy handler removed - let unified handler process via intent
+              setInputText(`I ate ${foodText}`);
               return;
             } else {
               toast.error(`Could not find "${subset}" in the recent macro discussion.`);
@@ -551,7 +629,8 @@ export const ChatPat: React.FC = () => {
             // Log all items
             const foodItems = macroPayload.items.map((item: any) => item.name);
             const foodText = foodItems.join(', ');
-            handleMealTextInput(`I ate ${foodText}`);
+            // Legacy handler removed - let unified handler process via intent
+            setInputText(`I ate ${foodText}`);
             return;
           }
         }
@@ -567,15 +646,17 @@ export const ChatPat: React.FC = () => {
         setExpectingFoodResponse(false);
 
         // Treat the response as if user said "I ate [food]"
-        handleMealTextInput(inputText.startsWith('I ate') || inputText.startsWith('i ate') ? inputText : `I ate ${inputText}`);
+        // Legacy handler removed - let unified handler process via intent
+        const mealText = inputText.startsWith('I ate') || inputText.startsWith('i ate') ? inputText : `I ate ${inputText}`;
+        setInputText(mealText);
         return;
       }
 
-      // Check for meal-related text before processing chat
-      if (isMealText(inputText)) {
-        handleMealTextInput(inputText);
-        return;
-      }
+      // Legacy meal path disabled - unified handler processes meal_logging intent
+      // if (isMealText(inputText)) {
+      //   handleMealTextInput(inputText);
+      //   return;
+      // }
 
       setIsSending(true);
       setIsThinking(true);
@@ -602,47 +683,8 @@ export const ChatPat: React.FC = () => {
       setInputText('');
       setIsTyping(false);
       
-      // Save user message to database
-      const saveUserMessage = async () => {
-        try {
-          // Lazy-fetch userId if missing
-          let uid = userId;
-          if (!uid) {
-            const { getSupabase } = await import('../lib/supabase');
-            const supa = getSupabase();
-            const { data } = await supa.auth.getUser();
-            uid = data?.user?.id ?? null;
-          }
-
-          if (!uid) {
-            console.error('[chat-save] No userId after fallback; aborting save to preserve integrity');
-            return;
-          }
-
-          // Save to new chat_messages table
-          if (sessionId) {
-            await addChatMessage(sessionId, 'user', newMessage.text);
-          }
-
-          // Legacy persistence - FIXED: pass sessionId not threadId, use object syntax
-          if (sessionId) {
-            await ChatManager.saveMessage({
-              userId: uid,
-              sessionId,
-              text: newMessage.text,
-              sender: 'user'
-            });
-          } else {
-            console.error('[chat-save] No sessionId available, cannot save to legacy system');
-          }
-        } catch (error) {
-          console.error('Failed to save user message:', error);
-        }
-      };
-      saveUserMessage();
-
       // Handle agent-specific responses
-      setTimeout(() => {
+      setTimeout(async () => {
         setIsThinking(false);
         setIsSpeaking(true);
         setStatusText('Responding...');
@@ -650,20 +692,76 @@ export const ChatPat: React.FC = () => {
         // Get AI response
         const getAIResponse = async () => {
           try {
-            // Ensure session exists before making AI call
-            if (!sessionId && userId) {
-              console.warn('[ChatPat] No sessionId before AI call, creating session...');
+            // Ensure session exists before making AI call - create fresh if URL is new=1
+            let currentSessionId = sessionIdRef.current;
+            if (!currentSessionId && userId) {
               try {
-                const { ensureChatSession } = await import('../core/chat/sessions');
-                const newSessionId = await ensureChatSession(userId);
-                setSessionId(newSessionId);
-                console.log('[ChatPat] Emergency session created:', newSessionId);
+                const supa = getSupabase();
+                const { data: { user } } = await supa.auth.getUser();
+                const isNew = searchParams.get('new') === '1';
+                if (user && isNew) {
+                  const newSession = await createChatSession(user.id);
+                  setSessionId(newSession.id);
+                  sessionIdRef.current = newSession.id;
+                  currentSessionId = newSession.id;
+                  console.log('[ChatPat] New session created on first send:', newSession.id);
+                } else {
+                  const { ensureChatSession } = await import('../core/chat/sessions');
+                  const newSessionId = await ensureChatSession(userId);
+                  setSessionId(newSessionId);
+                  sessionIdRef.current = newSessionId;
+                  currentSessionId = newSessionId;
+                  console.log('[ChatPat] Emergency session created:', newSessionId);
+                }
               } catch (sessionError) {
                 console.error('[ChatPat] Failed to create session, blocking send:', sessionError);
                 toast.error('Unable to start chat session. Please refresh and try again.');
                 return;
               }
             }
+
+            // Save user message to database NOW that we have a session
+            const saveUserMessage = async () => {
+              try {
+                // Lazy-fetch userId if missing
+                let uid = userId;
+                if (!uid) {
+                  const { getSupabase } = await import('../lib/supabase');
+                  const supa = getSupabase();
+                  const { data } = await supa.auth.getUser();
+                  uid = data?.user?.id ?? null;
+                }
+
+                if (!uid) {
+                  console.error('[chat-save] No userId after fallback; aborting save to preserve integrity');
+                  return;
+                }
+
+                // Use ref to avoid race condition with async session creation
+                const currentSessionId = sessionIdRef.current;
+                const sId = currentSessionId ?? sessionId;
+                
+                // Save to new chat_messages table
+                if (sId) {
+                  await addChatMessage(sId, 'user', newMessage.text);
+                }
+
+                // Legacy persistence - FIXED: pass sessionId not threadId, use object syntax
+                if (sId) {
+                  await ChatManager.saveMessage({
+                    userId: uid,
+                    sessionId: sId,
+                    text: newMessage.text,
+                    sender: 'user'
+                  });
+                } else {
+                  console.error('[chat-save] No sessionId available, cannot save to legacy system');
+                }
+              } catch (error) {
+                console.error('Failed to save user message:', error);
+              }
+            };
+            await saveUserMessage();
 
             // Prepare conversation history for chat API
             const conversationHistory = [...messages, newMessage].map(msg => ({
@@ -713,6 +811,35 @@ export const ChatPat: React.FC = () => {
               userContext,
               mode: 'text',
             });
+
+            // Handle TMWYA verify payload
+            if (result.roleData?.type === 'tmwya.verify') {
+              const p = result.roleData;
+              console.log('[ChatPat] TMWYA verify detected, creating message with roleData:', p);
+              
+              // Add the verification card message
+              const verifyMessage: ChatMessage = {
+                id: crypto.randomUUID(),
+                text: '', // No text, rendered as card
+                isUser: false,
+                timestamp: new Date(),
+                roleData: {
+                  type: 'tmwya.verify',
+                  view: p.view,
+                  items: p.items,
+                  totals: p.totals,
+                  tef: p.tef,
+                  tdee: p.tdee
+                }
+              };
+              
+              setMessages(prev => prev.filter(m => m.id && !m.id.startsWith('thinking-')).concat(verifyMessage));
+              setIsSpeaking(false);
+              setIsThinking(false);
+              setIsSending(false);
+              setStatusText('');
+              return;
+            }
 
             // Extract macro data from tool calls if present
             let macroMetadata = null;
@@ -959,198 +1086,12 @@ export const ChatPat: React.FC = () => {
         getAIResponse();
       }, 1000);
     }
-  };
-
-  // Handle meal-related text input
-  const handleMealTextInput = async (input: string) => {
-    try {
-      setIsAnalyzingFood(true);
-      setStatusText('Analyzing your meal...');
-
-      // Get authenticated user
-      const user = await getSupabase().auth.getUser();
-      if (!user.data.user) {
-        toast.error('Please log in to track meals');
-        setIsAnalyzingFood(false);
-        setStatusText('');
-        return;
-      }
-      const userId = user.data.user.id;
-
-      // Add user message to chat
-      const userMessage: ChatMessage = {
-        id: Date.now().toString(),
-        text: input,
-        timestamp: new Date(),
-        isUser: true
-      };
-      setMessages(prev => [...prev, userMessage]);
-      setInputText('');
-
-      // Process meal using TMWYA agents through personality orchestrator
-      setStatusText('Searching for nutrition data...');
-      console.log('[ChatPat] Processing meal with TMWYA:', { input, userId });
-      const result = await processMealWithTMWYA(input, userId, 'text');
-
-      // GUARDRAIL: If front-end detected logging trigger and backend logged, force kind to food_log
-      const mealCheck = isMealText(input);
-      if (mealCheck.hasLoggingTrigger && result.logged) {
-        result.kind = 'food_log';
-      }
-
-      console.log('[ChatPat] TMWYA result:', result);
-
-      // V1 MEAL LOGGING RESPONSE HANDLING
-      if (result.ok && result.logged && result.undo_token) {
-        // AUTOSAVED - show success toast with undo
-        setStatusText('');
-        console.log('[ChatPat] Meal autosaved:', result.message);
-
-        toast.success(
-          (t) => (
-            <div className="flex items-center gap-2">
-              <span>{result.message}</span>
-              <button
-                onClick={() => {
-                  handleUndoMeal(result.undo_token!);
-                  toast.dismiss(t.id);
-                }}
-                className="text-blue-600 hover:text-blue-800 font-medium"
-              >
-                Undo
-              </button>
-            </div>
-          ),
-          { duration: 8000 }
-        );
-
-        // Add confirmation message to chat
-        const confirmMsg: ChatMessage = {
-          id: Date.now().toString(),
-          text: result.message,
-          timestamp: new Date(),
-          isUser: false
-        };
-        setMessages(prev => [...prev, confirmMsg]);
-        setIsSending(false);
-        return;
-      }
-
-      // Check if Pat needs clarification
-      if (result.ok && result.needsClarification && result.clarificationPlan) {
-        setStatusText('');
-        console.log('[ChatPat] Needs clarification:', result.clarificationPlan.questions);
-
-        // Add Pat's clarification questions as a message
-        const questionsText = result.clarificationPlan.questions.join(' ');
-        const clarificationMessage: ChatMessage = {
-          id: Date.now().toString(),
-          text: questionsText,
-          timestamp: new Date(),
-          isUser: false
-        };
-
-        setMessages(prev => [...prev, clarificationMessage]);
-        setIsSpeaking(false);
-        setIsSending(false);
-        return; // Wait for user's clarification response
-      }
-
-      // Check if we should open verification screen
-      if (result.ok && result.step === 'open_verify' && result.analysisResult) {
-        setStatusText('');
-        console.log('[ChatPat] Opening verification screen');
-        // Convert V1FoodItem to AnalysisResult format for verification screen
-        const analysisResult = {
-          items: result.analysisResult.items.map(item => ({
-            name: item.name,
-            brand: item.brand,
-            qty: item.quantity,
-            unit: item.unit,
-            grams: 100,
-            macros: {
-              kcal: item.macros?.calories || 0,
-              protein_g: item.macros?.protein || 0,
-              carbs_g: item.macros?.carbs || 0,
-              fat_g: item.macros?.fat || 0,
-            },
-            confidence: item.confidence || 0.5,
-          })),
-          source: 'text' as const,
-          originalInput: input,
-        };
-        setCurrentAnalysisResult(analysisResult);
-        setShowFoodVerificationScreen(true);
-        setIsSending(false);
-        return;
-      }
-
-      // Fallback if something went wrong
-      if (!result.ok) {
-        const errorMsg = result.error || 'Could not process meal input';
-        console.error('[ChatPat] Meal logging failed:', errorMsg, result);
-        toast.error(errorMsg);
-
-        // Continue with normal chat processing
-        setIsSending(true);
-        setIsThinking(true);
-
-        setTimeout(() => {
-          setIsThinking(false);
-          setIsSpeaking(true);
-
-          const fallbackResponse: ChatMessage = {
-            id: (Date.now() + 1).toString(),
-            text: "I couldn't process that meal input. You can try describing it differently or use the camera to take a photo.",
-            timestamp: new Date(),
-            isUser: false
-          };
-
-          setMessages(prev => [...prev, fallbackResponse]);
-
-          setTimeout(() => {
-            setIsSpeaking(false);
-            setIsSending(false);
-          }, 2000);
-        }, 1000);
-      }
-    } catch (error) {
-      console.error('Error processing meal text:', error);
-      toast.error('Error processing food information');
-      setStatusText('');
     } finally {
-      setIsAnalyzingFood(false);
-      setStatusText('');
+      sendingRef.current = false;
     }
   };
 
-  // Handle undo meal
-  const handleUndoMeal = async (undoToken: string) => {
-    try {
-      const user = await getSupabase().auth.getUser();
-      if (!user.data.user) {
-        toast.error('Please log in');
-        return;
-      }
-
-      // Call undo RPC
-      const { error } = await getSupabase().rpc('undo_meal', {
-        p_undo_token: undoToken,
-        p_user_id: user.data.user.id,
-      });
-
-      if (error) {
-        console.error('[undo] Error:', error);
-        toast.error('Could not undo meal');
-        return;
-      }
-
-      toast.success('Meal removed');
-    } catch (error) {
-      console.error('[undo] Exception:', error);
-      toast.error('Error undoing meal');
-    }
-  };
+  // Legacy meal logging handlers removed - unified handler processes meal_logging intent
 
   const handleChipClick = async (chipText: string) => {
     setIsThinking(true);
@@ -1674,7 +1615,7 @@ export const ChatPat: React.FC = () => {
   return (
     <div className="h-screen bg-pat-gradient text-white flex flex-col pt-[44px]">
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto px-4 py-6">
+        <div className="flex-1 overflow-y-auto px-4 py-6 pb-32">
           {/* TDEE Prompt Bubble - Always visible at top until completed */}
           <AnimatePresence>
             {showTDEEBubble && (
@@ -1688,15 +1629,15 @@ export const ChatPat: React.FC = () => {
             )}
           </AnimatePresence>
 
-          {/* Always show conversation bubble prompts for available features */}
-          {!isTyping && starterChips.length > 0 && (
-            <div className={`mb-6 transition-opacity duration-300 ${isTyping ? 'opacity-0' : 'opacity-100'}`}>
-              <div className="flex flex-wrap gap-2 mb-4">
+          {/* Conditional conversation starters - horizontal carousel above input */}
+          {isNewUser && !isTyping && starterChips.length > 0 && messages.length === 1 && (
+            <div className="fixed bottom-[76px] left-0 right-0 px-4 overflow-x-auto">
+              <div className="flex gap-2 pb-2">
                 {starterChips.map((chip, index) => (
                   <button
                     key={index}
                     onClick={() => handleChipClick(chip)}
-                    className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-full text-sm transition-colors"
+                    className="px-4 py-2 bg-white border border-gray-300 rounded-full text-sm text-gray-800 whitespace-nowrap hover:bg-gray-50 transition-colors"
                   >
                     {chip}
                   </button>
@@ -1706,42 +1647,101 @@ export const ChatPat: React.FC = () => {
           )}
           
           <div className={`space-y-6 transition-opacity duration-300 ${isTyping || messages.length > 1 ? 'opacity-100' : 'opacity-0'}`}>
-            {messages.map((message, index) => (
-              <div key={message.id}>
-                <div
-                  className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-sm lg:max-w-2xl px-5 py-4 rounded-2xl ${
-                      message.isUser
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-800 text-gray-100'
-                    }`}
-                    style={{ maxWidth: message.isUser ? '480px' : '700px' }}
-                  >
-                    <p className="message-bubble text-base leading-relaxed whitespace-pre-line" style={{ lineHeight: '1.6' }}>{message.text}</p>
-                    <p className="text-xs opacity-70 mt-2">
-                      {message.timestamp.toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
+            {messages.map((message, index) => {
+              // Handle TMWYA verify card
+              if (message.roleData?.type === 'tmwya.verify') {
+                const MealVerifyCard = React.lazy(() => import('./tmwya/MealVerifyCard').then(m => ({ default: m.default })));
+                return (
+                  <div key={message.id} className="flex justify-start">
+                    <React.Suspense fallback={<div className="text-gray-400">Loading verification...</div>}>
+                      <MealVerifyCard
+                        view={message.roleData.view}
+                        items={message.roleData.items || []}
+                        totals={message.roleData.totals}
+                        tef={message.roleData.tef}
+                        tdee={message.roleData.tdee}
+                        onUpdate={(updatedView) => {
+                          // Update the message's roleData with edited values
+                          setMessages(prev => prev.map(m => 
+                            m.id === message.id 
+                              ? { ...m, roleData: { ...message.roleData, view: updatedView } }
+                              : m
+                          ));
+                        }}
+                        onConfirm={async () => {
+                          if (!userId || !message.roleData) return;
+                          
+                          // Use production meal_logs + meal_items schema (not nutrition_logs)
+                          const saveInput: SaveMealInput = {
+                            userId: userId,
+                            items: (message.roleData.items || []).map((item: any) => ({
+                              name: item.name,
+                              quantity: item.quantity ?? 1,
+                              unit: item.unit ?? 'serving',
+                              energy_kcal: item.calories ?? 0,
+                              protein_g: item.protein_g ?? 0,
+                              fat_g: item.fat_g ?? 0,
+                              carbs_g: item.carbs_g ?? 0,
+                              fiber_g: item.fiber_g ?? 0
+                            })),
+                            mealSlot: message.roleData.view?.meal_slot ?? null,
+                            timestamp: message.roleData.view?.eaten_at ?? new Date().toISOString()
+                          };
+                          
+                          const res = await saveMealAction(saveInput);
+                          
+                          if (res.ok) {
+                            toast.success('Meal logged successfully!');
+                            // Replace with success message
+                            setMessages(prev => prev.map(m => m.id === message.id ? {
+                              ...m,
+                              text: 'Meal logged ✅',
+                              roleData: undefined
+                            } : m));
+                          } else {
+                            toast.error(`Log failed: ${res.error}`);
+                          }
+                        }}
+                        onCancel={() => {
+                          toast.success('Meal logging cancelled');
+                          setMessages(prev => prev.map(m => m.id === message.id ? {
+                            ...m,
+                            text: 'Cancelled.',
+                            roleData: undefined
+                          } : m));
+                        }}
+                      />
+                    </React.Suspense>
                   </div>
-                </div>
-
-                {/* Inline Confirmation Banner (shows after last user message if food was logged) */}
-                {message.isUser && index === messages.length - 1 && inlineConfirmation.show && (
-                  <div className="flex justify-end mt-2">
+                );
+              }
+              
+              // Regular message bubble
+              return (
+                <div key={message.id}>
+                  <div
+                    className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
+                  >
                     <div
-                      className="max-w-sm lg:max-w-2xl px-4 py-2 rounded-xl bg-green-600/90 text-white text-sm animate-fade-in"
-                      style={{ maxWidth: '480px' }}
+                      className={`max-w-sm lg:max-w-2xl px-5 py-4 rounded-2xl ${
+                        message.isUser
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-800 text-gray-100'
+                      }`}
+                      style={{ maxWidth: message.isUser ? '480px' : '700px' }}
                     >
-                      <p className="leading-relaxed">{inlineConfirmation.message}</p>
+                      <p className="message-bubble text-base leading-relaxed whitespace-pre-wrap break-words" style={{ lineHeight: '1.6', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{message.text}</p>
+                      <p className="text-xs opacity-70 mt-2">
+                        {message.timestamp.toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
                     </div>
                   </div>
-                )}
               </div>
-            ))}
+              );
+            })}
             
             {/* Status Indicator */}
             {(isSending || isAnalyzingFood || statusText || isThinking) && (
@@ -1756,86 +1756,41 @@ export const ChatPat: React.FC = () => {
           </div>
         </div>
         
-        <div className="p-4 border-t border-gray-800">
+        {/* Frozen bottom pane - mobile optimized */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 safe-area-inset-bottom">
+          {/* Plus menu popup */}
           {showPlusMenu && (
-            <div className="mb-4 p-4 bg-gray-800 rounded-2xl">
-              {/* Agent Session Indicator */}
-              {activeAgentSession && (
-                <div className="mb-4 p-3 bg-blue-600/20 border border-blue-500/30 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-blue-300 text-sm font-medium">
-                        {ConversationAgentManager.getAgentById(activeAgentSession.agentId)?.icon} 
-                        {ConversationAgentManager.getAgentById(activeAgentSession.agentId)?.title}
-                      </span>
-                      {silentMode && (
-                        <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded">
-                          Silent Mode
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {ConversationAgentManager.getAgentById(activeAgentSession.agentId)?.supportsSilentMode && (
-                        <button
-                          onClick={() => setSilentMode(!silentMode)}
-                          className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition-colors"
-                        >
-                          {silentMode ? '🔇' : '🔊'}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => {
-                          ConversationAgentManager.endAgentSession(activeAgentSession.sessionId);
-                          setActiveAgentSession(null);
-                          setSilentMode(false);
-                        }}
-                        className="text-xs text-gray-400 hover:text-white"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div className="absolute bottom-full left-4 right-4 mb-2 p-4 bg-gray-800 rounded-2xl shadow-xl">
+              {/* Camera action - prominent */}
+              <button
+                onClick={() => {
+                  setShowPlusMenu(false);
+                  handleChipClick('Show me what you\'re eating');
+                }}
+                className="w-full mb-3 flex items-center gap-3 px-4 py-4 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all active:scale-95"
+              >
+                <Camera size={24} className="text-white" />
+                <span className="text-white font-semibold">Take a picture</span>
+              </button>
               
-              <div className="grid grid-cols-3 gap-3">
-                {plusMenuOptions.map((option) => {
+              {/* Other options - secondary */}
+              <div className="grid grid-cols-3 gap-2">
+                {plusMenuOptions.filter(o => o.id !== 'take').map((option) => {
                   const IconComponent = option.icon;
                   return (
                     <button
                       key={option.id}
                       onClick={() => {
                         setShowPlusMenu(false);
-                        
-                        // Handle food logging
                         if (option.id === 'log-food') {
                           // TODO: Implement food logging flow
                           return;
                         }
-                        
-                        // Handle camera actions for specific agents
-                        if (option.id === 'take' && activeAgentSession) {
-                          const agent = ConversationAgentManager.getAgentById(activeAgentSession.agentId);
-                          if (agent?.requiresCamera) {
-                            // Simulate camera activation
-                            const cameraMessage: ChatMessage = {
-                              id: Date.now().toString(),
-                              text: ConversationAgentManager.generateCameraResponse(agent.id),
-                              timestamp: new Date(),
-                              isUser: false
-                            };
-                            setMessages(prev => [...prev, cameraMessage]);
-                            
-                            // Auto-open camera with appropriate mode
-                            const autoStartMode = agent.id.includes('meal') || agent.id.includes('eating') ? 'takePhoto' : 'videoStream';
-                             navigate('/camera', { state: { autoStartMode } });
-                          }
-                        }
                       }}
-                      className="p-3 bg-gray-700 hover:bg-gray-600 rounded-xl transition-colors"
+                      className="flex flex-col items-center gap-2 p-3 hover:bg-gray-700 rounded-lg transition-colors"
                     >
-                      <IconComponent size={20} className="mx-auto mb-1" />
-                      <p className="text-xs">{option.label}</p>
+                      <IconComponent size={20} className="text-gray-300" />
+                      <span className="text-xs text-gray-300">{option.label}</span>
                     </button>
                   );
                 })}
@@ -1843,96 +1798,85 @@ export const ChatPat: React.FC = () => {
             </div>
           )}
           
-          <div className="p-3 bg-gray-800 rounded-2xl mb-4">
-            <div className="relative">
-              {isDictating ? (
-                <div className="flex flex-col items-center justify-center py-2 text-white">
-                  <VoiceWaveform isActive={true} barCount={7} className="mb-2" />
-                  <p className="text-sm text-white/70">{inputText || "Listening..."}</p>
-                </div>
-              ) : (
-                <input
-                  type="text"
-                  value={inputText}
-                  onChange={handleInputChange}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Ask me anything"
-                  className="w-full bg-transparent text-white placeholder-white/50 outline-none text-base"
-                />
-              )}
-            </div>
-          </div>
-          
-          {isDictating && !inputText && (
-            <div className="flex items-center justify-center gap-4 mb-4">
-              <button
-                onClick={cancelDictation}
-                className="p-2 hover:bg-gray-700 rounded-full transition-colors"
-              >
-                <X size={20} className="text-gray-400" />
-              </button>
-            </div>
-          )}
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowPlusMenu(!showPlusMenu)}
-                className={`p-3 hover:bg-gray-700 rounded-full transition-colors ${isDictating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                disabled={isDictating}
-              >
-                <Plus size={24} />
-              </button>
-            </div>
+          {/* Main input row: + [Input] 🎤 👤 */}
+          <div className="flex items-center gap-2">
+            {/* Plus menu button */}
+            <button
+              onClick={() => setShowPlusMenu(!showPlusMenu)}
+              className={`flex-shrink-0 w-12 h-12 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors ${isDictating ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={isDictating}
+            >
+              <Plus size={24} className="text-gray-600" />
+            </button>
             
-            <div className="flex items-center gap-3">
-              <button
-                onClick={isDictating ? stopDictation : startDictation}
-                className={`p-3 rounded-full transition-colors ${
-                  isDictating 
-                    ? 'bg-red-600 hover:bg-red-700 text-white' 
-                    : 'hover:bg-gray-700'
-                }`}
-              >
-                <Mic size={24} />
-              </button>
-              
-              <div className="relative">
-                {isDictating ? (
-                  <button
-                    onClick={submitDictation}
-                    disabled={isSending}
-                    className="w-10 h-10 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center transition-all duration-300"
-                  >
-                    <Check size={20} className="text-white" />
-                  </button>
-                ) : isTyping ? (
-                  <button
-                    onClick={handleSendMessage}
-                    disabled={isSending}
-                    className="w-10 h-10 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center transition-all duration-300 transform"
-                  >
-                    <ArrowUp size={20} className="text-white" />
-                  </button>
-                ) : (
-                  <button
-                     onClick={() => navigate('/voice')}
-                    className="hover:opacity-80 transition-all duration-300 relative group"
-                  >
-                    <PatAvatar 
-                      size={40} 
-                      mood={getPatMood()} 
-                      isListening={isDictating}
-                      isThinking={isThinking}
-                      isSpeaking={isSpeaking}
-                    />
-                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      Voice Chat
-                    </div>
-                  </button>
-                )}
+            {/* Input field */}
+            {isDictating ? (
+              <div className="flex-1 flex items-center justify-center py-3 px-4 bg-gray-100 border border-gray-300 rounded-full">
+                <VoiceWaveform isActive={true} barCount={7} className="mr-3" />
+                <p className="text-sm text-gray-600">{inputText || "Listening..."}</p>
               </div>
-            </div>
+            ) : (
+              <textarea
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (handleSendMessage(), e.preventDefault())}
+                placeholder="Ask me anything"
+                rows={1}
+                className="flex-1 bg-white border border-gray-300 text-gray-900 placeholder-gray-400 rounded-full px-4 py-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-hidden whitespace-pre-wrap break-words"
+                style={{ overflowWrap: 'anywhere', wordBreak: 'break-word', minHeight: '48px', maxHeight: '120px' }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                }}
+              />
+            )}
+            
+            {/* Mic button */}
+            <button
+              onClick={isDictating ? stopDictation : startDictation}
+              className={`flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full transition-colors ${
+                isDictating ? 'bg-red-600 hover:bg-red-700' : 'hover:bg-gray-100'
+              }`}
+            >
+              <Mic size={24} className={isDictating ? 'text-white' : 'text-gray-600'} />
+            </button>
+            
+            {/* Pat's animated avatar */}
+            {isDictating ? (
+              <button
+                onClick={submitDictation}
+                disabled={isSending}
+                className="flex-shrink-0 w-12 h-12 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center transition-all duration-300"
+              >
+                <Check size={20} className="text-white" />
+              </button>
+            ) : isTyping ? (
+              <button
+                onClick={handleSendMessage}
+                disabled={isSending}
+                className="flex-shrink-0 w-12 h-12 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center transition-all duration-300"
+              >
+                <ArrowUp size={20} className="text-white" />
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/voice')}
+                className="flex-shrink-0 hover:opacity-80 transition-all duration-300 relative group"
+              >
+                <PatAvatar 
+                  size={48} 
+                  mood={getPatMood()} 
+                  isListening={isDictating}
+                  isThinking={isThinking}
+                  isSpeaking={isSpeaking}
+                  animated={true}
+                />
+                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                  Voice Chat
+                </div>
+              </button>
+            )}
           </div>
         </div>
       </div>

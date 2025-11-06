@@ -6,6 +6,20 @@ export interface ChatMessage {
   meta?: {
     macros?: MacroPayload;
     route?: string;
+    type?: 'tmwya.verify' | 'ama.meal_estimate_only';
+    view?: any;
+    items?: any[];
+    totals?: any;
+    tef?: any;
+    tdee?: any;
+  };
+  roleData?: {
+    type?: 'tmwya.verify' | 'ama.meal_estimate_only';
+    view?: any;
+    items?: any[];
+    totals?: any;
+    tef?: any;
+    tdee?: any;
   };
 }
 

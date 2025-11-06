@@ -61,20 +61,35 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')?.trim();
     if (!openaiApiKey) {
+      console.error('[openai-chat] Missing OPENAI_API_KEY secret');
       return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
+        JSON.stringify({ error: 'Missing OpenAI API key' }),
         {
-          status: 500,
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
 
     // Load personality swarm from database
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[openai-chat] Missing Supabase service configuration', {
+        hasUrl: Boolean(supabaseUrl),
+        hasServiceKey: Boolean(supabaseServiceKey)
+      });
+      return new Response(
+        JSON.stringify({ error: 'Missing Supabase service configuration' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
     let systemPrompt: string;
     const hasSystemPrompt = messages.length > 0 && messages[0].role === 'system';

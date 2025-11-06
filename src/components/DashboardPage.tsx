@@ -56,6 +56,11 @@ export const DashboardPage: React.FC = () => {
     totalMacros: { protein: number; carbs: number; fat: number; fiber: number };
     workoutLogs: WorkoutLogData[];
     sleepLogs: SleepLogData[];
+    weeklyStats?: {
+      totalCalories: number;
+      totalDeficit: number;
+      projectedFatLoss: number;
+    };
   } | null>(null);
 
   useEffect(() => {
@@ -118,22 +123,61 @@ export const DashboardPage: React.FC = () => {
         dayBoundaries = await getUserDayBoundaries(user.data.user.id);
         console.log('[dashboard-load] Day boundaries:', dayBoundaries);
 
-        // Double-check boundaries are valid
+        // CRITICAL: Validate boundaries are valid and not empty objects
         if (!dayBoundaries || !dayBoundaries.day_start || !dayBoundaries.day_end) {
+          console.error('[dashboard-load] INVALID BOUNDARIES:', dayBoundaries);
           throw new Error('Invalid day boundaries returned');
         }
+        
+        // Additional validation: ensure they're actual dates
+        const startDate = new Date(dayBoundaries.day_start);
+        const endDate = new Date(dayBoundaries.day_end);
+        
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+          console.error('[dashboard-load] MALFORMED DATES:', { start: dayBoundaries.day_start, end: dayBoundaries.day_end });
+          throw new Error('Malformed day boundaries');
+        }
+        
+        if (endDate <= startDate) {
+          console.error('[dashboard-load] END BEFORE START:', { start: dayBoundaries.day_start, end: dayBoundaries.day_end });
+          throw new Error('day_end must be after day_start');
+        }
+        
+        console.log('[dashboard-load] ✅ Valid boundaries confirmed:', {
+          start: startDate.toLocaleString(),
+          end: endDate.toLocaleString(),
+          durationHours: (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)
+        });
       } catch (error) {
         console.error('[dashboard-load] Failed to get day boundaries:', error);
-        toast.error('Failed to load timezone boundaries. Using default range.');
-        // Fallback: use today in UTC
-        const todayStart = new Date();
-        todayStart.setHours(0, 1, 0, 0); // 12:01 AM
-        const todayEnd = new Date();
-        todayEnd.setHours(23, 59, 59, 999); // 11:59:59 PM
+        toast.error('⚠️ Using fallback date boundaries (EST). Please refresh if data looks wrong.', { duration: 5000 });
+        
+        // EMERGENCY FALLBACK: Calculate boundaries client-side in EST
+        const now = new Date();
+        
+        // Get today's date in EST (UTC-5)
+        const estDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const year = estDate.getFullYear();
+        const month = String(estDate.getMonth() + 1).padStart(2, '0');
+        const day = String(estDate.getDate()).padStart(2, '0');
+        const todayEST = `${year}-${month}-${day}`;
+        
+        // Create boundaries: 12:01 AM - 11:59:59.999 PM EST
+        const startEST = new Date(`${todayEST}T00:01:00-05:00`);
+        const endEST = new Date(`${todayEST}T23:59:59.999-05:00`);
+        
         dayBoundaries = {
-          day_start: todayStart.toISOString(),
-          day_end: todayEnd.toISOString()
+          day_start: startEST.toISOString(),
+          day_end: endEST.toISOString()
         };
+        
+        console.warn('[dashboard-load] 🔶 Using CLIENT-SIDE EST fallback boundaries:', {
+          todayEST,
+          start: startEST.toISOString(),
+          end: endEST.toISOString(),
+          startLocal: startEST.toLocaleString(),
+          endLocal: endEST.toLocaleString()
+        });
       }
 
         // Prepare date ranges for other queries
@@ -142,10 +186,15 @@ export const DashboardPage: React.FC = () => {
         const sleepStartDate = new Date();
         sleepStartDate.setDate(sleepStartDate.getDate() - 13); // Last 14 days for sleep
 
+        // Calculate week boundaries (last 7 days up to today)
+        const weekStart = new Date(dayBoundaries.day_start);
+        weekStart.setDate(weekStart.getDate() - 6); // 7 days total including today
+        
         // Fetch all data in parallel
         const [
           metricsResult,
           mealLogsResult,
+          weeklyMealLogsResult,
           workoutLogsResult,
           sleepLogsResult
         ] = await Promise.all([
@@ -157,17 +206,34 @@ export const DashboardPage: React.FC = () => {
             .maybeSingle(),
 
           // Today's meals using timezone-aware boundaries + items for accurate macros
-          // Query meal_items joined with meal_logs for fiber and other macros
+          // CRITICAL: Query meal_logs FIRST to ensure date filter works correctly
+          supabase
+            .from('meal_logs')
+            .select(`
+              id,
+              ts,
+              user_id,
+              meal_slot,
+              source,
+              totals,
+              micros_totals,
+              meal_items!inner(*)
+            `)
+            .eq('user_id', user.data.user.id)
+            .gte('ts', dayBoundaries.day_start)
+            .lte('ts', dayBoundaries.day_end)
+            .order('ts', { ascending: false }),
+
+          // Weekly meals for summary calculations
           supabase
             .from('meal_items')
             .select(`
-              *,
-              meal_logs!meal_items_meal_log_id_fkey(id, user_id, ts, meal_slot, source, totals, micros_totals)
+              energy_kcal,
+              meal_logs!meal_items_meal_log_id_fkey(id, user_id, ts)
             `)
             .eq('meal_logs.user_id', user.data.user.id)
-            .gte('meal_logs.ts', dayBoundaries.day_start)
-            .lte('meal_logs.ts', dayBoundaries.day_end)
-            .order('id', { ascending: false }),
+            .gte('meal_logs.ts', weekStart.toISOString())
+            .lte('meal_logs.ts', dayBoundaries.day_end),
 
           // Workout logs for dashboard
           supabase
@@ -188,7 +254,18 @@ export const DashboardPage: React.FC = () => {
 
         // Calculate totals from meal_items (accurate, canonical source)
         // IMPORTANT: Round all values to integers (no decimals)
-        const mealItems = mealLogsResult.data || [];
+        // NEW STRUCTURE: mealLogsResult.data contains meal_logs with nested meal_items
+        const mealLogs = mealLogsResult.data || [];
+        
+        // Flatten nested meal_items from all meal_logs
+        const mealItems = mealLogs.flatMap(log => 
+          (log.meal_items || []).map((item: any) => ({
+            ...item,
+            meal_log_ts: log.ts,
+            meal_slot: log.meal_slot
+          }))
+        );
+        
         const totalCalories = Math.round(mealItems.reduce((sum, item) => sum + (item.energy_kcal || 0), 0));
         const totalMacros = {
           protein: Math.round(mealItems.reduce((sum, item) => sum + (item.protein_g || 0), 0)),
@@ -198,32 +275,71 @@ export const DashboardPage: React.FC = () => {
         };
 
         console.log('[dashboard-load] Meal items loaded:', {
-          count: mealItems.length,
+          mealLogsCount: mealLogs.length,
+          itemsCount: mealItems.length,
           totalCalories,
           totalMacros,
           dayBoundaries,
+          sampleLogs: mealLogs.slice(0, 3).map(log => ({
+            ts: log.ts,
+            itemCount: log.meal_items?.length || 0,
+            within_boundaries: log.ts >= dayBoundaries.day_start && log.ts <= dayBoundaries.day_end
+          })),
           sampleItems: mealItems.slice(0, 3).map(i => ({
             name: i.name,
             kcal: Math.round(i.energy_kcal || 0),
-            meal_log_id: i.meal_log_id,
-            meal_ts: i.meal_logs?.ts,
-            within_boundaries: i.meal_logs?.ts >= dayBoundaries.day_start && i.meal_logs?.ts <= dayBoundaries.day_end
+            meal_ts: i.meal_log_ts
           }))
         });
 
-        // For meal history, group items by meal_log
-        const mealLogs: FoodEntry[] = [];
-        // Note: mealItems are joined with meal_logs, so we can access meal_logs fields
-        // For now, just pass empty array - meal history component can be updated separately
-        const groupedMeals: FoodEntry[] = [];
+        // Calculate weekly totals
+        const weeklyMealItems = weeklyMealLogsResult.data || [];
+        const weeklyTotalCalories = Math.round(
+          weeklyMealItems.reduce((sum: number, item: any) => sum + (item.energy_kcal || 0), 0)
+        );
+        
+        // Calculate weekly deficit (assuming same target every day)
+        const targetCalories = metricsResult.data ? 
+          Math.round(
+            (metricsResult.data.protein_g * 4) + 
+            (metricsResult.data.carbs_g * 4) + 
+            (metricsResult.data.fat_g * 9)
+          ) : 0;
+        const weeklyTargetCalories = targetCalories * 7;
+        const weeklyDeficit = weeklyTargetCalories - weeklyTotalCalories;
+        
+        // Calculate projected fat loss (1 lb = 3500 cal deficit)
+        const projectedFatLoss = weeklyDeficit > 0 ? Math.round((weeklyDeficit / 3500) * 10) / 10 : 0;
+
+        // For meal history - convert mealLogs to FoodEntry format
+        // Note: mealLogs now contains meal_logs with nested meal_items from the query above
+        const groupedMeals: FoodEntry[] = mealLogs.map(log => ({
+          id: log.id,
+          timestamp: log.ts,
+          meal_slot: log.meal_slot || 'snack',
+          items: (log.meal_items || []).map((item: any) => ({
+            name: item.name,
+            quantity: item.quantity || 1,
+            unit: item.unit || 'serving',
+            calories: item.energy_kcal || 0,
+            protein: item.protein_g || 0,
+            carbs: item.carbs_g || 0,
+            fat: item.fat_g || 0
+          }))
+        }));
 
         setDashboardData({
           userMetrics: metricsResult.data,
-          todaysFoodLogs: mealLogs,
+          todaysFoodLogs: groupedMeals,
           totalCalories,
           totalMacros,
           workoutLogs: workoutLogsResult.data || [],
-          sleepLogs: sleepLogsResult.data || []
+          sleepLogs: sleepLogsResult.data || [],
+          weeklyStats: {
+            totalCalories: weeklyTotalCalories,
+            totalDeficit: weeklyDeficit,
+            projectedFatLoss
+          }
         });
 
       console.log('Dashboard data loaded:', { workouts: workoutLogsResult.data?.length, sleep: sleepLogsResult.data?.length });
@@ -356,24 +472,20 @@ export const DashboardPage: React.FC = () => {
             <DailySummary
               totalCalories={dashboardData?.totalCalories || 0}
               targetCalories={
-                // CRITICAL: Use NET DAILY TARGET (after TEF), not TDEE
-                // Calculate target from macros (including manual overrides)
+                // Use TARGET FROM MACROS (user's macro goal), NOT Net after TEF
                 (() => {
                   const protein = dashboardData?.userMetrics?.protein_g || 0;
                   const carbs = dashboardData?.userMetrics?.carbs_g || 0;
                   const fat = dashboardData?.userMetrics?.fat_g || 0;
-                  const targetBeforeTEF = (protein * 4) + (carbs * 4) + (fat * 9);
-                  // Calculate TEF: Protein (30%), Carbs (12%), Fat (2%)
-                  const tef = Math.round(
-                    (protein * 4 * 0.30) + (carbs * 4 * 0.12) + (fat * 9 * 0.02)
-                  );
-                  return Math.round(targetBeforeTEF - tef);
+                  return Math.round((protein * 4) + (carbs * 4) + (fat * 9));
                 })()
               }
+              tdee={dashboardData?.userMetrics?.tdee || 0}
               proteinTarget={dashboardData?.userMetrics?.protein_g || 150}
               currentProtein={dashboardData?.totalMacros?.protein || 0}
               currentFiber={dashboardData?.totalMacros?.fiber || 0}
-              fiberTarget={dashboardData?.userMetrics?.fiber_g_target}
+              fiberTarget={20}
+              weeklyStats={dashboardData?.weeklyStats}
             />
           </div>
           
@@ -389,6 +501,7 @@ export const DashboardPage: React.FC = () => {
                   protein_g: dashboardData.totalMacros?.protein || 0,
                   carb_g: dashboardData.totalMacros?.carbs || 0,
                   fat_g: dashboardData.totalMacros?.fat || 0,
+                  fiber_g: dashboardData.totalMacros?.fiber || 0,
                   salt_g: 2.3, // Mock for now
                   water_l: 3.2, // Mock for now
                   first_meal_time: '08:30', // Mock for now
@@ -400,16 +513,12 @@ export const DashboardPage: React.FC = () => {
                 targetCarbs={dashboardData?.userMetrics?.carbs_g}
                 targetFat={dashboardData?.userMetrics?.fat_g}
                 targetCalories={
-                  // Calculate Net Daily Target (after TEF)
+                  // Use TARGET FROM MACROS (user's macro goal)
                   (() => {
                     const protein = dashboardData?.userMetrics?.protein_g || 0;
                     const carbs = dashboardData?.userMetrics?.carbs_g || 0;
                     const fat = dashboardData?.userMetrics?.fat_g || 0;
-                    const targetBeforeTEF = (protein * 4) + (carbs * 4) + (fat * 9);
-                    const tef = Math.round(
-                      (protein * 4 * 0.30) + (carbs * 4 * 0.12) + (fat * 9 * 0.02)
-                    );
-                    return Math.round(targetBeforeTEF - tef);
+                    return Math.round((protein * 4) + (carbs * 4) + (fat * 9));
                   })()
                 }
               />
