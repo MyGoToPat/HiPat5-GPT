@@ -418,6 +418,118 @@ export const ChatPat: React.FC = () => {
   // Track when Pat is expecting a food response (after asking "What did you eat?")
   const [expectingFoodResponse, setExpectingFoodResponse] = useState(false);
 
+  // TMWYA Verification Page state
+  const [showMealVerification, setShowMealVerification] = useState(false);
+  const [pendingMeal, setPendingMeal] = useState<{
+    items: Array<{
+      description: string;
+      brand?: string;
+      qty: number;
+      unit: string;
+      calories: number;
+      protein_g: number;
+      carbs_g: number;
+      fat_g: number;
+      fiber_g?: number;
+      source?: string;
+    }>;
+    inferredTimestamp?: Date;
+    totals: {
+      calories: number;
+      protein_g: number;
+      carbs_g: number;
+      fat_g: number;
+      fiber_g?: number;
+    };
+  } | null>(null);
+
+  // TMWYA verification handlers
+  const handleMealVerificationLog = async (editedMeal?: typeof pendingMeal) => {
+    const mealToLog = editedMeal || pendingMeal;
+    if (!mealToLog) return;
+
+    try {
+      console.log('[tmwya] log → persisting meal');
+      setIsLoggingActivity(true);
+
+      // Call the meal logging function (reuse existing logic)
+      const mealData = {
+        items: mealToLog.items.map(item => ({
+          name: item.description,
+          quantity: item.qty,
+          unit: item.unit,
+          calories: item.calories,
+          protein_g: item.protein_g,
+          carbs_g: item.carbs_g,
+          fat_g: item.fat_g,
+          fiber_g: item.fiber_g || 0,
+        })),
+        totals: mealToLog.totals,
+        meal_slot: 'lunch', // Default, user can change in verification
+        eaten_at: mealToLog.inferredTimestamp || new Date(),
+      };
+
+      // Log the meal using existing logic
+      const result = await handleMealLogging(mealData);
+
+      // Clear pending meal
+      setPendingMeal(null);
+      setShowMealVerification(false);
+
+      // Show success message only after successful persistence
+      if (result?.success) {
+        const successMessage: ChatMessage = {
+          id: crypto.randomUUID(),
+          text: "Action completed. Your meal has been logged successfully!",
+          isUser: false,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, successMessage]);
+        console.log('[tmwya] log → persisted', { meal_id: result.id });
+      }
+    } catch (error) {
+      console.error('[tmwya] log failed:', error);
+      // Show error message
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        text: "Sorry, there was an error logging your meal. Please try again.",
+        isUser: false,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoggingActivity(false);
+    }
+  };
+
+  const handleMealVerificationCancel = () => {
+    console.log('[tmwya] cancel → cleared pendingMeal');
+    setPendingMeal(null);
+    setShowMealVerification(false);
+
+    // Add a message indicating cancellation
+    const cancelMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      text: "Meal logging cancelled. Let me know if you'd like to try again!",
+      isUser: false,
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, cancelMessage]);
+  };
+
+  const handleMealVerificationEdit = (itemIndex: number) => {
+    console.log('[tmwya] edit → item', itemIndex);
+    // For now, just show a message that editing is not yet implemented
+    // In a full implementation, this would open an item editor
+    const editMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      text: "Meal item editing is coming soon. For now, please describe your meal again with the corrections.",
+      isUser: false,
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, editMessage]);
+  };
+
   // Food verification screen handlers
   const handleConfirmVerification = async (normalizedMeal: any) => {
     try {
@@ -806,6 +918,12 @@ export const ChatPat: React.FC = () => {
             const userContext = await loadUserContext(user.data.user.id);
             console.log('[ChatPat] User context loaded:', userContext);
 
+            // Load personality prompts from DB if enabled
+            if (import.meta.env.VITE_NEW_PERSONALITY === 'true') {
+              const { loadPersonality } = await import('../core/personality/loadPersonality');
+              await loadPersonality();
+            }
+
             const result = await handleUserMessage(newMessage.text, {
               userId: user.data.user.id,
               userContext,
@@ -850,13 +968,38 @@ export const ChatPat: React.FC = () => {
               }
             }
 
+            // Extract citation data from Gemini responses
+            let citationMetadata = null;
+            if (result.rawData?.gemini === true) {
+              citationMetadata = {
+                cite: result.rawData.cite,
+                citeTitle: result.rawData.citeTitle,
+                webVerified: true
+              };
+            }
+
+            // Extract AMA nutrition estimate data
+            let nutritionMetadata = null;
+            if (result.rawData?.ama_nutrition_estimate === true) {
+              nutritionMetadata = {
+                ama_nutrition_estimate: true,
+                items: result.rawData.items,
+                totals: result.rawData.totals
+              };
+            }
+
+            // Combine metadata
+            const combinedMeta = macroMetadata || citationMetadata || nutritionMetadata
+              ? { ...macroMetadata, ...citationMetadata, ...nutritionMetadata }
+              : undefined;
+
             // Add Pat's response and remove thinking indicator
             const patMessage: ChatMessage = {
               id: crypto.randomUUID(),
               text: result.response,
               isUser: false,
               timestamp: new Date(),
-              meta: macroMetadata || undefined
+              meta: combinedMeta
             };
 
             // Remove thinking message and add Pat's response
@@ -1588,6 +1731,23 @@ export const ChatPat: React.FC = () => {
     );
   }
 
+  // Show TMWYA Verification Page if active
+  if (showMealVerification && pendingMeal) {
+    const VerificationPage = React.lazy(() => import('./tmwya/VerificationPage').then(m => ({ default: m.default })));
+    return (
+      <div className="h-screen bg-pat-gradient text-white flex items-center justify-center pt-[44px]">
+        <React.Suspense fallback={<div className="text-center">Loading verification...</div>}>
+          <VerificationPage
+            pendingMeal={pendingMeal}
+            onEdit={handleMealVerificationEdit}
+            onCancel={handleMealVerificationCancel}
+            onLog={handleMealVerificationLog}
+          />
+        </React.Suspense>
+      </div>
+    );
+  }
+
   // Show Food Verification Screen if active
   if (showFoodVerificationScreen && currentAnalysisResult) {
     return (
@@ -1645,75 +1805,109 @@ export const ChatPat: React.FC = () => {
               </div>
             </div>
           )}
-          
+
           <div className={`space-y-6 transition-opacity duration-300 ${isTyping || messages.length > 1 ? 'opacity-100' : 'opacity-0'}`}>
-            {messages.map((message, index) => {
-              // Handle TMWYA verify card
-              if (message.roleData?.type === 'tmwya.verify') {
-                const MealVerifyCard = React.lazy(() => import('./tmwya/MealVerifyCard').then(m => ({ default: m.default })));
+            {(() => {
+              function renderVerifyCtaIfNeeded(msg: any) {
+                if (msg?.meta?.ama_nutrition_estimate === true && (msg?.meta?.items?.length ?? 0) > 0) {
+                  // Convert AMA nutrition data to AnalysisResult format for FoodVerificationScreen
+                  const amaItems = msg.meta.items.map((item: any, index: number) => ({
+                    name: item.name || item.description || '',
+                    brand: item.brand,
+                    qty: item.quantity || item.qty || 1,
+                    unit: item.unit || 'serving',
+                    grams: 100, // Default assumption
+                    macros: {
+                      kcal: item.calories || 0,
+                      protein_g: item.protein_g || 0,
+                      carbs_g: item.carbs_g || 0,
+                      fat_g: item.fat_g || 0,
+                    },
+                    confidence: 0.9, // High confidence for AMA estimates
+                    candidates: [{
+                      name: item.name || item.description || '',
+                      brand: item.brand,
+                      macros: {
+                        kcal: item.calories || 0,
+                        protein_g: item.protein_g || 0,
+                        carbs_g: item.carbs_g || 0,
+                        fat_g: item.fat_g || 0,
+                      },
+                      confidence: 0.9,
+                      source: item.source || 'USDA'
+                    }],
+                    source_hints: { ama_estimate: true },
+                    originalText: item.name || item.description || ''
+                  }));
+
+                  const analysisResult = {
+                    items: amaItems,
+                    meal_slot: 'lunch', // Default assumption
+                    source: 'text',
+                    originalInput: 'AMA nutrition estimate'
+                  };
+
+                  return (
+                    <button
+                      className="mt-2 px-3 py-1 rounded-xl bg-white/20 hover:bg-white/30 transition"
+                      onClick={() => {
+                        setCurrentAnalysisResult(analysisResult);
+                        setShowFoodVerificationScreen(true);
+                        console.info('[ama] verify → opened from AMA CTA', { count: amaItems.length });
+                      }}
+                    >
+                      Verify &amp; Log
+                    </button>
+                  );
+                }
+                return null;
+              }
+
+              function renderAssistantBubble(msg: any) {
                 return (
-                  <div key={message.id} className="flex justify-start">
-                    <React.Suspense fallback={<div className="text-gray-400">Loading verification...</div>}>
-                      <MealVerifyCard
-                        view={message.roleData.view}
-                        items={message.roleData.items || []}
-                        totals={message.roleData.totals}
-                        tef={message.roleData.tef}
-                        tdee={message.roleData.tdee}
-                        onUpdate={(updatedView) => {
-                          // Update the message's roleData with edited values
-                          setMessages(prev => prev.map(m => 
-                            m.id === message.id 
-                              ? { ...m, roleData: { ...message.roleData, view: updatedView } }
-                              : m
-                          ));
-                        }}
-                        onConfirm={async () => {
-                          if (!userId || !message.roleData) return;
-                          
-                          // Use production meal_logs + meal_items schema (not nutrition_logs)
-                          const saveInput: SaveMealInput = {
-                            userId: userId,
-                            items: (message.roleData.items || []).map((item: any) => ({
-                              name: item.name,
-                              quantity: item.quantity ?? 1,
-                              unit: item.unit ?? 'serving',
-                              energy_kcal: item.calories ?? 0,
-                              protein_g: item.protein_g ?? 0,
-                              fat_g: item.fat_g ?? 0,
-                              carbs_g: item.carbs_g ?? 0,
-                              fiber_g: item.fiber_g ?? 0
-                            })),
-                            mealSlot: message.roleData.view?.meal_slot ?? null,
-                            timestamp: message.roleData.view?.eaten_at ?? new Date().toISOString()
-                          };
-                          
-                          const res = await saveMealAction(saveInput);
-                          
-                          if (res.ok) {
-                            toast.success('Meal logged successfully!');
-                            // Replace with success message
-                            setMessages(prev => prev.map(m => m.id === message.id ? {
-                              ...m,
-                              text: 'Meal logged ✅',
-                              roleData: undefined
-                            } : m));
-                          } else {
-                            toast.error(`Log failed: ${res.error}`);
-                          }
-                        }}
-                        onCancel={() => {
-                          toast.success('Meal logging cancelled');
-                          setMessages(prev => prev.map(m => m.id === message.id ? {
-                            ...m,
-                            text: 'Cancelled.',
-                            roleData: undefined
-                          } : m));
-                        }}
-                      />
-                    </React.Suspense>
+                  <div className="assistant-bubble">
+                    <div>{msg.text}</div>
+                    {renderVerifyCtaIfNeeded(msg)}
                   </div>
                 );
+              }
+
+              return messages.map((message, index) => {
+              // Handle TMWYA verify card - set up pendingMeal instead of showing inline
+              if (message.roleData?.type === 'tmwya.verify') {
+                console.log('[tmwya] resolved → pendingMeal set');
+
+                // Set up pending meal from roleData
+                const mealItems = message.roleData.items || [];
+                const pendingMealData = {
+                  items: mealItems.map((item: any) => ({
+                    description: item.name || item.description || '',
+                    brand: item.brand || undefined,
+                    qty: item.quantity || item.qty || 1,
+                    unit: item.unit || 'serving',
+                    calories: item.calories || 0,
+                    protein_g: item.protein_g || 0,
+                    carbs_g: item.carbs_g || 0,
+                    fat_g: item.fat_g || 0,
+                    fiber_g: item.fiber_g || 0,
+                    source: item.source || undefined,
+                  })),
+                  inferredTimestamp: new Date(),
+                  totals: {
+                    calories: message.roleData.totals?.calories || 0,
+                    protein_g: message.roleData.totals?.protein_g || 0,
+                    carbs_g: message.roleData.totals?.carbs_g || 0,
+                    fat_g: message.roleData.totals?.fat_g || 0,
+                    fiber_g: message.roleData.totals?.fiber_g || 0,
+                  }
+                };
+
+                setPendingMeal(pendingMealData);
+                setShowMealVerification(true);
+                console.log('[tmwya] verify → opened');
+
+                // Don't render the message, show verification page instead
+                return null;
               }
               
               // Regular message bubble
@@ -1730,7 +1924,73 @@ export const ChatPat: React.FC = () => {
                       }`}
                       style={{ maxWidth: message.isUser ? '480px' : '700px' }}
                     >
-                      <p className="message-bubble text-base leading-relaxed whitespace-pre-wrap break-words" style={{ lineHeight: '1.6', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{message.text}</p>
+                      {message.isUser ? (
+                        <p className="message-bubble text-base leading-relaxed whitespace-pre-wrap break-words" style={{ lineHeight: '1.6', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{message.text}</p>
+                      ) : (
+                        renderAssistantBubble(message)
+                      )}
+
+                      {/* Source display for web-verified content */}
+                      {message.meta?.cite && (
+                        <div className="mt-3 pt-2 border-t border-gray-600">
+                          <div className="flex items-center gap-2 text-xs">
+                            {message.meta.webVerified && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full bg-green-600/20 text-green-400 text-xs font-medium">
+                                Web verified
+                              </span>
+                            )}
+                            <span className="text-gray-400">Source:</span>
+                            <a
+                              href={message.meta.cite}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              {message.meta.citeTitle || message.meta.cite}
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Verify & Log button for AMA nutrition estimates */}
+                      {message.meta?.ama_nutrition_estimate && message.meta?.items && (
+                        <div className="mt-3 pt-2 border-t border-gray-600">
+                          <button
+                            onClick={() => {
+                              console.log('[chat] Verify & Log clicked for AMA nutrition');
+                              // Set up pending meal from message metadata
+                              const pendingMealData = {
+                                items: message.meta.items.map((item: any) => ({
+                                  description: item.name || item.description || '',
+                                  brand: item.brand || undefined,
+                                  qty: item.quantity || item.qty || 1,
+                                  unit: item.unit || 'serving',
+                                  calories: item.calories || 0,
+                                  protein_g: item.protein_g || 0,
+                                  carbs_g: item.carbs_g || 0,
+                                  fat_g: item.fat_g || 0,
+                                  fiber_g: item.fiber_g || 0,
+                                  source: item.source || undefined,
+                                })),
+                                inferredTimestamp: new Date(),
+                                totals: message.meta.totals || {
+                                  calories: 0,
+                                  protein_g: 0,
+                                  carbs_g: 0,
+                                  fat_g: 0,
+                                  fiber_g: 0,
+                                }
+                              };
+                              setPendingMeal(pendingMealData);
+                              setShowMealVerification(true);
+                              console.log('[tmwya] verify → opened from AMA CTA');
+                            }}
+                            className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
+                          >
+                            Verify & Log
+                          </button>
+                        </div>
+                      )}
                       <p className="text-xs opacity-70 mt-2">
                         {message.timestamp.toLocaleTimeString([], {
                           hour: '2-digit',
@@ -1741,8 +2001,8 @@ export const ChatPat: React.FC = () => {
                   </div>
               </div>
               );
-            })}
-            
+              });
+            })()}
             {/* Status Indicator */}
             {(isSending || isAnalyzingFood || statusText || isThinking) && (
               <div className="flex justify-start">
@@ -1750,7 +2010,7 @@ export const ChatPat: React.FC = () => {
                   <ThinkingAvatar className="" label={statusText || 'Pat is thinking...'} />
                 </div>
               </div>
-            )}
+            )})
             {/* Scroll anchor */}
             <div ref={messagesEndRef} />
           </div>
@@ -1822,7 +2082,7 @@ export const ChatPat: React.FC = () => {
                 onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (handleSendMessage(), e.preventDefault())}
                 placeholder="Ask me anything"
                 rows={1}
-                className="flex-1 bg-white border border-gray-300 text-gray-900 placeholder-gray-400 rounded-full px-4 py-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-hidden whitespace-pre-wrap break-words"
+                className="flex-1 bg-white border border-gray-300 text-gray-900 placeholder-gray-400 rounded-full px-4 py-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none whitespace-pre-wrap break-words"
                 style={{ overflowWrap: 'anywhere', wordBreak: 'break-word', minHeight: '48px', maxHeight: '120px' }}
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;

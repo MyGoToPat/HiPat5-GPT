@@ -6,13 +6,14 @@
 import { getSupabase } from '../../lib/supabase';
 
 export type RouterDecision = {
-  intent: "ama" | "tmwya" | "workout" | "camera";
+  intent: "ama" | "tmwya" | "workout" | "camera" | "meal_logging" | "general";
   route_to: "ama" | "tmwya" | "workout" | "camera";
   use_gemini: boolean;
-  reason: "database_can_answer" | "requires_web_search" | "requires_visual" | "conversational" | "role_task";
+  reason: "database_can_answer" | "requires_web_search" | "requires_visual" | "conversational" | "role_task" | "meal_logging" | "nutrition_estimate" | "general" | "ama_needs_web";
   needs_clarification: boolean;
   clarifier: string | null;
   confidence: number;
+  ama_nutrition_estimate?: boolean;
 };
 
 const SYSTEM_PROMPT = [
@@ -40,6 +41,20 @@ const INTENT_ALIASES: Record<string, string> = {
 
 export function normalizeIntent(intent: string): string {
   return INTENT_ALIASES[intent] || intent;
+}
+
+const VALID_ROUTES = new Set(["ama", "meal_logging", "workout_logging", "assistant_task"]);
+
+function normalizeRouteTo(route: string): string {
+  const lower = (route || "").toLowerCase();
+  if (VALID_ROUTES.has(lower)) return lower;
+
+  // Treat research-like outputs as AMA (will use Gemini via model router)
+  const researchHints = ["internet_search", "web_research", "search", "creatine_info", "research"];
+  if (researchHints.some(hint => lower.includes(hint))) return "ama";
+
+  // Default to AMA for anything unclear
+  return "ama";
 }
 
 function stripMarkdownJSON(raw: string): string {
@@ -107,16 +122,16 @@ export async function runPersonalityRouter(userText: string): Promise<RouterDeci
       return null;
     }
 
-    // Normalize intents before validation
+    // Normalize values before validation
     json.intent = normalizeIntent(json.intent) as any;
-    json.route_to = normalizeIntent(json.route_to) as any;
+    json.route_to = normalizeRouteTo(json.route_to) as any;
 
-    if (!["ama", "tmwya", "workout", "camera", "meal_logging"].includes(json.intent)) {
+    if (!VALID_ROUTES.has(json.intent)) {
       console.warn("[router] invalid intent after normalization", json.intent);
       return null;
     }
 
-    if (!["ama", "tmwya", "workout", "camera", "meal_logging"].includes(json.route_to)) {
+    if (!VALID_ROUTES.has(json.route_to)) {
       console.warn("[router] invalid route_to after normalization", json.route_to);
       return null;
     }

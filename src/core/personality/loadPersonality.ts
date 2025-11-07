@@ -21,6 +21,11 @@ const supabase = createClient(
  */
 export async function loadPersonality() {
   try {
+    // Always use DB path now, but warn if flag is off
+    if (import.meta.env.VITE_NEW_PERSONALITY !== 'true') {
+      console.warn('[personality-loader] WARN: VITE_NEW_PERSONALITY=false; using DB anyway');
+    }
+
     const prompts = await loadPersonalityFromDB(supabase);
     return prompts;
   } catch (error) {

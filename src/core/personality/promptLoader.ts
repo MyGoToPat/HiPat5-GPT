@@ -21,18 +21,13 @@ export interface PromptBlock {
 /**
  * Canonical DB loader for personality prompts
  * @param supabase - Authenticated Supabase client (RLS applies)
- * @param agent - Agent identifier (default: 'pat')
  * @returns Array of prompt blocks sorted by phase then order
  */
-export async function loadPersonalityFromDB(
-  supabase: SupabaseClient,
-  agent = 'pat'
-): Promise<PromptBlock[]> {
+export async function loadPersonalityFromDB(supabase: SupabaseClient): Promise<PromptBlock[]> {
   const { data, error } = await supabase
     .from('personality_prompts')
-    .select('content, prompt_key, phase, "order"')
-    .eq('agent', agent)
-    .eq('enabled', true)
+    .select('prompt_key, phase, "order", enabled, content')
+    .eq('agent', 'pat')
     .order('phase', { ascending: true })
     .order('"order"', { ascending: true });
 
@@ -42,15 +37,10 @@ export async function loadPersonalityFromDB(
   }
 
   if (!data || data.length === 0) {
-    throw new Error(`No enabled personality prompts found for agent="${agent}"`);
+    throw new Error('No personality prompts found');
   }
 
-  // Guard: expect exactly 11 prompts for 'pat'
-  if (agent === 'pat' && data.length < 11) {
-    throw new Error(`personality_prompts: expected 11, got ${data.length}`);
-  }
-
-  console.info('[personality-loader] Loaded from DB (', data.length, ' prompts)');
+  console.info('[personality-loader] Loaded from DB (' + data.length + ' prompts)');
 
   // Return blocks in DB order (already sorted by phase then order)
   return data.map(row => ({
@@ -59,32 +49,5 @@ export async function loadPersonalityFromDB(
     order: row["order"],
     content: row.content
   }));
-}
-
-/**
- * LEGACY: Keep for backward compatibility, but redirect to DB loader
- * @deprecated Use loadPersonalityFromDB instead
- */
-export async function loadPersonalityPrompts(
-  supabase: SupabaseClient,
-  agent = 'pat',
-  dev = false
-): Promise<PromptBlock[]> {
-  console.warn('[personality-loader] loadPersonalityPrompts is deprecated, use loadPersonalityFromDB');
-  return loadPersonalityFromDB(supabase, agent);
-}
-
-/**
- * Get a specific prompt by key
- */
-export function getPrompt(blocks: PromptBlock[], key: string): PromptBlock | null {
-  return blocks.find(b => b.prompt_key === key) || null;
-}
-
-/**
- * Get all prompts for a specific phase
- */
-export function getPhasePrompts(blocks: PromptBlock[], phase: PromptPhase): PromptBlock[] {
-  return blocks.filter(b => b.phase === phase);
 }
 

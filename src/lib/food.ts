@@ -142,7 +142,7 @@ export async function fetchFoodMacros(
   foodName: string
 ): Promise<{ ok: boolean; macros?: any; error?: string }> {
   const supabase = getSupabase();
-  const { data, error } = await supabase.functions.invoke('openai-food-macros', {
+  const { data, error } = await supabase.functions.invoke('nutrition-resolver', {
     body: { foodName },
   });
   if (error) return { ok: false, error: error.message ?? 'Edge function failed' };

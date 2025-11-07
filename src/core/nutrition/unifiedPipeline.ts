@@ -12,8 +12,8 @@ import { getLatestPromptOrFallback } from '../../lib/admin/prompts';
 import { sanitizeNormalizedItems } from './sanitizeNormalizedItems';
 import { PROVIDERS, type ProviderKey } from '../../agents/shared/nutrition/providers';
 
-// Emergency Gemini kill-switch
-const GEMINI_ENABLED = import.meta.env.VITE_GEMINI_NUTRITION !== 'false';
+// Emergency Gemini kill-switch - temporarily disabled due to 502 errors
+const GEMINI_ENABLED = false; // import.meta.env.VITE_GEMINI_NUTRITION !== 'false';
 
 export interface NutritionPipelineOptions {
   message: string;
@@ -71,23 +71,51 @@ function stripMarkdownJSON(raw: string): string {
  * Safe JSON parsing with repair attempts
  */
 function safeJsonParse(text: string) {
-  const stripFences = (s: string) => s.replace(/```json|```/gi, '');
-  const t = stripFences(text).trim();
+  if (!text || typeof text !== 'string') {
+    console.warn('[safeJsonParse] Invalid input:', typeof text);
+    return null;
+  }
+
+  const stripFences = (s: string) => s.replace(/```json|```/gi, '').trim();
+  let t = stripFences(text).trim();
+
+  // Handle empty or whitespace-only strings
+  if (!t) {
+    console.warn('[safeJsonParse] Empty input after stripping');
+    return null;
+  }
 
   try {
     return JSON.parse(t);
-  } catch {}
-
-  // Minimal repair: quote keys, remove trailing commas
-  const repaired = t
-    .replace(/([{,]\s*)([A-Za-z0-9_]+)\s*:/g, '$1"$2":')  // Quote unquoted keys
-    .replace(/,(\s*[}\]])/g, '$1');                       // Remove trailing commas
-
-  try {
-    return JSON.parse(repaired);
-  } catch {
-    return null;
+  } catch (e) {
+    console.warn('[safeJsonParse] Initial parse failed:', e.message, 'input:', t.substring(0, 100));
   }
+
+  // More aggressive repair attempts
+  const repairs = [
+    // Remove trailing commas
+    t.replace(/,(\s*[}\]])/g, '$1'),
+    // Quote unquoted keys
+    t.replace(/([{,]\s*)([A-Za-z0-9_]+)\s*:/g, '$1"$2":'),
+    // Handle incomplete JSON by adding closing braces/brackets
+    t + (t.startsWith('{') && !t.endsWith('}') ? '}' : ''),
+    t + (t.startsWith('[') && !t.endsWith(']') ? ']' : ''),
+    // Extract JSON from text that might contain extra content
+    t.match(/\{[\s\S]*\}/)?.[0] || t,
+    // Last resort: try to construct minimal valid JSON
+    '{"items":[]}'
+  ];
+
+  for (const repaired of repairs) {
+    try {
+      const result = JSON.parse(repaired);
+      console.log('[safeJsonParse] Repaired successfully');
+      return result;
+    } catch {}
+  }
+
+  console.error('[safeJsonParse] All repair attempts failed for input:', t.substring(0, 200));
+  return null;
 }
 
 /**

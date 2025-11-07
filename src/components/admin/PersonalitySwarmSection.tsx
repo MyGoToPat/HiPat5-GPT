@@ -49,7 +49,7 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
       setLoading(true);
       const { data, error } = await getSupabase()
         .from('personality_prompts')
-        .select('prompt_code, title, phase, "order", model, version, enabled, content')
+        .select('prompt_key, phase, "order", enabled, content')
         .eq('agent', 'pat')
         .order('phase', { ascending: true })
         .order('"order"', { ascending: true });
@@ -59,12 +59,12 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
       if (data) {
         // Transform personality_prompts rows to PersonalityAgent format for UI compatibility
         const loadedAgents: PersonalityAgent[] = data.map(row => ({
-          id: row.prompt_code,
-          name: row.title,
+          id: row.prompt_key,
+          name: row.prompt_key.replace('PERSONALITY_', '').replace(/_/g, ' '),
           enabled: row.enabled,
           phase: row.phase as 'pre' | 'main' | 'post',
           order: row["order"],
-          promptRef: row.prompt_code
+          promptRef: row.prompt_key
         }));
 
         setAgents(loadedAgents);
@@ -99,7 +99,7 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
       const { data, error } = await getSupabase()
         .from('personality_prompts')
         .select('content')
-        .eq('prompt_code', promptRef)
+        .eq('prompt_key', promptRef)
         .eq('agent', 'pat')
         .maybeSingle();
 
@@ -130,7 +130,7 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
       const { error: updateError } = await getSupabase()
         .from('personality_prompts')
         .update({ enabled: !agent.enabled })
-        .eq('prompt_code', agent.promptRef)
+        .eq('prompt_key', agent.promptRef)
         .eq('agent', 'pat');
 
       if (updateError) throw updateError;
@@ -153,7 +153,7 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
       const { data, error } = await getSupabase()
         .from('personality_prompts')
         .select('content')
-        .eq('prompt_code', agent.promptRef)
+        .eq('prompt_key', agent.promptRef)
         .eq('agent', 'pat')
         .maybeSingle();
 
@@ -187,7 +187,7 @@ export default function PersonalitySwarmSection({ onAgentsLoaded }: PersonalityS
           content: editingPromptContent.trim(),
           updated_at: new Date().toISOString()
         })
-        .eq('prompt_code', editingPromptRef)
+        .eq('prompt_key', editingPromptRef)
         .eq('agent', 'pat');
 
       if (error) throw error;

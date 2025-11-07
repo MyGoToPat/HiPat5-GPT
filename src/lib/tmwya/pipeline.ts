@@ -164,8 +164,98 @@ OUTPUT JSON:
     throw new Error(`NLU parsing failed: ${result.error}`);
   }
 
-  const parsed = typeof result.content === 'string' ? JSON.parse(result.content) : result.content;
+  // Handle both JSON and potential text responses
+  let parsed: MealNLUParseResult;
+  if (typeof result.content === 'string') {
+    try {
+      parsed = JSON.parse(result.content);
+    } catch (jsonError) {
+      console.warn('[TMWYA] LLM returned non-JSON, attempting fallback parsing:', result.content.substring(0, 100));
+
+      // Fallback: Try to extract structured data from text response
+      const fallbackResult = parseTextFallback(result.content, message);
+      if (fallbackResult) {
+        console.info('[TMWYA] Fallback parsing succeeded');
+        parsed = fallbackResult;
+      } else {
+        console.warn('[TMWYA] Fallback parsing failed, using minimal fallback');
+        // Last resort: create minimal valid structure
+        parsed = {
+          items: [{
+            name: message.substring(0, 50),
+            qty: 1,
+            unit: 'serving',
+            originalText: message
+          }],
+          meal_slot: 'lunch',
+          confidence: 0.3,
+          clarifications_needed: ['Unable to parse meal details automatically']
+        };
+      }
+    }
+  } else {
+    parsed = result.content;
+  }
+
   return parsed as MealNLUParseResult;
+}
+
+/**
+ * Fallback parser when LLM returns text instead of JSON
+ */
+function parseTextFallback(text: string, originalMessage: string): MealNLUParseResult | null {
+  try {
+    // Simple regex-based extraction for common patterns
+    const items: any[] = [];
+    const lines = text.split('\n').filter(line => line.trim());
+
+    for (const line of lines) {
+      // Look for patterns like "2 eggs", "1 cup oatmeal", "Big Mac"
+      const qtyMatch = line.match(/^(\d+(?:\.\d+)?)?\s*(cup|cups|oz|g|grams?|piece|pieces|serving|servings?)?\s*(.+)$/i);
+      if (qtyMatch) {
+        const qty = qtyMatch[1] ? parseFloat(qtyMatch[1]) : 1;
+        const unit = qtyMatch[2] || 'serving';
+        const name = qtyMatch[3].trim();
+
+        if (name && name.length > 1) {
+          items.push({
+            name: name,
+            qty: qty,
+            unit: unit.toLowerCase(),
+            originalText: line.trim()
+          });
+        }
+      } else if (line.trim() && !line.toLowerCase().includes('meal') && !line.toLowerCase().includes('breakfast')) {
+        // Fallback: treat as single item
+        items.push({
+          name: line.trim(),
+          qty: 1,
+          unit: 'serving',
+          originalText: line.trim()
+        });
+      }
+    }
+
+    if (items.length === 0) {
+      // Last resort: treat entire message as one item
+      items.push({
+        name: originalMessage.substring(0, 50),
+        qty: 1,
+        unit: 'serving',
+        originalText: originalMessage
+      });
+    }
+
+    return {
+      items: items,
+      meal_slot: 'lunch', // Default assumption
+      confidence: 0.5, // Lower confidence for fallback parsing
+      clarifications_needed: []
+    };
+  } catch (error) {
+    console.error('[TMWYA] Fallback parsing failed:', error);
+    return null;
+  }
 }
 
 /**

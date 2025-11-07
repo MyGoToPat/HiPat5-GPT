@@ -9,7 +9,7 @@ import { type UserContext } from '../personality/patSystem';
 import { ensureChatSession } from './sessions';
 import { storeMessage, loadRecentMessages } from './store';
 import { buildHistoryContext } from '../../lib/chatHistoryContext';
-import { runPersonalityRouter } from '../personality/routerAgent';
+import { runTMWYAPipeline } from '../../lib/tmwya/pipeline';
 
 /**
  * Strip leading style JSON from assistant responses
@@ -80,37 +80,59 @@ export async function handleUserMessage(
   await storeMessage(sessionId, 'user', message);
 
   // Step 1.5: Call Personality Router (LLM-aware intelligent routing)
-  const routerDecision = await runPersonalityRouter(message);
-  if (routerDecision) {
-    console.info('[handleUserMessage] Personality router decision:', {
-      intent: routerDecision.intent,
-      route_to: routerDecision.route_to,
-      use_gemini: routerDecision.use_gemini,
-      reason: routerDecision.reason,
-      confidence: routerDecision.confidence
-    });
+  const routerDecision = await detectIntent(message);
+  console.info('[handleUserMessage] Personality router decision:', routerDecision);
+
+  // Early branch: Route to TMWYA pipeline for meal logging
+  if (routerDecision.route_to === 'tmwya') {
+    try {
+      const tmwyaInput = {
+        userMessage: message,
+        source: 'text' as const,
+        userId: context.userId
+      };
+
+      const pipelineResult = await runTMWYAPipeline(tmwyaInput);
+
+      if (pipelineResult.ok && pipelineResult.normalizedMeal) {
+        const mealData = pipelineResult.normalizedMeal;
+
+        console.info('[tmwya] resolved → pendingMeal set', mealData.totals);
+
+        // Return message with roleData that triggers ChatPat verification
+        return {
+          response: "I've prepared your meal. Please verify.",
+          roleData: {
+            type: 'tmwya.verify',
+            items: mealData.items,
+            totals: mealData.totals
+          }
+        };
+      }
+    } catch (error) {
+      console.error('[handleUserMessage] TMWYA pipeline failed:', error);
+    }
   }
 
-  // Step 2: Detect intent (will use router decision if confidence >= 0.6)
-  const intentResult = await detectIntent(message, routerDecision);
-  console.log('[handleUserMessage] Intent detected:', intentResult);
+  // AMA path continues as before...
+  // Guard against any unexpected normalizer/router issues
+  try {
+    // no-op; kept to ensure we never throw before AMA execution
+  } catch (e) {
+    console.warn('[handleUserMessage] normalization guard tripped', e);
+  }
 
-  // Normalize intent names: 'food_log' → 'meal_logging'
-  const normalizedIntent = intentResult.intent === 'food_log' ? 'meal_logging' : intentResult.intent;
-  console.log('[handleUserMessage] Normalized intent:', normalizedIntent);
-
-  // Step 2.5: UNIFIED NUTRITION PIPELINE
-  // Handles both "food_question" (info-only) and "meal_logging" (with log button)
-  if ((normalizedIntent === 'meal_logging' || normalizedIntent === 'food_question') && intentResult.confidence >= 0.5) {
+  // AMA nutrition CTA
+  if (routerDecision.ama_nutrition_estimate) {
     try {
       const { processNutrition } = await import('../nutrition/unifiedPipeline');
       
       // Determine if we should show the log button
       // food_question → info-only (show Edit/Cancel, but still allow logging)
       // meal_logging → full logging mode (show Log/Edit/Cancel)
-      const showLogButton = normalizedIntent === 'meal_logging';
-      
-      console.log(`[nutrition] Intent: ${normalizedIntent}, showLogButton: ${showLogButton}`);
+      const showLogButton = routerDecision.intent === 'meal_logging';
+
+      console.log(`[nutrition] Intent: ${routerDecision.intent}, showLogButton: ${showLogButton}`);
       
       const pipelineResult = await processNutrition({
         message,
@@ -120,21 +142,32 @@ export async function handleUserMessage(
       });
       
       if (pipelineResult.success && pipelineResult.roleData) {
-        // Return the shape ChatPat expects: message.roleData.type === 'tmwya.verify'
+        // Create a summary text response with verification CTA
+        const items = pipelineResult.roleData.items || [];
+        const totals = pipelineResult.roleData.totals || {};
+
+        let summaryText = `Based on standard nutritional data:\n`;
+        items.forEach((item: any, index: number) => {
+          summaryText += `${index + 1}. ${item.name}: ${item.calories || 0} calories, ${item.protein_g || 0}g protein, ${item.carbs_g || 0}g carbs, ${item.fat_g || 0}g fat\n`;
+        });
+        summaryText += `\nTotal: ${totals.calories || 0} calories, ${totals.protein_g || 0}g protein, ${totals.carbs_g || 0}g carbs, ${totals.fat_g || 0}g fat`;
+
         const result = {
-          response: '', // No text, rendered as Verification Sheet
-          intent: normalizedIntent,
-          intentConfidence: intentResult.confidence,
+          response: summaryText,
+          intent: routerDecision.intent,
+          intentConfidence: routerDecision.confidence || 0.8,
           modelUsed: 'nutrition-unified',
           estimatedCost: 0,
-          roleData: pipelineResult.roleData
+          roleData: null,
+          toolCalls: null,
+          rawData: {
+            ama_nutrition_estimate: true,
+            items: items, // Attach parsed items for Verify & Log button
+            totals: totals
+          }
         };
-        
-        console.log('[nutrition] roleData.type:', result.roleData?.type);
-        
-        // NO stub message - ChatPat will handle the verification card display
-        // Storing a stub here creates ghost entries in chat history
-        
+
+        console.log('[nutrition] AMA nutrition response prepared with verification CTA');
         return result;
       } else {
         console.warn('[nutrition] Pipeline failed, falling back to general chat:', pipelineResult.error);
@@ -148,19 +181,19 @@ export async function handleUserMessage(
 
   // Step 3: Select model (with personality router hints)
   const modelSelection: ModelSelection = selectModel({
-    intent: intentResult.intent,
-    intentConfidence: intentResult.confidence,
+    intent: routerDecision.intent,
+    intentConfidence: routerDecision.confidence || 0.8,
     messageLength: message.length,
-    requiresStructuredOutput: shouldTriggerRole(intentResult.intent),
-    forceOpenAI: intentResult.metadata?.use_openai === true,
-    needsWeb: intentResult.metadata?.needs_web === true,
-    wantsLinks: intentResult.metadata?.wants_links === true,
-    depth: intentResult.metadata?.depth || 'brief',
-    hints: routerDecision ? {
+    requiresStructuredOutput: shouldTriggerRole(routerDecision.intent),
+    forceOpenAI: false, // routerDecision handles model selection
+    needsWeb: routerDecision.route_to === 'ama' && routerDecision.use_gemini,
+    wantsLinks: false,
+    depth: 'brief',
+    hints: {
       use_gemini: routerDecision.use_gemini,
-      confidence: routerDecision.confidence,
+      confidence: routerDecision.confidence || 0.8,
       reason: routerDecision.reason
-    } : undefined
+    }
   });
 
   const cost = estimateCost(modelSelection);
@@ -170,10 +203,10 @@ export async function handleUserMessage(
   // Step 4: Check if we should trigger a role
   let roleData: any = null;
 
-  if (shouldTriggerRole(intentResult.intent)) {
+  if (shouldTriggerRole(routerDecision.intent)) {
     // TODO: Load role manifest and execute role handler
-    console.log('[handleUserMessage] Role trigger needed:', intentResult.intent);
-    // roleData = await executeRole(intentResult.intent, message, context);
+    console.log('[handleUserMessage] Role trigger needed:', routerDecision.intent);
+    // roleData = await executeRole(routerDecision.intent, message, context);
   }
 
   // Step 5: Build system prompt with user context
@@ -184,7 +217,7 @@ export async function handleUserMessage(
   try {
     const { getSwarmForIntent, buildSwarmPrompt } = await import('../swarm/loader');
 
-    swarm = await getSwarmForIntent(intentResult.intent);
+    swarm = await getSwarmForIntent(routerDecision.intent);
 
     if (!swarm) {
       // No swarm matched; force-load personality swarm as fallback
@@ -211,7 +244,7 @@ export async function handleUserMessage(
   }
 
   // Step 5.5: AMA fallback for meal logging when TMWYA not available
-  if (intentResult.intent === 'meal_logging' && intentResult.confidence >= 0.5) {
+  if (routerDecision.intent === 'meal_logging' && routerDecision.confidence >= 0.5) {
     try {
       const { portionResolver } = await import('../../agents/shared/nutrition/portionResolver');
       const { macroLookup } = await import('../../agents/shared/nutrition/macroLookup');
@@ -286,8 +319,8 @@ Please acknowledge this meal logging and provide a brief summary.`;
 
   return {
     response: assistantText,
-    intent: intentResult.intent,
-    intentConfidence: intentResult.confidence,
+    intent: routerDecision.intent,
+    intentConfidence: routerDecision.confidence || 0.8,
     modelUsed: getModelDisplayName(modelSelection),
     estimatedCost: cost,
     roleData,
@@ -303,6 +336,37 @@ interface LLMCallParams {
   roleData: any;
   modelSelection: ModelSelection;
   userId: string;
+}
+
+/**
+ * Helper function for OpenAI fallback calls
+ */
+async function callOpenAI(messages: any[], userId: string | undefined, temperature: number): Promise<{ message: string } | null> {
+  const { getSupabase } = await import('../../lib/supabase');
+  const supabase = getSupabase();
+
+  try {
+    const { data, error } = await supabase.functions.invoke('openai-chat', {
+      body: {
+        messages,
+        stream: false,
+        userId,
+        temperature,
+        model: 'gpt-4o-mini',
+        provider: 'openai'
+      }
+    });
+
+    if (error || !data?.message) {
+      console.error('[callOpenAI] Fallback failed:', error);
+      return null;
+    }
+
+    return { message: data.message };
+  } catch (e) {
+    console.error('[callOpenAI] Exception:', e);
+    return null;
+  }
 }
 
 /**
@@ -331,13 +395,60 @@ async function callLLM(params: LLMCallParams): Promise<{ message: string; tool_c
   const { getSupabase } = await import('../../lib/supabase');
   const supabase = getSupabase();
 
-  // ✅ Route by provider: gemini → gemini-chat, openai → openai-chat
-  const edgeFunction = modelSelection.provider === 'gemini' 
-    ? 'gemini-chat' 
-    : 'openai-chat';
-  
+  // ✅ Special handling for Gemini web research
+  if (modelSelection.provider === 'gemini') {
+    console.info('[callLLM] Using Gemini for web research');
+
+    // Call gemini-chat with the user message as prompt
+    const { data, error } = await supabase.functions.invoke('gemini-chat', {
+      body: { prompt: userMessage }
+    });
+
+    if (error) {
+      console.warn('[callLLM] Gemini failed, falling back to OpenAI:', error);
+      // Fallback to OpenAI with a notice to the user
+      const fallbackMessage = "Web search failed, answering from model knowledge.\n\n";
+      const openaiResponse = await callOpenAI(messages, userId, modelSelection.temperature ?? 0.3);
+      return {
+        message: fallbackMessage + (openaiResponse?.message || "I apologize, but I'm having trouble responding right now."),
+        tool_calls: null,
+        raw_data: { fallback: true, original_error: error }
+      };
+    }
+
+    if (data?.ok !== true) {
+      console.warn('[callLLM] Gemini returned error:', data);
+      // Fallback to OpenAI with a notice to the user
+      const fallbackMessage = "Web search failed, answering from model knowledge.\n\n";
+      const openaiResponse = await callOpenAI(messages, userId, modelSelection.temperature ?? 0.3);
+      return {
+        message: fallbackMessage + (openaiResponse?.message || "I apologize, but I'm having trouble responding right now."),
+        tool_calls: null,
+        raw_data: { fallback: true, gemini_error: data }
+      };
+    }
+
+    // Gemini succeeded - format response with source
+    const text = data.text || "No response content";
+    const cite = data.cite || "";
+    const citeTitle = data.citeTitle || "";
+
+    let formattedMessage = text;
+    if (cite) {
+      formattedMessage += `\n\nSource: ${cite}`;
+    }
+
+    console.log('[callLLM] Gemini web research response, length:', formattedMessage.length);
+    return {
+      message: formattedMessage,
+      tool_calls: null,
+      raw_data: { gemini: true, cite, citeTitle }
+    };
+  }
+
+  // ✅ OpenAI path
+  const edgeFunction = 'openai-chat';
   console.info('[callLLM] Invoking edge function:', edgeFunction, 'provider:', modelSelection.provider);
-  console.info('[callLLM] Final function:', edgeFunction, { provider: modelSelection.provider, model: modelSelection.model });
 
   const { data, error } = await supabase.functions.invoke(edgeFunction, {
     body: {

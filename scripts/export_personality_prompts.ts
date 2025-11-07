@@ -9,38 +9,33 @@ async function main() {
   const client = new Client({ connectionString: SUPABASE_DB_URL });
   await client.connect();
   const res = await client.query(`
-    SELECT prompt_code, title, phase, "order", model, version, locked, content
+    SELECT prompt_key, agent, phase, "order", enabled, content
     FROM personality_prompts
     ORDER BY phase, "order"
   `);
 
   const values = res.rows.map(r => `(
-    '${r.prompt_code.replace(/'/g,"''")}',
-    '${r.title.replace(/'/g,"''")}',
+    '${r.prompt_key.replace(/'/g,"''")}',
+    '${r.agent}',
     '${r.phase}',
     ${r.order},
-    '${r.model}',
-    ${r.version},
-    ${r.locked ? 'true' : 'false'},
+    ${r.enabled ? 'true' : 'false'},
     $$${r.content}$$
   )`).join(',\n');
 
   const sql = `WITH seed AS (
   SELECT * FROM (VALUES
 ${values}
-  ) AS t(prompt_code, title, phase, "order", model, version, locked, content)
+  ) AS t(prompt_key, agent, phase, "order", enabled, content)
 )
-INSERT INTO personality_prompts AS p (prompt_code, title, phase, "order", model, version, locked, content)
-SELECT prompt_code, title, phase, "order", model, version, locked, content FROM seed
-ON CONFLICT (prompt_code) DO UPDATE
-SET title=EXCLUDED.title,
-    phase=EXCLUDED.phase,
+INSERT INTO personality_prompts AS p (prompt_key, agent, phase, "order", enabled, content)
+SELECT prompt_key, agent, phase, "order", enabled, content FROM seed
+ON CONFLICT (prompt_key) DO UPDATE
+SET phase=EXCLUDED.phase,
     "order"=EXCLUDED."order",
-    model=EXCLUDED.model,
-    version=EXCLUDED.version,
+    enabled=EXCLUDED.enabled,
     content=EXCLUDED.content,
-    updated_at=now()
-WHERE p.locked IS NOT TRUE;`;
+    updated_at=now();`;
 
   const out = `supabase/seed/personality_prompts.snapshot.sql`;
   writeFileSync(out, sql);
